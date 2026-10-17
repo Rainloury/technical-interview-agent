@@ -528,6 +528,36 @@ class InterviewTurn(Base):
     updated_at: Mapped[datetime] = _updated_at()
 
 
+class InterviewOperation(Base):
+    __tablename__ = "interview_operations"
+    __table_args__ = (
+        CheckConstraint(
+            "operation IN ('start','skip','end_branch')",
+            name="operation",
+        ),
+        UniqueConstraint(
+            "owner_user_id",
+            "interview_id",
+            "operation",
+            "idempotency_key",
+            name="owner_interview_operation_key",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUIDType, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    interview_id: Mapped[uuid.UUID] = mapped_column(
+        UUIDType, ForeignKey("interviews.id", ondelete="CASCADE"), nullable=False
+    )
+    operation: Mapped[str] = mapped_column(String(24), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(Text, nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
+    response_json: Mapped[dict[str, Any]] = mapped_column(JSONBType, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
 class FollowUpChain(Base):
     __tablename__ = "follow_up_chains"
     __table_args__ = (
@@ -717,7 +747,8 @@ class AsyncJob(Base):
     __table_args__ = (
         CheckConstraint(
             "job_type IN ('parse_resume','analyze_resume','generate_questions',"
-            "'answer_question','score_answer','generate_report','delete_data')",
+            "'answer_question','score_open_interview_turn','score_interview_turn',"
+            "'advance_interview','generate_report','delete_data')",
             name="job_type",
         ),
         CheckConstraint(

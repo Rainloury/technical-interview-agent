@@ -5,6 +5,7 @@ import {
   Menu,
   MessageSquareText,
   Plus,
+  Target,
   Search,
   X,
 } from "lucide-react";
@@ -18,6 +19,8 @@ import { useAuth } from "../auth/context";
 const navigation = [
   { to: "/workspace", label: "工作台", icon: LayoutDashboard },
   { to: "/qa", label: "技术问答", icon: Search },
+  { to: "/interviews", label: "模拟面试", icon: MessageSquareText },
+  { to: "/reviews", label: "复习中心", icon: Target },
   { to: "/history", label: "历史记录", icon: History },
 ];
 
@@ -108,12 +111,6 @@ export function AppShell() {
               <Plus size={18} strokeWidth={1.8} aria-hidden="true" />
               <span>上传简历</span>
             </NavLink>
-            <p className="nav-label next-work-label">即将开放</p>
-            <div className="next-work-row">
-              <MessageSquareText size={17} aria-hidden="true" />
-              <span>模拟面试</span>
-              <span className="soon">待开放</span>
-            </div>
           </div>
         </div>
 

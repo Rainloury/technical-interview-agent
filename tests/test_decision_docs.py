@@ -72,7 +72,7 @@ def test_first_slice_assets_are_present_after_approval() -> None:
         assert (ROOT / relative_path).is_file(), f"{relative_path} is missing"
 
 
-def test_phase_docs_describe_the_current_retrieval_qa_slice() -> None:
+def test_phase_docs_describe_the_current_interview_report_slice() -> None:
     documents = (
         README,
         DOCS_README,
@@ -83,15 +83,15 @@ def test_phase_docs_describe_the_current_retrieval_qa_slice() -> None:
     )
     for path in documents:
         text = _read(path)
-        assert "检索问答切片验收通过" in text, path
+        assert "模拟面试与报告切片验收通过" in text, path
         assert "真实 provider FAST eval 已通过" in text, path
         assert "完整 G4A 模型矩阵仍未关闭" in text, path
-        assert "准备进入模拟面试与报告切片" in text, path
-        assert "9 files / 32 tests" in text, path
-        assert "116 passed" in text, path
-        assert "8 passed" in text, path
-        assert "84 files" in text, path
-        assert "4b6e9d2c1a70" in text, path
+        assert "准备进入上线质量切片" in text, path
+        assert "11 files / 36 tests" in text, path
+        assert "126 passed" in text, path
+        assert "12 passed" in text, path
+        assert "58 files" in text, path
+        assert "7d1a3e5b9c42" in text, path
         assert "3/3" in text, path
 
     implementation_docs = (
@@ -142,5 +142,37 @@ def test_retrieval_qa_assets_and_boundaries_are_present() -> None:
         "citation_id",
         "source_state",
         "任意 URL",
+    ):
+        assert fragment in design, f"{fragment} missing from {TECHNICAL_DESIGN}"
+
+
+def test_interview_report_assets_and_boundaries_are_present() -> None:
+    for relative_path in (
+        "app/api/v1/interviews.py",
+        "app/services/interviews.py",
+        "app/schemas/interview.py",
+        "app/interview_contracts.py",
+        "app/prompts/interview_questions.md",
+        "app/prompts/interview_scoring.md",
+        "app/prompts/interview_follow_up.md",
+        "migrations/versions/2c9e7f4a1b60_add_interview_slice.py",
+        "migrations/versions/7d1a3e5b9c42_add_interview_advance_job.py",
+        "tests/test_interview_api.py",
+        "web/src/pages/InterviewPage.tsx",
+        "web/src/pages/InterviewDetailPage.tsx",
+        "web/src/pages/ReviewPage.tsx",
+        "web/e2e/interview-slice.spec.ts",
+    ):
+        assert (ROOT / relative_path).is_file(), f"{relative_path} is missing"
+
+    design = _read(TECHNICAL_DESIGN)
+    for fragment in (
+        "POST /api/v1/interviews",
+        "POST /api/v1/interviews/{id}/start",
+        "POST /api/v1/interviews/{id}/turns/{turn_id}/answer",
+        "GET /api/v1/interviews/{id}/report",
+        "report_not_ready",
+        "feedback_locked",
+        "advance_interview",
     ):
         assert fragment in design, f"{fragment} missing from {TECHNICAL_DESIGN}"

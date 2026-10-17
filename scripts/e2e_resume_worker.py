@@ -15,6 +15,11 @@ from app.db.models import (
     KnowledgeSourceVersion,
 )
 from app.db.session import create_engine, create_session_factory
+from app.interview_contracts import (
+    InterviewFollowUpOutput,
+    InterviewQuestionsOutput,
+    InterviewScoringOutput,
+)
 from app.llm.client import PromptMetadata, TraceContext
 from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
@@ -49,7 +54,12 @@ class DeterministicResumeLlm:
         system_prompt: str,
         user_prompt: str,
         output_schema: (
-            type[ResumeAnalysisOutput] | type[ResumeQuestionsOutput] | type[QaAnswerOutput]
+            type[ResumeAnalysisOutput]
+            | type[ResumeQuestionsOutput]
+            | type[QaAnswerOutput]
+            | type[InterviewQuestionsOutput]
+            | type[InterviewScoringOutput]
+            | type[InterviewFollowUpOutput]
         ),
         context: TraceContext,
     ) -> DeterministicLlmResult:
@@ -124,6 +134,41 @@ class DeterministicResumeLlm:
                 evidence_ids=["evidence-1"],
                 extended_questions=["如何选择重试上限与退避窗口？"],
                 evidence_status="supported",
+            )
+        elif output_schema is InterviewQuestionsOutput:
+            output = InterviewQuestionsOutput.model_validate(
+                {
+                    "questions": [
+                        {
+                            "question_text": (
+                                f"E2E 主问题 {index}: "
+                                "如何设计有界重试并保证重复提交不会产生副作用？"
+                            ),
+                            "reference_answer": "受保护参考答案：幂等键、唯一约束与有界重试。",
+                            "scoring_rubric": ["正确性", "工程取舍", "故障恢复"],
+                        }
+                        for index in range(1, 6)
+                    ]
+                }
+            )
+        elif output_schema is InterviewScoringOutput:
+            output = InterviewScoringOutput.model_validate(
+                {
+                    "correctness": {"score": 90, "deduction_reason": ""},
+                    "technical_depth": {"score": 88, "deduction_reason": ""},
+                    "engineering_judgment": {"score": 86, "deduction_reason": ""},
+                    "completeness": {"score": 84, "deduction_reason": "边界说明可以更具体"},
+                    "clarity": {"score": 90, "deduction_reason": ""},
+                    "critical_error": False,
+                    "loss_reasons": [],
+                    "feedback": "回答覆盖了核心机制和恢复路径。",
+                }
+            )
+        elif output_schema is InterviewFollowUpOutput:
+            output = InterviewFollowUpOutput(
+                question_text="E2E 追问：并发重放时，唯一约束和响应回放如何配合？",
+                reference_answer="受保护追问参考答案：唯一约束负责去重，响应回放保证结果一致。",
+                scoring_rubric=["幂等", "并发", "响应一致性"],
             )
         else:
             raise RuntimeError("unexpected output schema")

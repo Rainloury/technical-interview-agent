@@ -1,8 +1,8 @@
 # 文档导航
 
-当前阶段：**检索问答切片验收通过，准备进入模拟面试与报告切片**。`DR-07` 已批准，`web/` 已实现账号、工作台、四类历史分页、响应式导航、简历上传/处理/出题/删除，以及 `/qa`、`/qa/:id` 的流式问答与证据展示。后端已提供 `interview_session`（`HttpOnly`）、`interview_csrf`、`X-CSRF-Token`、`{items, next_cursor}`、owner-scoped QA API 和持久 SSE 重放，并在 `auth_sessions.csrf_token_hash` 只保存 CSRF 哈希。
+当前阶段：**模拟面试与报告切片验收通过，准备进入上线质量切片**。`DR-07` 已批准，`web/` 已实现账号、工作台、四类历史分页、响应式导航、简历闭环、检索问答、模拟面试、终态报告和复习中心。后端已提供 `interview_session`（`HttpOnly`）、`interview_csrf`、`X-CSRF-Token`、`{items, next_cursor}`、owner-scoped 面试与复习 API、持久 SSE 重放和数据库权威截止，并在 `auth_sessions.csrf_token_hash` 只保存 CSRF 哈希。
 
-真实 provider FAST eval 已通过；完整 G4A 模型矩阵仍未关闭。检索问答切片验收通过，已覆盖桌面与移动 E2E `8 passed`、前端 Vitest `9 files / 32 tests`、后端集成测试 `116 passed`、Mypy `84 files`、确定性 eval `3/3` 和迁移头 `4b6e9d2c1a70`；下一步进入模拟面试与报告切片准备，同时继续补齐完整模型矩阵。
+模拟面试与报告切片验收通过，已覆盖桌面与移动 E2E `12 passed`、面试专项 `4 passed`、前端 Vitest `11 files / 36 tests`、后端集成测试 `126 passed`、Mypy `58 files`、确定性 eval `3/3` 和迁移头 `7d1a3e5b9c42`；下一步进入上线质量切片。真实 provider FAST eval 已通过；完整 G4A 模型矩阵仍未关闭。
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |

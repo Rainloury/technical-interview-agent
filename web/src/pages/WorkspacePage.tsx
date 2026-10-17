@@ -58,6 +58,10 @@ export function WorkspacePage() {
             <Plus size={17} aria-hidden="true" />
             <span>上传简历</span>
           </Link>
+          <Link className="primary-button primary-button--link" to="/interviews">
+            <MessageSquareText size={17} aria-hidden="true" />
+            <span>模拟面试</span>
+          </Link>
           <Link className="secondary-button secondary-button--link" to="/history">
             <History size={17} aria-hidden="true" />
             <span>全部历史</span>
@@ -193,6 +197,15 @@ export function WorkspacePage() {
                         <span>{formatDate(interview.updated_at)}</span>
                       </div>
                       <span className="state-pill">{stateLabel(interview.state)}</span>
+                      {interview.state !== "created" && (
+                        <Link
+                          className="record-action"
+                          to={`/interviews/${interview.id}`}
+                          aria-label={`继续 ${directionLabels[interview.direction]}`}
+                        >
+                          <ArrowRight size={16} aria-hidden="true" />
+                        </Link>
+                      )}
                     </article>
                   ))}
                 </div>

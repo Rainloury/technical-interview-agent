@@ -5,6 +5,8 @@ import { PublicOnlyRoute } from "./auth/PublicOnlyRoute";
 import { AppShell } from "./components/AppShell";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { InterviewDetailPage } from "./pages/InterviewDetailPage";
+import { InterviewPage } from "./pages/InterviewPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { QaDetailPage } from "./pages/QaDetailPage";
@@ -13,6 +15,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { ResumeDetailPage } from "./pages/ResumeDetailPage";
 import { ResumeUploadPage } from "./pages/ResumeUploadPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { ReviewPage } from "./pages/ReviewPage";
 import { WorkspacePage } from "./pages/WorkspacePage";
 
 export function App() {
@@ -31,6 +34,9 @@ export function App() {
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/qa" element={<QaPage />} />
           <Route path="/qa/:id" element={<QaDetailPage />} />
+          <Route path="/interviews" element={<InterviewPage />} />
+          <Route path="/interviews/:id" element={<InterviewDetailPage />} />
+          <Route path="/reviews" element={<ReviewPage />} />
           <Route path="/resumes/new" element={<ResumeUploadPage />} />
           <Route path="/resumes/:id" element={<ResumeDetailPage />} />
         </Route>

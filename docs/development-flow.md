@@ -35,7 +35,7 @@
 | 技术基线 | 技术设计 v0.12，ADR-0001 至 ADR-0008 全部接受 |
 | 工程骨架 | 已完成，应用、迁移、质量门禁和首次 eval 基线均已验证 |
 | 需求审批 | `DR-01` 至 `DR-07` 已批准；`DR-07` 选择方案 A |
-| 当前阶段 | 检索问答切片验收通过，准备进入模拟面试与报告切片 |
+| 当前阶段 | 模拟面试与报告切片验收通过，准备进入上线质量切片 |
 | 下一步 | 定义模拟面试、评分和报告的状态迁移与接口，启动模拟面试纵向切片 |
 
 ## 流程总览
@@ -215,7 +215,7 @@ flowchart TD
 - `AgentLoop` 将完整工具参数 Schema 注入每轮 Prompt，并把工具清单与观察结果计入调用前的 token 预算。
 - `app/agent/loop.py` 实现 plan -> act -> observe，默认 8 步、200000 token、60 秒、深度不超过 2。
 - 确定性 Agent eval 验证工具选择、不可信内容隔离、2000 字符预览边界和终止行为。
-- 启用集成测试后 `116 passed`；迁移检查与前端质量门禁通过；确定性 eval `3/3`。测试包含 `DR-07` 审批边界、账号/简历/问答切片资产、双 Cookie/CSRF 契约、异步 Worker 状态链、证据引用校验和 SSE 重放。
+- 启用集成测试后 `126 passed`；迁移检查与前端质量门禁通过；确定性 eval `3/3`。测试包含审批边界、账号/简历/问答/面试切片资产、双 Cookie/CSRF 契约、异步 Worker 状态链、证据引用校验、SSE 重放、数据库硬截止和受保护反馈解锁。
 
 尚未完成：
 
@@ -285,7 +285,7 @@ flowchart TD
 - 异步任务、租约、重试、分析结构化输出、10 题覆盖计划和失败恢复已接通。
 - 原始简历单独删除、源文件不可访问、证据摘要脱敏和衍生数据保留已验证。
 - Playwright 桌面与移动项目覆盖上传、处理中、10 道题、删除原始简历和删除后状态。
-- 后端集成测试 `116 passed`，前端 Vitest `9 files / 32 tests`，双视口 E2E `8 passed`。
+- 后端集成测试 `126 passed`，前端 Vitest `11 files / 36 tests`，双视口 E2E `12 passed`。
 
 阶段结论：已满足进入检索问答的条件。
 
@@ -607,9 +607,9 @@ flowchart TD
 
 既有需求审批、技术评审和工程门禁均已关闭；`DR-07` 已按方案 A 批准。账号、简历与检索问答纵向切片已验收通过：
 
-1. Playwright 桌面与移动项目通过 `8 passed`，覆盖账号、工作台、历史、简历闭环，以及问答创建、流式证据、失败分支、幂等重放和历史重开。
-2. 前端 typecheck、Vitest `9 files / 32 tests`、ESLint 和生产构建通过。
-3. 后端 ruff、格式检查、mypy（84 files）、`RUN_INTEGRATION=1 pytest`（`116 passed`）和 `alembic check` 通过，迁移头为 `4b6e9d2c1a70`。
+1. Playwright 桌面与移动项目通过 `12 passed`，覆盖账号、历史、简历、问答、模拟面试配置/恢复/追问/跳过、受保护报告和复习入口。
+2. 前端 typecheck、Vitest `11 files / 36 tests`、ESLint 和生产构建通过。
+3. 后端 ruff、格式检查、mypy（58 files）、`RUN_INTEGRATION=1 pytest`（`126 passed`）和 `alembic check` 通过，迁移头为 `7d1a3e5b9c42`。
 4. `interview_session` 的 `HttpOnly` 边界、`interview_csrf`/`X-CSRF-Token` 写请求保护和 `csrf_token_hash` 仅保存哈希均有自动化验证。
 5. 历史接口的 `{items, next_cursor}`、问答历史重开、持久 SSE 游标和公开证据字段边界均已验证。
 
@@ -645,3 +645,4 @@ flowchart TD
 | v2.6 | 2026-10-17 | 技术设计同步至 v0.10；清理首切片验收收尾表述，统一当前阶段、集成测试证据和简历闭环入口 |
 | v2.7 | 2026-10-17 | 简历纵向切片验收通过：桌面与移动 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；当前阶段切换为检索问答切片 |
 | v2.8 | 2026-10-18 | 检索问答切片验收通过：双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；当前阶段切换为模拟面试与报告切片 |
+| v2.9 | 2026-10-18 | 模拟面试与报告切片验收通过：双视口 E2E `12 passed`、面试专项 `4 passed`、前端 `11 files / 36 tests`、后端 `126 passed`、mypy 58 files、确定性 eval `3/3`、迁移头 `7d1a3e5b9c42`；当前阶段切换为上线质量切片 |

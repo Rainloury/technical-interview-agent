@@ -34,6 +34,9 @@ describe("WorkspacePage", () => {
     expect(
       screen.getByRole("link", { name: "查看 如何解释数据库索引？" }),
     ).toHaveAttribute("href", "/qa/task-2");
+    expect(
+      screen.getByRole("link", { name: "继续 后端方向" }),
+    ).toHaveAttribute("href", "/interviews/interview-1");
     expect(screen.getByRole("link", { name: "历史记录" })).toHaveClass("nav-item");
   });
 

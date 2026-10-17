@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.12 |
-| 文档状态 | 检索问答切片验收通过，准备进入模拟面试与报告切片 |
+| 文档版本 | v0.13 |
+| 文档状态 | 模拟面试与报告切片验收通过，准备进入上线质量切片 |
 | 更新日期 | 2026-10-18 |
 | 需求依据 | `docs/requirements.md` v1.5 |
 | 产品依据 | `docs/product-design.md` v1.5 |
@@ -145,6 +145,19 @@ Worker
 评分结果在整场结束前只通过内部服务读取，不进入用户响应。回答提交 DTO 不读取评分字段；公开响应固定为 `202 Accepted`、已接收状态和中性进度。进行中查询只能展示 `DR-03` 允许的中性流程信息，不得返回趋势、预测、关键错误或追问触发依据。P0 只有结束当前追问链操作；P1 才允许独立、二次确认的提前结束整场。
 
 受保护反馈只在面试进入终态且所有已接收轮次离开 `scoring` 后解锁。永久评分失败必须转为可解释的 `scoring_failed`，报告可返回已成功轮次并标记 `incomplete_scoring`，不得暴露失败轮次的中间评分、参考答案或追问依据；后续评分恢复在原终态内重新生成报告。
+
+实现状态：模拟面试与报告切片已验收。
+
+- 接口：`POST /api/v1/interviews`、`POST /api/v1/interviews/{id}/start`、`GET /api/v1/interviews/{id}`、`POST /api/v1/interviews/{id}/turns/{turn_id}/answer`、`POST /api/v1/interviews/{id}/turns/{turn_id}/skip`、`POST /api/v1/interviews/{id}/turns/{turn_id}/end-branch`、`GET /api/v1/interviews/{id}/report`、`GET /api/v1/wrong-questions`、`GET /api/v1/wrong-questions/{id}`、`GET /api/v1/weak-points`、`GET /api/v1/weak-points/{id}`。
+- 创建、开始、回答、跳过追问和结束当前追问链分别使用冻结的幂等键与请求指纹；重复请求返回首次结果。
+- `POST /api/v1/interviews/{id}/turns/{turn_id}/answer` 固定返回 `202` 与中性进度；分值、通过结论、参考答案和追问依据不进入进行中 DTO。
+- 开始面试使用 PostgreSQL `statement_timestamp()` 写入 40 分钟截止时间；提交与分支操作在同一行锁内校验 `server_now < deadline_at`。
+- Worker 使用 `score_open_interview_turn`、`score_interview_turn` 和 `advance_interview` 处理开题、评分与分支推进；所有任务沿用租约、fencing 和有限重试。
+- 评分权重固定为 35/25/20/10/10；确定性代码执行 `<70`、`70–84`、`>=85` 与关键错误规则。
+- 每条追问链最多 2 层追问、3 次回答；跳过、结束分支、截止和评分失败使用独立终止原因。
+- `GET /api/v1/interviews/{id}/report` 仅在终态且所有已接收轮次离开 `scoring` 后返回；未就绪返回 `report_not_ready`。
+- `GET /api/v1/wrong-questions/{id}` 在进行中返回 `feedback_locked`；错题、薄弱点和来源证据只在终态报告解锁。
+- 前端提供 `/interviews`、`/interviews/:id` 和 `/reviews`，进行中只展示当前题、已提交记录、中性分支状态和服务端剩余时间。
 
 ### 4.4 账号、工作台与历史入口
 
@@ -430,3 +443,4 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 | v0.10 | 2026-10-17 | 首个用户可见纵向切片验收通过：双视口 E2E、前端质量门禁、后端 `88 passed` 与迁移检查完成；下一阶段进入简历闭环，完整 G4A 模型矩阵仍未关闭 |
 | v0.11 | 2026-10-17 | 简历纵向切片验收通过：双视口 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；下一阶段进入检索问答 |
 | v0.12 | 2026-10-18 | 检索问答 P0 切片验收通过：owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、持久 SSE 重放与前端 `/qa`、`/qa/:id` 已落地；双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；下一阶段为模拟面试与报告 |
+| v0.13 | 2026-10-18 | 模拟面试与报告切片验收通过：数据库权威截止、操作与轮次幂等、中性提交响应、评分阈值、两层追问、分支终止原因、永久评分失败收口、终态报告和复习解锁已落地；双视口 E2E `12 passed`、前端 `11 files / 36 tests`、后端 `126 passed`、mypy 58 files、迁移头 `7d1a3e5b9c42`；下一阶段为上线质量 |
