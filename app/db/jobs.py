@@ -124,3 +124,39 @@ async def renew_job_lease(
         )
     )
     return bool(result.rowcount)
+
+
+async def enqueue_job(
+    session: AsyncSession,
+    *,
+    owner_user_id: uuid.UUID,
+    job_type: str,
+    resource_type: str,
+    resource_id: uuid.UUID,
+    idempotency_key: str,
+    max_attempts: int,
+    request_fingerprint: str = "",
+    next_run_at: datetime | None = None,
+) -> AsyncJob:
+    """Insert one job when its unique idempotency key is not already present."""
+
+    existing = (
+        await session.execute(select(AsyncJob).where(AsyncJob.idempotency_key == idempotency_key))
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing
+    values: dict[str, Any] = {
+        "owner_user_id": owner_user_id,
+        "job_type": job_type,
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+        "idempotency_key": idempotency_key,
+        "request_fingerprint": request_fingerprint,
+        "max_attempts": max_attempts,
+    }
+    if next_run_at is not None:
+        values["next_run_at"] = next_run_at
+    job = AsyncJob(**values)
+    session.add(job)
+    await session.flush()
+    return job

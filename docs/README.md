@@ -1,21 +1,23 @@
 # 文档导航
 
-当前阶段：**核心能力基座**。需求决策、ADR 技术评审和工程骨架均已通过，下一步是实现 LLM Client、Prompt、Tool Registry 与有界 Agent Loop。
+当前阶段：**简历纵向切片验收通过，准备进入检索问答切片**。`DR-07` 已批准，`web/` 已建立；账号、工作台、四类历史分页、响应式导航和简历上传/处理/出题/删除闭环已实现。后端已提供 `interview_session`（`HttpOnly`）、`interview_csrf`、`X-CSRF-Token` 与 `{items, next_cursor}` 契约，并在 `auth_sessions.csrf_token_hash` 只保存 CSRF 哈希。
+
+真实 provider FAST eval 已通过；完整 G4A 模型矩阵仍未关闭。简历纵向切片验收通过，已覆盖桌面与移动 E2E `4 passed`、前端 Vitest `7 files / 21 tests`、后端集成测试 `107 passed`、Mypy `78 files`、确定性 eval `3 passed` 和迁移头 `8f3d2a1c7b90`；准备进入检索问答切片，同时继续补齐完整模型矩阵。
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
-| [开发全流程](./development-flow.md) | 从需求收集到 MVP 落地、上线和迭代的入口、阶段门禁与交付物 | v1.8 当前流程基线 |
+| [开发全流程](./development-flow.md) | 从需求收集到 MVP 落地、上线和迭代的入口、阶段门禁与交付物 | v2.7 当前流程基线 |
 | [需求文档](./requirements.md) | 产品目标、范围、功能需求、状态模型、验收场景和已确认决策 | v1.5 需求基线 |
 | [产品方案设计](./product-design.md) | 信息架构、页面方案、交互规则、数据隐私和 MVP 交付切片 | v1.5 已确认 |
-| [决策登记与审批](./decision-register.md) | 需求审批规则、已确认决策和已关闭的待审批事项 | v0.6 需求决策全部批准 |
-| [技术设计](./technical-design.md) | 总体架构、运行链路、权限、预算、异步任务和实现顺序 | v0.7 技术基线 |
-| [数据模型](./data-model.md) | 核心表、关系、约束、索引、迁移和保留策略 | v0.5 技术基线 |
+| [决策登记与审批](./decision-register.md) | 需求审批规则、已确认决策和首个切片审批 | v0.8 `DR-07` 已批准 |
+| [技术设计](./technical-design.md) | 总体架构、运行链路、权限、预算、异步任务和实现顺序 | v0.11 当前基线 |
+| [数据模型](./data-model.md) | 核心表、关系、约束、索引、迁移和保留策略 | v0.6 技术基线 |
 | [状态机与事务](./state-machine.md) | 简历、面试、轮次、追问链、删除的迁移与并发规则 | v0.5 技术基线 |
-| [接口契约](./api-contract.md) | HTTP API、SSE、错误码、幂等和权限测试矩阵 | v0.6 技术基线 |
-| [威胁模型](./threat-model.md) | 信任边界、主要威胁、控制措施和上线阻断条件 | v0.4 技术评审 |
+| [接口契约](./api-contract.md) | HTTP API、SSE、错误码、幂等和权限测试矩阵 | v0.7 账号与历史契约已落地 |
+| [威胁模型](./threat-model.md) | 信任边界、主要威胁、控制措施和上线阻断条件 | v0.6 首切片安全控制已验收 |
 | [架构决策记录](./adr/README.md) | ADR-0001 至 ADR-0008 及后续技术决策 | 8 项已接受 |
-| [技术方案评审清单](./technical-review-checklist.md) | 架构门禁、已批准需求、评审结论和进入骨架开发的条件 | v0.7 评审通过 |
-| [下一步执行计划](./next-steps.md) | 核心基座和首个纵向切片的执行顺序与退出条件 | v0.6 执行中 |
+| [技术方案评审清单](./technical-review-checklist.md) | 架构门禁、已批准需求、基座验收证据和后续条件 | v1.6 移动 E2E 与剩余门禁已复核 |
+| [下一步执行计划](./next-steps.md) | 核心基座和业务纵向切片的执行顺序与退出条件 | v1.5 检索问答 |
 | [项目规则](../AGENTS.md) | 技术栈、分层边界、智能体开发约束、安全底线和 DoD | 生效中 |
 
 ## 快速定位
@@ -33,6 +35,7 @@
 | 哪些需求需要我审批 | [决策登记](./decision-register.md) |
 | 已接受的技术约束是什么 | [技术设计](./technical-design.md) 和 [ADR 索引](./adr/README.md) |
 | 下一步具体做什么、何时算完成 | [下一步执行计划](./next-steps.md) |
+| 前端工程与当前页面 | [技术设计的认证与前端实现](./technical-design.md) |
 | 数据怎么存、状态怎么迁移 | [数据模型](./data-model.md) 和[状态机](./state-machine.md) |
 | API 和流式事件怎么约定 | [接口契约](./api-contract.md) |
 | 有哪些架构决策 | [ADR 索引](./adr/README.md) |
@@ -41,12 +44,13 @@
 ## 建议阅读顺序
 
 1. 先读[开发全流程](./development-flow.md)，明确当前阶段、下一步和门禁。
-2. 读[决策登记](./decision-register.md)，确认 `DR-01` 至 `DR-06` 均已批准。
+2. 读[决策登记](./decision-register.md)，确认 `DR-01` 至 `DR-07` 均已批准。
 3. 读[需求文档](./requirements.md)第 14 节，确认已冻结的 MVP 规则。
 4. 读[产品方案设计](./product-design.md)第 15 节，查看已确认决策和已关闭交互问题。
 5. 读[技术设计](./technical-design.md)及其数据、状态和接口文档，核对 ADR-0001 至 ADR-0008 的实现约束。
-6. 读[下一步执行计划](./next-steps.md)，按核心基座和首个纵向切片推进。
+6. 读[下一步执行计划](./next-steps.md)，按简历切片验收证据和检索问答顺序推进。
 7. 开发前读[项目规则](../AGENTS.md)，确认分层、循环、工具、安全和测试约束。
+8. 进入检索问答前，先确认简历切片验收证据、SSE 持久事件和知识源边界。
 
 ## 文档维护规则
 

@@ -1,7 +1,10 @@
 """Configuration validation tests."""
 
+from pathlib import Path
+
 import pytest
 from app.config import Settings
+from app.prompts.loader import PromptLoader
 from pydantic import ValidationError
 
 
@@ -37,3 +40,17 @@ def test_sensitive_keys_are_secret() -> None:
 
     assert "sk-private" not in repr(settings)
     assert "smtp-private" not in repr(settings)
+
+
+def test_relative_prompt_dir_is_independent_of_working_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    settings = Settings(prompt_dir="app/prompts")
+    prompt = PromptLoader(settings.prompt_dir).load("resume_analysis")
+
+    expected = Path(__file__).resolve().parents[1] / "app" / "prompts"
+    assert Path(settings.prompt_dir) == expected
+    assert prompt.name == "resume_analysis"

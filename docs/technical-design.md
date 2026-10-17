@@ -2,14 +2,14 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.7 |
-| 文档状态 | 技术方案已确认 |
+| 文档版本 | v0.11 |
+| 文档状态 | 简历纵向切片验收通过，准备进入检索问答切片 |
 | 更新日期 | 2026-10-17 |
 | 需求依据 | `docs/requirements.md` v1.5 |
 | 产品依据 | `docs/product-design.md` v1.5 |
-| 决策依据 | `docs/decision-register.md` v0.6 |
+| 决策依据 | `docs/decision-register.md` v0.8 |
 
-> 本设计只落实已确认需求。`DR-01` 至 `DR-06` 已批准，账号、提交反馈、面试结束边界、删除后证据摘要和最小审计规则按本文冻结。ADR-0001 至 ADR-0008 已于 2026-10-17 完成技术评审并接受，技术方案门禁已关闭。
+> 本设计只落实已确认需求。`DR-01` 至 `DR-07` 已批准；`DR-07` 按方案 A 冻结首个用户可见切片和前端工程边界。ADR-0001 至 ADR-0008 已于 2026-10-17 完成技术评审并接受，技术方案门禁已关闭。
 
 ## 1. 设计目标
 
@@ -69,6 +69,7 @@ api -> agent -> tools -> llm
 | `app/prompts/` | Markdown Prompt 和版本元数据 | 在 Python 中拼接提示词 |
 | `app/worker/` | 异步任务领取、重试、超时和死信处理 | 使用无界轮询或阻塞休眠 |
 | `app/config.py` | Pydantic Settings 唯一配置入口 | 代码内散写密钥、模型名或环境差异 |
+| `web/` | React + TypeScript + Vite Web 客户端、路由、请求缓存和页面级测试 | 自行判断权限、在客户端保存会话令牌、绕过 API 契约 |
 
 ## 4. 核心运行链路
 
@@ -143,6 +144,23 @@ Worker
 
 受保护反馈只在面试进入终态且所有已接收轮次离开 `scoring` 后解锁。永久评分失败必须转为可解释的 `scoring_failed`，报告可返回已成功轮次并标记 `incomplete_scoring`，不得暴露失败轮次的中间评分、参考答案或追问依据；后续评分恢复在原终态内重新生成报告。
 
+### 4.4 账号、工作台与历史入口
+
+首个用户可见切片已经落地：
+
+```text
+register -> neutral 202 -> login -> issue server-side session
+  -> dashboard summary and empty state
+  -> four history tabs with cursor pagination
+  -> logout or password recovery/reset
+```
+
+- `web/` 使用 React Router 承载公开路由、受保护路由和工作台外壳；TanStack Query 统一缓存、失效和加载状态。
+- 登录成功签发 `interview_session`（`HttpOnly`、`Secure`、`SameSite=Lax`）和前端可读的 `interview_csrf`；写请求从后者读取值并发送 `X-CSRF-Token`。
+- 服务端在 `auth_sessions.csrf_token_hash` 保存 verifier 哈希，并同时校验 Origin/Referer allowlist。
+- 历史接口只返回当前用户资源，固定响应 `{items, next_cursor}`；前端每页 10 条，按稳定降序游标加载。
+- Playwright 覆盖注册、登录、`returnTo`、Cookie 属性、空工作台、四类历史、12 条种子数据、移动导航、溢出、退出、密码重置，以及桌面与移动简历上传、处理、10 题和删除闭环。
+
 ## 5. 一致性与事务
 
 ### 5.1 事务边界
@@ -189,6 +207,7 @@ Reset password -> consume hashed token -> revoke all user sessions
 - 登录失败统一返回 `401 invalid_credentials`；注册和密码重置请求不通过响应状态、错误码或文案暴露账号存在性。
 - 注册、登录和重置请求按来源和标准化账号维度限流；限流响应不得泄露账号是否存在。
 - 会话 Cookie 使用 `HttpOnly`、`Secure`、`SameSite=Lax`；所有写请求执行 Origin/Referer allowlist 校验。
+- CSRF 使用双 Cookie 模式：`interview_session` 不暴露给脚本，`interview_csrf` 供前端读取并放入 `X-CSRF-Token`；数据库 `auth_sessions.csrf_token_hash` 只保存校验值哈希。
 - 密码重置令牌只保存哈希、短时有效且单次使用。确认重置在同一事务内更新密码、标记令牌已使用并撤销该用户全部会话。
 - 邮件发送通过可重试的异步任务或事务外发件箱完成；发送失败不回滚账号、会话或重置请求的中性结果，也不影响登录。
 - 资源查询必须同时带资源 ID 和所有者条件。
@@ -228,6 +247,18 @@ Reset password -> consume hashed token -> revoke all user sessions
 - Schema 失败只允许有限次修复，不把错误文本直接暴露给用户。
 - 总分、通过、错题、权限和状态由确定性代码计算，模型只返回分项证据和建议。
 
+当前实现已提供：
+
+- `FAST`、`DEFAULT`、`REASONING` 三档集中解析和价格元数据，支持环境变量覆盖。
+- OpenAI Responses structured outputs 与 Anthropic JSON Schema 统一适配，不绕过官方 SDK。
+- 统一超时、有限重试、Schema 二次校验、token/费用统计和 trace 日志。
+- 可从测试注入 provider，确定性评测不需要网络或真实密钥。
+
+已完成与剩余证据：
+
+- 真实 provider FAST eval 已通过：`deepseek-flash`、2 steps、tokens `773 / 131`、latency `3471ms`、cost `$0.0003891`、Prompt `agent_system@1.0.0+agent_turn@1.1.0`。
+- 完整 G4A 模型矩阵仍未关闭；DEFAULT、REASONING、异常边界、`abort`/首 token 超时和发布成本门槛仍需模型侧证据。
+
 ### 8.2 预算
 
 | 预算 | 默认值 | 执行点 |
@@ -252,6 +283,16 @@ Reset password -> consume hashed token -> revoke all user sessions
 - 业务范围标识，例如 `resume_task_id`、`qa_request_id`、`interview_id`、`turn_id`。
 
 日志不记录完整 Prompt、简历正文、完整回答或未脱敏敏感信息。
+
+日志键脱敏只屏蔽明确凭据字段（例如 `access_token`、`api_key`、`password`），保留 `input_tokens`、`output_tokens` 等遥测字段。
+
+### 8.4 Prompt 与工具运行时
+
+- Prompt 从可信根目录加载 Markdown，必须含 `version` 与 `change`，渲染拒绝缺失或多余变量。
+- 工具参数由 Pydantic 模型生成 JSON Schema；注册时拒绝重复名、非异步实现，以及未为 write/external 工具声明 `dry_run=True` 默认值的实现。
+- 单次工具结果超过 2000 字符时只向模型注入有界预览，或写入私有临时文件并返回路径、长度和形状摘要。
+- 外部内容进入 Prompt 前统一放入 `<untrusted>`；可恢复错误使用 `ok/error/hint` 结构回灌。
+- Agent Loop 是唯一 plan -> act -> observe 迭代点，默认 8 步、200000 token、60 秒、嵌套深度不超过 2。
 
 ## 9. 检索与证据
 
@@ -350,9 +391,10 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 
 1. 初始化 `uv` 工程、配置、数据库迁移、健康检查和质量门禁。
 2. 实现核心基座：LLM Client、Prompt 加载、Tool Registry、Agent Loop 和 trace。
-3. 实现异步任务、365 天最小审计和删除/脱敏基础能力。
-4. 按账号、简历、问答、面试、报告顺序交付纵向切片；账号切片使用已冻结的 DR-01，提交与中性进度使用 DR-02、DR-03。
-5. 实现 P0 结束追问链、删除后证据 DTO 和审计保留任务，再完成 AC-01 至 AC-45、集成、安全、性能和 eval 门禁。
+3. 按 `DR-07` 方案 A 建立 `web/` 并交付账号、工作台和历史分页；该切片已验收通过。
+4. 实现异步任务、365 天最小审计和删除/脱敏基础能力；简历异步链路和删除/脱敏已落地。
+5. 按检索问答、模拟面试、报告顺序交付其余纵向切片；提交与中性进度使用 DR-02、DR-03。
+6. 实现 P0 结束追问链、删除后证据 DTO 和审计保留任务，再完成 AC-01 至 AC-45、集成、安全、性能和 eval 门禁。
 
 ## 16. 已批准需求边界与已接受技术决策
 
@@ -381,3 +423,7 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 | v0.5 | 2026-10-17 | 同步需求 v1.4，明确注册不签发会话、登录唯一签发及邮件故障隔离 |
 | v0.6 | 2026-10-17 | 同步需求 v1.5、产品 v1.5：冻结中性面试进度、P0 结束追问、删除后 200 字符证据摘要和 365 天最小审计，保留四项 ADR 待评审 |
 | v0.7 | 2026-10-17 | 接受 ADR-0003、ADR-0006、ADR-0007、ADR-0008；补全数据库时钟截止、持久 SSE 游标、任务 fencing 租约和受保护反馈终态约束；技术方案门禁关闭 |
+| v0.8 | 2026-10-17 | 同步核心基座实现证据；记录 LLM Client、Prompt、Tool Registry、Agent Loop、确定性 eval 和真实 provider 证据缺口 |
+| v0.9 | 2026-10-17 | 落实 `DR-07` 方案 A：补充 `web/`、账号/工作台/历史链路、`interview_session`/`interview_csrf`、`X-CSRF-Token`、`csrf_token_hash` 和 `{items, next_cursor}`；真实 provider FAST eval 已通过，完整 G4A 模型矩阵仍未关闭 |
+| v0.10 | 2026-10-17 | 首个用户可见纵向切片验收通过：双视口 E2E、前端质量门禁、后端 `88 passed` 与迁移检查完成；下一阶段进入简历闭环，完整 G4A 模型矩阵仍未关闭 |
+| v0.11 | 2026-10-17 | 简历纵向切片验收通过：双视口 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；下一阶段进入检索问答 |

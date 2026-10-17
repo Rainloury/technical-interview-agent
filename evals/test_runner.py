@@ -12,9 +12,13 @@ pytestmark = pytest.mark.eval
 def test_seed_eval_suite_passes() -> None:
     report = run_suite()
 
-    assert report.total == 1
+    assert report.total == 2
     assert report.passed == report.total
     assert report.pass_rate == 1.0
+    agent_case = next(
+        result for result in report.results if result.case_id == "agent-tool-selection"
+    )
+    assert agent_case.passed is True
 
 
 def test_pass_rate_regression_over_fifteen_percent_is_rejected(tmp_path: Path) -> None:

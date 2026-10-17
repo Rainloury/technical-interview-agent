@@ -2,13 +2,13 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.5 |
-| 文档状态 | 技术方案已确认 |
+| 文档版本 | v0.6 |
+| 文档状态 | 账号与历史切片数据约束已落地 |
 | 更新日期 | 2026-10-17 |
 | 技术基线 | PostgreSQL 16+、SQLAlchemy 2.0 async、Alembic |
 | 需求依据 | `docs/requirements.md` v1.5 |
 
-> 本文定义逻辑数据模型、关系、约束和索引入口。`DR-01` 至 `DR-06` 已批准，ADR-0001 至 ADR-0008 已接受；账号、评分公开边界、持久 SSE 游标、任务租约、删除后证据摘要和最小审计按本文冻结。
+> 本文定义逻辑数据模型、关系、约束和索引入口。`DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受；账号、评分公开边界、持久 SSE 游标、任务租约、删除后证据摘要、最小审计和首个用户可见切片的数据约束按本文冻结。
 
 ## 1. 建模约定
 
@@ -76,6 +76,7 @@ erDiagram
 | `id` | UUID | PK；内部会话标识，不写入 Cookie |
 | `user_id` | UUID | FK -> `users.id`，非空 |
 | `token_hash` | text | 唯一；Cookie 保存不透明随机令牌，数据库只保存其哈希 |
+| `csrf_token_hash` | text | 非空；只保存 `interview_csrf` verifier 的哈希 |
 | `created_at` | timestamptz | 非空 |
 | `last_seen_at` | timestamptz | 非空 |
 | `expires_at` | timestamptz | 非空 |
@@ -88,6 +89,8 @@ erDiagram
 - `INDEX (user_id, expires_at) WHERE revoked_at IS NULL`。
 - 撤销会话必须立即让业务请求验证失败，不能只依赖缓存过期。
 - 注册不写入本表；登录、密码重置成功后的重新登录才会创建记录。
+- 登录同时生成 `interview_session` 与 `interview_csrf`；`interview_session` 使用 `HttpOnly`，服务端用 `token_hash` 校验它，用 `tokens_equal(token_hash(X-CSRF-Token), csrf_token_hash)` 校验 CSRF verifier。
+- `web/` 不读取 `interview_session`；它读取 `interview_csrf` 并把值放入 `X-CSRF-Token`。
 
 ### 3.3 `password_reset_tokens`
 
@@ -637,6 +640,7 @@ Alembic 首次迁移应包含：
 | `DR-04` | `interviews.end_reason`、轮次和追问链结束原因 | P0 只结束当前追问链；跳过、结束链和结束整场原因分开 |
 | `DR-05` | 分析证据、报告快照、QA 证据 | 摘要不超过 200 字符，来源删除后清除位置、文件名和上下文 |
 | `DR-06` | `audit_events` | 只保存最小白名单字段，固定保留 365 天 |
+| `DR-07` | `auth_sessions.csrf_token_hash`、历史分页游标 | `csrf_token_hash` 只保存 verifier 哈希；历史接口使用稳定游标返回 `{items, next_cursor}` |
 
 ADR 对模型的影响：
 
@@ -656,3 +660,4 @@ ADR 对模型的影响：
 | v0.3 | 2026-10-17 | 同步需求 v1.4 的注册不签发会话与邮件故障隔离边界 |
 | v0.4 | 2026-10-17 | 按 DR-03 至 DR-06 冻结 200 字符证据摘要、来源删除定位清理、结束原因分离和 365 天最小审计模型 |
 | v0.5 | 2026-10-17 | 接受 ADR-0003、ADR-0006、ADR-0007、ADR-0008；增加持久 SSE 事件模型、数据库时钟截止、任务租约 fencing 字段和受保护反馈终态约束 |
+| v0.6 | 2026-10-17 | 落实 `DR-07` 方案 A：`auth_sessions` 增加 `csrf_token_hash`，`interview_session`/`interview_csrf` 双 Cookie，历史使用 `{items, next_cursor}` 稳定游标分页 |

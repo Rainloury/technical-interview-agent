@@ -14,6 +14,27 @@ SECRET_PATTERN = re.compile(
     r"(?i)\b(bearer\s+)[a-z0-9._~+/-]+=*|"
     r"((?:api[_-]?key|token|password|secret)\s*[=:]\s*)[^\s,;]+"
 )
+CREDENTIAL_KEYS = {
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "password",
+    "passwd",
+    "secret",
+    "set_cookie",
+    "token",
+}
+CREDENTIAL_KEY_SUFFIXES = (
+    "_api_key",
+    "_apikey",
+    "_credential",
+    "_password",
+    "_passwd",
+    "_private_key",
+    "_secret",
+    "_token",
+)
 
 
 def redact_text(value: str) -> str:
@@ -28,14 +49,19 @@ def redact_text(value: str) -> str:
     )
 
 
+def _is_credential_key(key: str) -> bool:
+    """Distinguish credential fields from telemetry fields such as ``input_tokens``."""
+
+    normalized = key.lower().replace("-", "_")
+    return normalized in CREDENTIAL_KEYS or normalized.endswith(CREDENTIAL_KEY_SUFFIXES)
+
+
 def _redact_value(value: Any) -> Any:
     if isinstance(value, str):
         return redact_text(value)
     if isinstance(value, dict):
         return {
-            key: "[REDACTED]"
-            if any(part in key.lower() for part in ("password", "token", "secret", "api_key"))
-            else _redact_value(item)
+            key: "[REDACTED]" if _is_credential_key(key) else _redact_value(item)
             for key, item in value.items()
         }
     if isinstance(value, list):

@@ -9,4 +9,8 @@ __pycache__/
 *.egg-info/
 htmlcov/
 .coverage
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
 

@@ -76,6 +76,7 @@ class AuthSession(Base):
         UUIDType, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    csrf_token_hash: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = _created_at()
     last_seen_at: Mapped[datetime] = _created_at()
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
@@ -709,6 +710,9 @@ class AsyncJob(Base):
     resource_type: Mapped[str] = mapped_column(Text, nullable=False)
     resource_id: Mapped[uuid.UUID] = mapped_column(UUIDType, nullable=False)
     idempotency_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    request_fingerprint: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="", default=""
+    )
     state: Mapped[str] = mapped_column(String(16), nullable=False, server_default="queued")
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     max_attempts: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -2,13 +2,13 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.6 |
-| 文档状态 | 技术方案已确认 |
+| 文档版本 | v0.7 |
+| 文档状态 | 账号、工作台与历史分页契约已落地 |
 | 更新日期 | 2026-10-17 |
 | 基础路径 | `/api/v1` |
 | 数据格式 | JSON UTF-8；文件上传使用 `multipart/form-data` |
 
-> 本契约冻结已批准的服务边界。账号与密码重置接口依据 `DR-01`，回答提交和中性进度依据 `DR-02`、`DR-03`，结束追问依据 `DR-04`，删除后证据与最小审计依据 `DR-05`、`DR-06`。
+> 本契约冻结已批准的服务边界。账号与密码重置接口依据 `DR-01`，回答提交和中性进度依据 `DR-02`、`DR-03`，结束追问依据 `DR-04`，删除后证据与最小审计依据 `DR-05`、`DR-06`，`web/` 首个用户可见切片依据 `DR-07`。
 
 ## 1. 通用约定
 
@@ -19,6 +19,7 @@
 - 所有创建、提交和删除操作支持 `Idempotency-Key` 请求头；要求幂等的接口缺少该头时返回 `400 idempotency_key_required`。
 - 客户端发送的 `submitted_at` 只用于诊断，不参与截止判断。
 - 写操作使用 `dry_run` 由所属工具定义；用户业务 API 不默认执行外部副作用。
+- 登录后的改变状态请求携带 `X-CSRF-Token`，值来自前端可读的 `interview_csrf` Cookie。登录、注册和未认证的密码重置请求没有可校验的会话，只执行 Origin/Referer allowlist 校验。
 
 ### 1.2 通用响应头
 
@@ -151,7 +152,12 @@ Content-Type: application/json
 }
 ```
 
-同时设置会话 Cookie，Cookie 使用 `HttpOnly`、`Secure`、`SameSite=Lax`。失败统一返回：
+同时设置两个 Cookie：
+
+- `interview_session`：服务端会话，使用 `HttpOnly`、`Secure`、`SameSite=Lax`。
+- `interview_csrf`：前端可读的 CSRF verifier，使用 `Secure`、`SameSite=Lax`。
+
+数据库 `auth_sessions.csrf_token_hash` 只保存 verifier 哈希，不保存原始值。失败统一返回：
 
 ```json
 {
@@ -169,7 +175,7 @@ Content-Type: application/json
 - 邮箱不存在和密码错误使用相同状态码、错误码和面向用户文案。
 - 登录和注册均需限流，并记录不含凭据的安全审计事件。
 - 登录成功是唯一签发新会话的入口；服务端只保存令牌哈希。
-- 会话 Cookie 不进入 URL、localStorage、日志或响应 JSON。
+- `interview_session` 不进入 URL、localStorage、日志或响应 JSON。
 
 ### 2.3 退出与当前会话
 
@@ -178,7 +184,7 @@ POST /api/v1/auth/logout
 GET  /api/v1/auth/session
 ```
 
-退出响应 `204 No Content`；重复退出仍返回成功，不要求会话继续有效。当前会话响应只返回用户标识、显示名和会话到期时间，不返回原始令牌或密码字段。
+退出响应 `204 No Content`；重复退出仍返回成功，不要求会话继续有效。已登录客户端的退出请求携带 `X-CSRF-Token`；服务端同时校验允许写请求来源。当前会话响应只返回用户标识、显示名和会话到期时间，不返回原始令牌或密码字段。
 
 ### 2.4 请求密码重置
 
@@ -227,7 +233,7 @@ Content-Type: application/json
 
 ### 2.6 认证安全属性
 
-- 会话 Cookie 使用 `HttpOnly`、`Secure`、`SameSite=Lax`，写请求执行 Origin/Referer allowlist 校验，拒绝跨站表单提交。
+- `interview_session` 使用 `HttpOnly`、`Secure`、`SameSite=Lax`；`interview_csrf` 是前端可读的 verifier，写请求同时携带 `X-CSRF-Token` 并执行 Origin/Referer allowlist 校验。
 - 响应只返回用户 ID、显示名和会话到期时间，不返回密码哈希或内部令牌。
 - 登录失败不区分“邮箱不存在”和“密码错误”。
 - 注册与找回密码请求始终返回中性结果；一次性令牌只保存哈希，短时有效且使用后撤销全部旧会话。
@@ -269,7 +275,24 @@ GET /api/v1/dashboard
 GET /api/v1/history?type=interview&limit=20&cursor=...
 ```
 
-只返回当前用户资源。`type` 支持 `resume`、`qa`、`interview`、`wrong_question`，后续类型不得改变已有字段语义。
+只返回当前用户资源。`type` 支持 `resume`、`qa`、`interview`、`wrong_question`，后续类型不得改变已有字段语义。响应固定为以下分页信封：
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "type": "interview",
+      "title": "后端模拟面试",
+      "state": "completed",
+      "updated_at": "2026-10-17T08:00:00Z"
+    }
+  ],
+  "next_cursor": "opaque-cursor"
+}
+```
+
+没有下一页时 `next_cursor` 为 `null`。前端使用 `{items, next_cursor}` 每次加载 10 条；游标只表示稳定的降序位置，不包含用户标识或可枚举资源信息。
 
 ## 4. 简历
 
@@ -765,3 +788,4 @@ GET /api/v1/me/data-deletion
 | v0.4 | 2026-10-17 | 将注册统一为中性 `202` 且不签发会话，消除注册响应与防账号枚举之间的冲突；明确登录为唯一会话签发入口 |
 | v0.5 | 2026-10-17 | 按 DR-03 至 DR-06 冻结中性进度字段、P0 结束追问、P1 整场结束边界、删除后证据 DTO 和最小审计保留规则，并补充契约测试矩阵 |
 | v0.6 | 2026-10-17 | 接受 ADR-0003、ADR-0006、ADR-0007、ADR-0008；冻结数据库时钟截止、持久 SSE 游标、评分失败终态和 `incomplete_scoring` 报告语义 |
+| v0.7 | 2026-10-17 | 落实 `DR-07` 方案 A：补充 `interview_session`/`interview_csrf`、`X-CSRF-Token`、`csrf_token_hash` 和 `{items, next_cursor}` 历史分页契约 |
