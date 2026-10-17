@@ -20,6 +20,7 @@ from app.db.models import (
 from app.llm.client import LlmClientError, LlmResult, PromptMetadata, TraceContext
 from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
+from app.qa_contracts import QaAnswerOutput
 from app.resume_contracts import ResumeAnalysisOutput, ResumeQuestionsOutput
 from app.storage import LocalPrivateStorage
 from app.worker import ResumeWorker, ResumeWorkerError, _safe_error_detail
@@ -370,7 +371,9 @@ class StaticLlm:
         prompt: PromptMetadata,
         system_prompt: str,
         user_prompt: str,
-        output_schema: type[ResumeAnalysisOutput] | type[ResumeQuestionsOutput],
+        output_schema: type[ResumeAnalysisOutput]
+        | type[ResumeQuestionsOutput]
+        | type[QaAnswerOutput],
         context: TraceContext,
     ) -> Any:
         del prompt, system_prompt, user_prompt, context
@@ -379,10 +382,20 @@ class StaticLlm:
             output: BaseModel = ResumeAnalysisOutput.model_validate(
                 analysis_payload(evidence_ids=["evidence-1"])
             )
-        else:
+        elif output_schema is ResumeQuestionsOutput:
             output = ResumeQuestionsOutput.model_validate(
                 questions_payload(evidence_id="evidence-1")
             )
+        elif output_schema is QaAnswerOutput:
+            output = QaAnswerOutput(
+                direct_answer="Use a bounded queue.",
+                explanation="A queue isolates retrieval from answer generation.",
+                evidence_ids=["evidence-1"],
+                extended_questions=["How are retries bounded?"],
+                evidence_status="supported",
+            )
+        else:
+            raise AssertionError(f"unexpected output schema: {output_schema}")
         return LlmResult(
             output=output,
             trace=_trace(),
@@ -474,7 +487,9 @@ class BrokenQuestionsLlm(StaticLlm):
         prompt: PromptMetadata,
         system_prompt: str,
         user_prompt: str,
-        output_schema: type[ResumeAnalysisOutput] | type[ResumeQuestionsOutput],
+        output_schema: type[ResumeAnalysisOutput]
+        | type[ResumeQuestionsOutput]
+        | type[QaAnswerOutput],
         context: TraceContext,
     ) -> Any:
         if output_schema is ResumeQuestionsOutput:

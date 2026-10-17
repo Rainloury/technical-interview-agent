@@ -79,4 +79,30 @@ describe("HistoryPage", () => {
       screen.getByRole("link", { name: "查看 高级后端简历.pdf" }),
     ).toHaveAttribute("href", "/resumes/resume-history-1");
   });
+
+  it("links QA history rows to the QA detail page", async () => {
+    server.use(
+      authenticatedSessionHandler(),
+      http.get("*/api/v1/history", () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: "qa-history-1",
+              type: "qa",
+              title: "如何设计有界重试？",
+              state: "completed",
+              updated_at: "2026-10-17T08:00:00Z",
+            },
+          ],
+          next_cursor: null,
+        } satisfies HistoryPage),
+      ),
+    );
+    renderApp("/history?type=qa");
+
+    expect(await screen.findByText("如何设计有界重试？")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "查看 如何设计有界重试？" }),
+    ).toHaveAttribute("href", "/qa/qa-history-1");
+  });
 });

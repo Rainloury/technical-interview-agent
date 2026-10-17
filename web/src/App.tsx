@@ -7,6 +7,8 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { QaDetailPage } from "./pages/QaDetailPage";
+import { QaPage } from "./pages/QaPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ResumeDetailPage } from "./pages/ResumeDetailPage";
 import { ResumeUploadPage } from "./pages/ResumeUploadPage";
@@ -27,6 +29,8 @@ export function App() {
         <Route element={<AppShell />}>
           <Route path="/workspace" element={<WorkspacePage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/qa" element={<QaPage />} />
+          <Route path="/qa/:id" element={<QaDetailPage />} />
           <Route path="/resumes/new" element={<ResumeUploadPage />} />
           <Route path="/resumes/:id" element={<ResumeDetailPage />} />
         </Route>

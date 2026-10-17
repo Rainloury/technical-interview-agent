@@ -1,7 +1,32 @@
 import { http, HttpResponse } from "msw";
 
-import { api, ApiError } from "./client";
+import {
+  api,
+  ApiError,
+  parseSseStream,
+  type ParsedSseEvent,
+} from "./client";
 import { server } from "../test/server";
+
+function streamOf(chunks: string[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
+}
+
+async function collectEvents(
+  chunks: string[],
+): Promise<ParsedSseEvent[]> {
+  const events: ParsedSseEvent[] = [];
+  await parseSseStream(streamOf(chunks), (event) => events.push(event));
+  return events;
+}
 
 describe("api client", () => {
   it("sends credentials and the explicit CSRF header for writes", async () => {
@@ -102,5 +127,114 @@ describe("api client", () => {
     expect(retryKey).toBe("retry-key-1");
     expect(deleteKey).toBe("delete-key-1");
     expect(deleted).toBeUndefined();
+  });
+
+  it("parses fragmented, CRLF, multi-line, and commented SSE fields", async () => {
+    const events = await collectEvents([
+      ": keep-alive\r",
+      "\nevent: evidence\r\nid: 2\r\ndata: {\"items\":\r",
+      "\ndata: []}\r\n\r\n",
+      "event: completed\nid: 3\ndata: {\"answer\":\n",
+      "data: {\"direct_answer\":\"ok\"}}\n\n",
+      "event: ignored\ndata: {\"unterminated\":true}",
+    ]);
+
+    expect(events).toEqual([
+      {
+        id: "2",
+        type: "evidence",
+        data: "{\"items\":\n[]}",
+      },
+      {
+        id: "3",
+        type: "completed",
+        data: "{\"answer\":\n{\"direct_answer\":\"ok\"}}",
+      },
+      {
+        type: "ignored",
+        data: "{\"unterminated\":true}",
+      },
+    ]);
+  });
+
+  it("resumes QA with Last-Event-ID and deduplicates repeated event IDs", async () => {
+    const requests: Array<{
+      afterSeq: string | null;
+      lastEventId: string | null;
+    }> = [];
+    server.use(
+      http.get("*/api/v1/qa/qa-1/stream", ({ request }) => {
+        const url = new URL(request.url);
+        requests.push({
+          afterSeq: url.searchParams.get("after_seq"),
+          lastEventId: request.headers.get("Last-Event-ID"),
+        });
+        if (requests.length === 1) {
+          return new HttpResponse(
+            "event: evidence\nid: 1\ndata: {\"items\":[]}\n\n",
+            {
+              headers: { "Content-Type": "text/event-stream" },
+            },
+          );
+        }
+        return new HttpResponse(
+          [
+            "event: evidence",
+            "id: 1",
+            "data: {\"items\":[]}",
+            "",
+            "event: completed",
+            "id: 2",
+            "data: {\"answer\":{\"direct_answer\":\"答\"}}",
+            "",
+            "",
+          ].join("\n"),
+          {
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        );
+      }),
+    );
+    const events: number[] = [];
+
+    await api.streamQa("qa-1", {
+      afterSeq: 0,
+      reconnectDelayMs: 0,
+      maxReconnects: 1,
+      onEvent: (event) => events.push(event.id),
+    });
+
+    expect(requests).toEqual([
+      { afterSeq: "0", lastEventId: null },
+      { afterSeq: null, lastEventId: "1" },
+    ]);
+    expect(events).toEqual([1, 2]);
+  });
+
+  it("maps a non-2xx QA stream response to ApiError", async () => {
+    server.use(
+      http.get("*/api/v1/qa/qa-missing/stream", () =>
+        HttpResponse.json(
+          {
+            error: {
+              code: "resource_not_found",
+              message: "问答记录不存在",
+              retryable: false,
+            },
+          },
+          { status: 404 },
+        ),
+      ),
+    );
+
+    await expect(
+      api.streamQa("qa-missing", {
+        onEvent: () => undefined,
+      }),
+    ).rejects.toMatchObject({
+      name: "ApiError",
+      status: 404,
+      code: "resource_not_found",
+    } satisfies Partial<ApiError>);
   });
 });

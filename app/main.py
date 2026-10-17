@@ -57,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=[
             "Content-Type",
             "Idempotency-Key",
+            "Last-Event-ID",
             "X-CSRF-Token",
             "X-Request-ID",
         ],

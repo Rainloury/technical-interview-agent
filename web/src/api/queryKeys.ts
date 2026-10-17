@@ -5,4 +5,5 @@ export const queryKeys = {
   dashboard: ["dashboard"] as const,
   history: (type: HistoryType) => ["history", type] as const,
   resume: (id: string) => ["resume", id] as const,
+  qa: (id: string) => ["qa", id] as const,
 };

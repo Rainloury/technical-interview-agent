@@ -292,6 +292,28 @@ class KnowledgeSourceVersion(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="draft")
 
 
+class KnowledgeSourceSection(Base):
+    __tablename__ = "knowledge_source_sections"
+    __table_args__ = (
+        UniqueConstraint("version_id", "section_index"),
+        CheckConstraint("section_index >= 0", name="section_index"),
+        CheckConstraint("char_length(content) > 0", name="content"),
+        Index("ix_knowledge_source_sections_version", "version_id", "section_index"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    version_id: Mapped[uuid.UUID] = mapped_column(
+        UUIDType,
+        ForeignKey("knowledge_source_versions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    section_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    section_path: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
 class QaRequest(Base):
     __tablename__ = "qa_requests"
     __table_args__ = (
@@ -303,9 +325,20 @@ class QaRequest(Base):
             "evidence_status IN ('supported','model_knowledge','insufficient')",
             name="evidence_status",
         ),
+        CheckConstraint(
+            "answer_preference IN ('concise','detailed')",
+            name="answer_preference",
+        ),
         CheckConstraint("last_event_seq >= 0", name="last_event_seq"),
         Index("ix_qa_requests_owner_created", "owner_user_id", "created_at"),
         Index("ix_qa_requests_state_created", "state", "created_at"),
+        Index(
+            "uq_qa_requests_owner_idempotency",
+            "owner_user_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = _pk()
@@ -313,6 +346,10 @@ class QaRequest(Base):
         UUIDType, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    answer_preference: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="concise"
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(Text)
     state: Mapped[str] = mapped_column(String(32), nullable=False, server_default="created")
     answer_json: Mapped[dict[str, Any] | None] = mapped_column(JSONBType)
     last_event_seq: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
@@ -339,16 +376,10 @@ class QaStreamEvent(Base):
             name="event_type",
         ),
         Index(
-            "uq_qa_stream_events_completed",
+            "uq_qa_stream_events_terminal",
             "qa_request_id",
             unique=True,
-            postgresql_where=text("event_type = 'completed'"),
-        ),
-        Index(
-            "uq_qa_stream_events_error",
-            "qa_request_id",
-            unique=True,
-            postgresql_where=text("event_type = 'error'"),
+            postgresql_where=text("event_type IN ('completed','error')"),
         ),
     )
 
@@ -686,7 +717,7 @@ class AsyncJob(Base):
     __table_args__ = (
         CheckConstraint(
             "job_type IN ('parse_resume','analyze_resume','generate_questions',"
-            "'score_answer','generate_report','delete_data')",
+            "'answer_question','score_answer','generate_report','delete_data')",
             name="job_type",
         ),
         CheckConstraint(

@@ -69,17 +69,14 @@ async def test_qa_stream_sequence_is_unique_per_request(db_session: AsyncSession
     await db_session.rollback()
 
 
-@pytest.mark.parametrize("terminal", ["completed", "error"])
-async def test_terminal_event_is_unique_per_request(
-    db_session: AsyncSession, terminal: str
-) -> None:
+async def test_only_one_terminal_event_is_allowed_per_request(db_session: AsyncSession) -> None:
     user = await _user(db_session)
     request = await _qa_request(db_session, user)
     db_session.add(
         QaStreamEvent(
             qa_request_id=request.id,
             seq=1,
-            event_type=terminal,
+            event_type="completed",
             payload_json={},
         )
     )
@@ -88,7 +85,7 @@ async def test_terminal_event_is_unique_per_request(
         QaStreamEvent(
             qa_request_id=request.id,
             seq=2,
-            event_type=terminal,
+            event_type="error",
             payload_json={},
         )
     )

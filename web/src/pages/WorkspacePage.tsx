@@ -7,6 +7,7 @@ import {
   MessageSquareText,
   Plus,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -49,6 +50,10 @@ export function WorkspacePage() {
           </p>
         </div>
         <div className="page-header-actions">
+          <Link className="primary-button primary-button--link" to="/qa">
+            <Search size={17} aria-hidden="true" />
+            <span>技术问答</span>
+          </Link>
           <Link className="primary-button primary-button--link" to="/resumes/new">
             <Plus size={17} aria-hidden="true" />
             <span>上传简历</span>
@@ -151,15 +156,17 @@ export function WorkspacePage() {
                         </span>
                       </div>
                       <span className="state-pill">{stateLabel(task.state)}</span>
-                      {task.type === "resume" && (
-                        <Link
-                          className="record-action"
-                          to={`/resumes/${task.id}`}
-                          aria-label={`查看 ${task.title}`}
-                        >
-                          <ArrowRight size={16} aria-hidden="true" />
-                        </Link>
-                      )}
+                      <Link
+                        className="record-action"
+                        to={
+                          task.type === "resume"
+                            ? `/resumes/${task.id}`
+                            : `/qa/${task.id}`
+                        }
+                        aria-label={`查看 ${task.title}`}
+                      >
+                        <ArrowRight size={16} aria-hidden="true" />
+                      </Link>
                     </article>
                   ))}
                 </div>

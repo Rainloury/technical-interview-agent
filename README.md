@@ -2,13 +2,13 @@
 
 技术面试问答与模拟面试智能体服务。项目规则见 `AGENTS.md`，需求与技术基线见 `docs/`。
 
-当前阶段：**简历纵向切片验收通过，准备进入检索问答切片**。`web/` 已建立，React + TypeScript + Vite 前端已实现注册、登录、找回/重置密码、工作台、四类历史分页、桌面/移动导航，以及简历上传、处理状态、分析结果、10 道题和原始文件删除。后端账号、会话、工作台、历史、简历任务与异步 Worker 已接通。技术设计与流程基线分别为 `docs/technical-design.md` v0.11、`docs/development-flow.md` v2.7。
+当前阶段：**检索问答切片验收通过，准备进入模拟面试与报告切片**。`web/` 已实现注册、登录、找回/重置密码、工作台、四类历史分页、桌面/移动导航、简历上传/处理/出题/删除，以及 `/qa`、`/qa/:id` 的检索问答、流式状态、证据展示、失败恢复和历史重开。后端已接通账号、会话、工作台、历史、简历任务、异步 Worker、`POST /api/v1/qa`、`GET /api/v1/qa/{id}` 和 `GET /api/v1/qa/{id}/stream`。技术设计与流程基线分别为 `docs/technical-design.md` v0.12、`docs/development-flow.md` v2.8。
 
 登录签发服务端会话 Cookie `interview_session`（`HttpOnly`、`Secure`、`SameSite=Lax`），同时签发前端可读的 `interview_csrf`；写请求通过 `X-CSRF-Token` 校验，数据库在 `auth_sessions.csrf_token_hash` 保存 CSRF 哈希，历史接口返回 `{items, next_cursor}`。
 
 真实 provider FAST eval 已通过（`deepseek-flash`，2 steps，tokens `773 / 131`，latency `3471ms`，cost `$0.0003891`，Prompt `agent_system@1.0.0+agent_turn@1.1.0`）。这只证明 FAST 档位的一次真实纵向链路可用，**完整 G4A 模型矩阵仍未关闭**。
 
-简历纵向切片与账号切片的验收证据：前端 `typecheck`、Vitest `7 files / 21 tests`、ESLint、生产构建全部通过；后端 `ruff`、格式检查、`mypy`（78 files）、`RUN_INTEGRATION=1 pytest`（`107 passed`）和 `alembic check` 全部通过，迁移头为 `8f3d2a1c7b90`；确定性 eval `3 passed`；Playwright 在桌面 Chromium 与移动 Chrome 视口下 `4 passed`，覆盖账号、工作台、历史以及桌面/移动简历上传、处理、出题和删除闭环。当前 Playwright 版本不支持 macOS 13 的 WebKit 二进制，因此本轮没有 WebKit 覆盖，移动端验收使用 Chrome 的 iPhone 13 设备配置。生产邮件供应商、生产对象存储、后续问答/面试/报告切片、发布质量门禁和完整 G4A 模型矩阵尚未完成。
+账号、简历与检索问答切片的验收证据：前端 `typecheck`、Vitest `9 files / 32 tests`、ESLint、生产构建全部通过；后端 `ruff`、格式检查、`mypy`（84 files）、`RUN_INTEGRATION=1 pytest`（`116 passed`）和 `alembic check` 全部通过，迁移头为 `4b6e9d2c1a70`；确定性 eval `3/3`；Playwright 在桌面 Chromium 与移动 Chrome 视口下 `8 passed`，其中问答专项 `4 passed`。检索问答覆盖 owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、失败重试、持久 SSE 游标重放、终态事件互斥和前端历史重开。当前 Playwright 版本不支持 macOS 13 的 WebKit 二进制，因此本轮没有 WebKit 覆盖。生产邮件供应商、生产对象存储、模拟面试与报告/复习切片、完整 G4A 模型矩阵尚未完成。
 
 ## 本地启动
 

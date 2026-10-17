@@ -104,10 +104,14 @@ export function HistoryPage() {
                   </span>
                 </div>
                 <span className="state-pill">{stateLabel(item.state)}</span>
-                {item.type === "resume" && (
+                {(item.type === "resume" || item.type === "qa") && (
                   <Link
                     className="record-action"
-                    to={`/resumes/${item.id}`}
+                    to={
+                      item.type === "resume"
+                        ? `/resumes/${item.id}`
+                        : `/qa/${item.id}`
+                    }
                     aria-label={`查看 ${item.title}`}
                   >
                     <ArrowRight size={16} aria-hidden="true" />

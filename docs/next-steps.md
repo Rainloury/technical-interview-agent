@@ -2,25 +2,25 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.5 |
-| 文档状态 | 简历纵向切片验收通过，进入检索问答准备 |
-| 更新日期 | 2026-10-17 |
-| 当前阶段 | 简历纵向切片验收通过，准备进入检索问答切片 |
-| 当前目标 | 建立限定知识源、持久 SSE 事件、证据校验和可重连的问答链路 |
-| 后续目标 | 完成检索问答、模拟面试和报告切片，并继续补齐完整 G4A 模型矩阵 |
+| 文档版本 | v1.6 |
+| 文档状态 | 检索问答切片验收通过，进入模拟面试与报告准备 |
+| 更新日期 | 2026-10-18 |
+| 当前阶段 | 检索问答切片验收通过，准备进入模拟面试与报告切片 |
+| 当前目标 | 冻结模拟面试轮次、截止、幂等、评分与报告状态链，完成首个可演示闭环 |
+| 后续目标 | 完成模拟面试与报告/复习切片，并继续补齐完整 G4A 模型矩阵 |
 | 审批依据 | `docs/decision-register.md` v0.8 |
 
-> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。工程骨架、核心基座和简历异步 Worker 已落地，真实 provider FAST eval 已通过；完整 G4A 模型矩阵仍未关闭。`web/` 已建立并完成认证、工作台、四类历史分页、移动导航和简历闭环，当前进入检索问答。
+> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。工程骨架、核心基座、简历异步 Worker 和检索问答链路已落地，真实 provider FAST eval 已通过；完整 G4A 模型矩阵仍未关闭。当前检索问答切片已验收，下一步进入模拟面试与报告切片。
 
 ## 1. 当前完成度
 
 | 事项 | 状态 | 证据 | 是否阻塞下一步 |
 | --- | --- | --- | --- |
-| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v2.7 | 否 |
+| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v2.8 | 否 |
 | 需求基线 | 已完成 | `docs/requirements.md` v1.5 | 否 |
 | 产品方案 | 已完成 | `docs/product-design.md` v1.5 | 否 |
 | 需求决策 `DR-01` 至 `DR-07` | `approved` | `docs/decision-register.md` v0.8 | 否 |
-| 技术设计 | 已完成 | `docs/technical-design.md` v0.11 | 否 |
+| 技术设计 | 已完成 | `docs/technical-design.md` v0.12 | 否 |
 | 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.6、`docs/state-machine.md` v0.5 | 否 |
 | 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.7、`docs/threat-model.md` v0.6 | 否 |
 | ADR-0001 至 ADR-0008 | 全部 `accepted` | `docs/adr/` | 否 |
@@ -31,17 +31,18 @@
 | Prompt 与 Tool Registry | 已完成 | Markdown 版本加载、变量校验、Pydantic Schema、注册契约、截断与错误回灌测试通过 | 否 |
 | Agent Loop 与确定性行为评测 | 已完成 | 三重封顶、嵌套限制、终止、不可信内容、截断和工具选择用例通过；完整工具参数 Schema 已进入 Prompt | 否 |
 | 阶段与审批文档契约 | 已完成 | `tests/test_decision_docs.py` 锁定 `DR-07`、首切片边界和当前阶段证据 | 否 |
-| 集成、迁移与确定性评测 | 已完成 | `RUN_INTEGRATION=1 pytest` 为 `107 passed`；`alembic check` 无漂移；迁移头 `8f3d2a1c7b90`；确定性 eval `3 passed` | 否 |
+| 集成、迁移与确定性评测 | 已完成 | `RUN_INTEGRATION=1 pytest` 为 `116 passed`；`alembic check` 无漂移；迁移头 `4b6e9d2c1a70`；确定性 eval `3/3` | 否 |
 | 真实 provider FAST eval | `passed` | `deepseek-flash`；2 steps；tokens `773 / 131`；latency `3471ms`；cost `$0.0003891`；Prompt `agent_system@1.0.0+agent_turn@1.1.0` | 否 |
 | 完整 G4A 模型矩阵 | `open` | FAST 已通过；DEFAULT、REASONING、异常边界和发布成本门槛仍待验证 | 是 |
 | 首个用户可见切片 `DR-07` | `approved` | `docs/decision-register.md` v0.8；方案 A | 否 |
 | 前端工程与账号路径 | 已完成 | `web/`；注册、登录、找回/重置密码、空工作台和响应式导航 | 否 |
 | 历史分页 | 已完成 | `web/src/pages/HistoryPage.tsx`；`{items, next_cursor}`，每页 10 条 | 否 |
-| 浏览器 E2E | `passed` | 账号与简历桌面/移动项目 `4 passed`；macOS 13 不支持的 WebKit 留待兼容 CI | 否 |
+| 浏览器 E2E | `passed` | 桌面与移动项目 `8 passed`，问答专项 `4 passed`；macOS 13 不支持的 WebKit 留待兼容 CI | 否 |
 | 简历纵向切片 | `passed` | 上传、PDF/DOCX 校验、异步处理、10 道题、失败重试、原始文件删除和 `source_deleted` 状态通过 | 否 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `7 files / 21 tests`、lint、build；后端 ruff、格式、mypy（78 files）、`107 passed` 集成测试和 `alembic check` | 否 |
+| 检索问答切片 | `passed` | owner 鉴权、幂等、任意 URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放、终态互斥和前端历史重开通过 | 否 |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `9 files / 32 tests`、lint、build；后端 ruff、格式、mypy（84 files）、`116 passed` 集成测试和 `alembic check` | 否 |
 
-简历切片已关闭，不再受审批或质量门禁阻塞。完整 G4A 模型矩阵与后续业务切片并行推进，但不能把 FAST 单档通过写成 G4A 已关闭。
+检索问答切片已关闭，不再受审批或质量门禁阻塞。完整 G4A 模型矩阵与模拟面试/报告切片并行推进，但不能把 FAST 单档通过写成 G4A 已关闭。
 
 ## 2. 执行顺序
 
@@ -59,8 +60,8 @@ flowchart TD
     N8 --> N9["web/ 账号、工作台与历史分页：已实现"]
     N9 --> N10["Playwright E2E、质量门禁与切片验收：已完成"]
     N10 --> N11["简历纵向切片：验收通过"]
-    N11 --> N12["当前：检索问答切片"]
-    N12 --> N13["模拟面试与报告切片"]
+    N11 --> N12["检索问答切片：验收通过"]
+    N12 --> N13["当前：模拟面试与报告切片准备"]
     N13 --> N14["完整 G4A 模型矩阵与发布评审"]
 ```
 
@@ -142,9 +143,9 @@ flowchart TD
 验证证据：
 
 - `ruff check .`、`ruff format --check .` 和 `mypy app tests evals migrations` 通过。
-- 默认测试可运行；`RUN_INTEGRATION=1 uv run pytest -q` 当前为 `107 passed`。
+- 默认测试可运行；`RUN_INTEGRATION=1 uv run pytest -q` 当前为 `116 passed`。
 - 空库迁移、降级、再次升级及 `alembic check` 通过。
-- 首次 eval 已通过并写入 `evals/baseline.json`；当前确定性 eval 为 `3 passed`。
+- 首次 eval 已通过并写入 `evals/baseline.json`；当前确定性 eval 为 `3/3`。
 - 真实服务可启动，健康检查、请求 ID 和服务端时间响应头可验证。
 
 ## 5. 核心基座与已验收切片
@@ -199,8 +200,8 @@ flowchart TD
 | --- | --- | --- | --- |
 | 1 | 账号与工作台 | 当前切片 E2E 和质量门禁通过（已完成） | 认证、隔离、会话、历史分页和响应式导航可验证（已满足） |
 | 2 | 简历闭环（已完成） | 异步 Worker 和对象存储已就绪 | 文件限制、分析失败、出题和删除通过 |
-| 3 | 检索问答（下一项） | LLM、检索工具、知识源 allowlist 和持久 SSE 已就绪 | 证据、重连、降级和版本冻结通过 |
-| 4 | 模拟面试 | 任务、评分和状态机已就绪 | 截止、幂等、恢复和解锁规则通过 |
+| 3 | 检索问答（已完成） | LLM、检索工具、知识源 allowlist 和持久 SSE 已就绪 | 证据、重连、降级和版本冻结通过 |
+| 4 | 模拟面试（下一项） | 问答切片、任务、评分和状态机已就绪 | 截止、幂等、恢复和解锁规则通过 |
 | 5 | 报告与复习 | 面试终态数据稳定 | 追问树、错题、薄弱点和缺口报告通过 |
 | 6 | 上线质量 | P0 切片全部完成 | 安全、性能、评测和发布门禁通过 |
 
@@ -246,3 +247,4 @@ flowchart TD
 | v1.3 | 2026-10-17 | 首个用户可见纵向切片验收通过：双视口 E2E `2 passed`、前端质量门禁、后端 `88 passed`、迁移检查通过；下一阶段为简历闭环，完整 G4A 模型矩阵仍未关闭 |
 | v1.4 | 2026-10-17 | 同步技术设计 v0.10 与开发流程 v2.6；更新文档契约证据，保留异步 Worker、对象存储、简历闭环和完整 G4A 矩阵为后续工作 |
 | v1.5 | 2026-10-17 | 简历纵向切片验收通过：双视口 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；下一阶段切换为检索问答 |
+| v1.6 | 2026-10-18 | 检索问答切片验收通过：双视口 E2E `8 passed`、问答专项 `4 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；下一阶段切换为模拟面试与报告切片 |

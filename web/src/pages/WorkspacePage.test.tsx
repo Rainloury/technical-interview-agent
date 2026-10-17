@@ -13,7 +13,9 @@ describe("WorkspacePage", () => {
     server.use(authenticatedSessionHandler());
     renderApp("/workspace");
 
-    expect(await screen.findByRole("heading", { name: "示例用户" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "示例用户", level: 1 }),
+    ).toBeInTheDocument();
     expect(screen.getByText("后端简历.pdf")).toBeInTheDocument();
     expect(screen.getByText("后端方向")).toBeInTheDocument();
     expect(
@@ -29,6 +31,9 @@ describe("WorkspacePage", () => {
       "href",
       "/resumes/task-1",
     );
+    expect(
+      screen.getByRole("link", { name: "查看 如何解释数据库索引？" }),
+    ).toHaveAttribute("href", "/qa/task-2");
     expect(screen.getByRole("link", { name: "历史记录" })).toHaveClass("nav-item");
   });
 

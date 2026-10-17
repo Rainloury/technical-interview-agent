@@ -72,25 +72,27 @@ def test_first_slice_assets_are_present_after_approval() -> None:
         assert (ROOT / relative_path).is_file(), f"{relative_path} is missing"
 
 
-def test_phase_docs_describe_the_current_resume_slice() -> None:
+def test_phase_docs_describe_the_current_retrieval_qa_slice() -> None:
     documents = (
         README,
         DOCS_README,
         NEXT_STEPS,
         DEVELOPMENT_FLOW,
         TECHNICAL_REVIEW,
+        TECHNICAL_DESIGN,
     )
     for path in documents:
         text = _read(path)
-        assert "简历纵向切片验收通过" in text, path
+        assert "检索问答切片验收通过" in text, path
         assert "真实 provider FAST eval 已通过" in text, path
         assert "完整 G4A 模型矩阵仍未关闭" in text, path
-        assert "准备进入检索问答切片" in text, path
-        assert "7 files / 21 tests" in text, path
-        assert "107 passed" in text, path
-        assert "4 passed" in text, path
-        assert "78 files" in text, path
-        assert "8f3d2a1c7b90" in text, path
+        assert "准备进入模拟面试与报告切片" in text, path
+        assert "9 files / 32 tests" in text, path
+        assert "116 passed" in text, path
+        assert "8 passed" in text, path
+        assert "84 files" in text, path
+        assert "4b6e9d2c1a70" in text, path
+        assert "3/3" in text, path
 
     implementation_docs = (
         README,
@@ -115,3 +117,30 @@ def test_phase_docs_describe_the_current_resume_slice() -> None:
             "csrf_token_hash",
         ):
             assert fragment in text, f"{fragment} missing from {path}"
+
+
+def test_retrieval_qa_assets_and_boundaries_are_present() -> None:
+    for relative_path in (
+        "app/api/v1/qa.py",
+        "app/services/qa.py",
+        "app/schemas/qa.py",
+        "app/prompts/qa_answer.md",
+        "migrations/versions/4b6e9d2c1a70_add_qa_retrieval_slice.py",
+        "evals/cases/qa-evidence-boundary.yaml",
+        "tests/test_qa_api.py",
+        "web/src/pages/QaPage.tsx",
+        "web/src/pages/QaDetailPage.tsx",
+        "web/e2e/qa-slice.spec.ts",
+    ):
+        assert (ROOT / relative_path).is_file(), f"{relative_path} is missing"
+
+    design = _read(TECHNICAL_DESIGN)
+    for fragment in (
+        "POST /api/v1/qa",
+        "GET /api/v1/qa/{id}/stream",
+        "Last-Event-ID",
+        "citation_id",
+        "source_state",
+        "任意 URL",
+    ):
+        assert fragment in design, f"{fragment} missing from {TECHNICAL_DESIGN}"

@@ -5,6 +5,7 @@ import {
   Menu,
   MessageSquareText,
   Plus,
+  Search,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -16,6 +17,7 @@ import { useAuth } from "../auth/context";
 
 const navigation = [
   { to: "/workspace", label: "工作台", icon: LayoutDashboard },
+  { to: "/qa", label: "技术问答", icon: Search },
   { to: "/history", label: "历史记录", icon: History },
 ];
 

@@ -1,16 +1,24 @@
-"""Run a bounded local resume Worker with deterministic, offline LLM outputs."""
+"""Run a bounded local Worker with deterministic, offline LLM outputs."""
 
 from __future__ import annotations
 
 import asyncio
 import sys
+import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from app.config import Settings
+from app.db.models import (
+    KnowledgeSource,
+    KnowledgeSourceSection,
+    KnowledgeSourceVersion,
+)
 from app.db.session import create_engine, create_session_factory
 from app.llm.client import PromptMetadata, TraceContext
 from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
+from app.qa_contracts import QaAnswerOutput
 from app.resume_contracts import (
     GeneratedQuestionOutput,
     ResumeAnalysisOutput,
@@ -20,8 +28,14 @@ from app.storage import LocalPrivateStorage
 from app.trace import LlmTrace
 from app.worker import run_worker
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 DIFFICULTIES = ("easy",) * 3 + ("medium",) * 5 + ("hard",) * 2
+QA_SOURCE_ID = uuid.UUID("1f4b4e3e-2f59-4a15-9a71-2fa3d7b94001")
+QA_VERSION_ID = uuid.UUID("1f4b4e3e-2f59-4a15-9a71-2fa3d7b94002")
+QA_SECTION_ID = uuid.UUID("1f4b4e3e-2f59-4a15-9a71-2fa3d7b94003")
+QA_CONTENT = "有界重试应限制次数，使用指数退避、抖动和幂等键来避免重复提交。"
+QA_ANSWER = "有界重试应设置次数上限，使用指数退避与抖动，并通过幂等键避免重复提交。"
 
 
 class DeterministicResumeLlm:
@@ -34,7 +48,9 @@ class DeterministicResumeLlm:
         prompt: PromptMetadata,
         system_prompt: str,
         user_prompt: str,
-        output_schema: type[ResumeAnalysisOutput] | type[ResumeQuestionsOutput],
+        output_schema: (
+            type[ResumeAnalysisOutput] | type[ResumeQuestionsOutput] | type[QaAnswerOutput]
+        ),
         context: TraceContext,
     ) -> DeterministicLlmResult:
         del system_prompt, user_prompt
@@ -99,6 +115,16 @@ class DeterministicResumeLlm:
                     for index, difficulty in enumerate(DIFFICULTIES)
                 ]
             )
+        elif output_schema is QaAnswerOutput:
+            output = QaAnswerOutput(
+                direct_answer=QA_ANSWER,
+                explanation=(
+                    "先用幂等键去重，再限制总尝试次数；退避加入抖动，避免并发客户端同时重试。"
+                ),
+                evidence_ids=["evidence-1"],
+                extended_questions=["如何选择重试上限与退避窗口？"],
+                evidence_status="supported",
+            )
         else:
             raise RuntimeError("unexpected output schema")
         return DeterministicLlmResult(
@@ -115,6 +141,7 @@ class DeterministicResumeLlm:
                 latency_ms=0,
                 retry_count=0,
                 resume_task_id=context.resume_task_id,
+                qa_request_id=context.qa_request_id,
             ),
             cost_usd=0.0,
         )
@@ -122,21 +149,73 @@ class DeterministicResumeLlm:
 
 @dataclass(frozen=True, slots=True)
 class DeterministicLlmResult:
-    """Minimal result shape consumed by the resume Worker."""
+    """Minimal result shape consumed by the Worker."""
 
     output: BaseModel
     trace: LlmTrace
     cost_usd: float
 
 
+async def _seed_qa_source(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """Create one fixed, published QA source without duplicating prior runs."""
+
+    async with session_factory() as session:
+        source = await session.get(KnowledgeSource, QA_SOURCE_ID)
+        if source is None:
+            session.add(
+                KnowledgeSource(
+                    id=QA_SOURCE_ID,
+                    source_type="official_doc",
+                    title="有界重试设计指南",
+                    source_uri="https://docs.example/bounded-retry",
+                    direction="backend",
+                    allowlisted=True,
+                )
+            )
+            await session.flush()
+        version = await session.get(KnowledgeSourceVersion, QA_VERSION_ID)
+        if version is None:
+            session.add(
+                KnowledgeSourceVersion(
+                    id=QA_VERSION_ID,
+                    source_id=QA_SOURCE_ID,
+                    version_label="e2e-1",
+                    content_hash="e2e-bounded-retry-v1",
+                    published_at=datetime(2026, 1, 1, tzinfo=UTC),
+                    status="published",
+                )
+            )
+            await session.flush()
+        section = await session.get(KnowledgeSourceSection, QA_SECTION_ID)
+        if section is None:
+            session.add(
+                KnowledgeSourceSection(
+                    id=QA_SECTION_ID,
+                    version_id=QA_VERSION_ID,
+                    section_index=0,
+                    section_path="重试策略 / 有界重试",
+                    content=QA_CONTENT,
+                    token_count=len(QA_CONTENT),
+                )
+            )
+        else:
+            section.content = QA_CONTENT
+            section.token_count = len(QA_CONTENT)
+        await session.commit()
+
+
 async def _serve() -> None:
     settings = Settings()
     engine = create_engine(settings)
+    session_factory = create_session_factory(engine)
     try:
+        await _seed_qa_source(session_factory)
         print("ready", flush=True)
         await run_worker(
             settings=settings,
-            session_factory=create_session_factory(engine),
+            session_factory=session_factory,
             storage=LocalPrivateStorage(settings.resume_storage_dir),
             llm=DeterministicResumeLlm(),
             prompt_loader=PromptLoader(settings.prompt_dir),

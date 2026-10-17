@@ -2,9 +2,9 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.6 |
-| 文档状态 | 账号与简历纵向切片验收通过，准备进入检索问答切片 |
-| 更新日期 | 2026-10-17 |
+| 文档版本 | v1.7 |
+| 文档状态 | 检索问答切片验收通过，准备进入模拟面试与报告切片 |
+| 更新日期 | 2026-10-18 |
 
 > 本清单跟踪架构决策、工程骨架和核心能力基座的验收证据。需求和用户可见行为的批准记录在[决策登记](./decision-register.md)。
 
@@ -12,7 +12,7 @@
 
 | 检查项 | 状态 | 证据 |
 | --- | --- | --- |
-| 分层符合 `AGENTS.md` | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` v0.11 |
+| 分层符合 `AGENTS.md` | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` v0.12 |
 | 模块依赖方向明确 | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` 依赖矩阵 |
 | 业务状态以 PostgreSQL 为事实来源 | `accepted` | `docs/adr/0002-database-as-source-of-truth.md` |
 | 面试截止由服务端控制 | `accepted` | `docs/adr/0003-server-authoritative-deadline.md` |
@@ -83,23 +83,24 @@
 | 完整工具参数 Schema 进入模型上下文 | `passed` | `agent_turn` v1.1.0、Agent Loop 回归测试 |
 | 确定性 Agent 行为 eval | `passed` | `evals/run.py`、`evals/baseline.json` |
 | 阶段与审批文档契约 | `passed` | `tests/test_decision_docs.py` 验证 `DR-07` 已批准、`web/` 资产和当前阶段证据 |
-| 默认与集成质量门禁 | `passed` | `RUN_INTEGRATION=1 pytest` 为 `107 passed`；集成结果包含文档契约测试 |
-| 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `8f3d2a1c7b90` |
-| 确定性行为评测 | `passed` | `pytest -q evals` 为 `3 passed`，通过率 1.0 |
+| 默认与集成质量门禁 | `passed` | `RUN_INTEGRATION=1 pytest` 为 `116 passed`；集成结果包含文档契约测试 |
+| 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `4b6e9d2c1a70` |
+| 确定性行为评测 | `passed` | `pytest -q evals` 为 `3/3`，通过率 1.0 |
 | 前端工程与账号路径 | `passed` | `web/`；注册、登录、退出、找回/重置密码、空工作台和响应式导航 |
 | 会话与 CSRF | `passed` | `interview_session` 为 `HttpOnly`；`interview_csrf` 配合 `X-CSRF-Token`；`auth_sessions.csrf_token_hash` 只保存哈希 |
 | 历史分页 | `passed` | 历史接口返回 `{items, next_cursor}`；前端每页 10 条并支持继续加载 |
 | 简历纵向切片 | `passed` | 上传、PDF/DOCX 校验、异步处理、10 题、失败重试、删除原始简历和 `source_deleted` 证据摘要 |
-| 浏览器 E2E | `passed` | Playwright 桌面与移动项目 `4 passed`；覆盖账号、工作台、历史及简历上传、处理、出题和删除。macOS 13 不支持本轮 Playwright WebKit 二进制，WebKit 留待兼容 CI |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `7 files / 21 tests`、ESLint、build；后端 ruff、格式、mypy（78 files）、`RUN_INTEGRATION=1 pytest`（`107 passed`）和 `alembic check`。Vitest 曾出现一次偶发加载超时，单文件复跑和连续两次全量复跑均通过，作为测试稳定性风险保留 |
+| 检索问答切片 | `passed` | owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、持久 SSE 游标重放、终态互斥和前端历史重开 |
+| 浏览器 E2E | `passed` | Playwright 桌面与移动项目 `8 passed`，问答专项 `4 passed`；macOS 13 不支持本轮 Playwright WebKit 二进制，WebKit 留待兼容 CI |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `9 files / 32 tests`、ESLint、build；后端 ruff、格式、mypy（84 files）、`RUN_INTEGRATION=1 pytest`（`116 passed`）和 `alembic check` |
 | 真实 provider FAST eval | `passed` | 真实 provider FAST eval 已通过：`deepseek-flash`；2 steps；tokens `773 / 131`；latency `3471ms`；cost `$0.0003891`；Prompt `agent_system@1.0.0+agent_turn@1.1.0` |
 | 完整 G4A 模型矩阵 | `open` | FAST 已通过；DEFAULT、REASONING、异常边界和发布成本门槛仍未关闭 |
 
 ## 6. 下一步
 
-1. 账号与简历纵向切片已通过浏览器、安全、权限、质量和迁移门禁。
-2. 进入检索问答前，确认知识源 allowlist、检索预算、持久 SSE 事件和证据校验边界。
-3. 检索问答覆盖有证据、证据不足、检索失败、任意 URL 拒绝、重连和知识源版本冻结。
+1. 账号、简历与检索问答纵向切片已通过浏览器、安全、权限、质量和迁移门禁。
+2. 检索问答覆盖有证据、证据不足、检索失败、任意 URL 拒绝、重连、知识源版本冻结和公开证据字段边界。
+3. 进入模拟面试与报告切片前，确认服务端截止、提交幂等、评分分段、受保护反馈解锁和恢复路径。
 4. 完整 G4A 模型矩阵继续作为发布前独立门禁：补齐 DEFAULT、REASONING、异常边界和发布成本门槛。
 5. 按[下一步执行计划](./next-steps.md)和[开发全流程](./development-flow.md)推进后续切片。
 
@@ -123,3 +124,4 @@
 | v1.4 | 2026-10-17 | 同步技术设计 v0.10；确认阶段文档契约、首切片质量门禁和简历闭环入口 |
 | v1.5 | 2026-10-17 | 简历纵向切片验收通过：桌面与移动 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；下一阶段为检索问答 |
 | v1.6 | 2026-10-17 | 复核移动端 E2E 与剩余质量门禁；记录一次 Vitest 偶发加载超时及连续复跑通过结果，保留测试稳定性风险 |
+| v1.7 | 2026-10-18 | 检索问答切片验收通过：owner 隔离、幂等、URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放和公开字段边界通过；双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70` |
