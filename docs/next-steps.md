@@ -2,21 +2,21 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.5 |
+| 文档版本 | v0.6 |
 | 文档状态 | 执行中 |
 | 更新日期 | 2026-10-17 |
-| 当前阶段 | 工程骨架与质量基线 |
-| 当前目标 | 建立可启动、可迁移、可测试、可观测的工程底座 |
+| 当前阶段 | 核心能力基座 |
+| 当前目标 | 建立统一、可追踪、有硬上限的 LLM、Prompt、Tool 和 Agent Loop 基座 |
 | 后续目标 | 完成核心基座后启动“账号 -> 工作台 -> 空状态”首个纵向切片 |
 | 审批依据 | `docs/decision-register.md` v0.6 |
 
-> `DR-01` 至 `DR-06` 已全部批准，ADR-0001 至 ADR-0008 已全部接受。需求、产品和技术评审不再阻塞开发；当前缺的是 Python 工程、数据库迁移、质量门禁和运行基础设施。
+> `DR-01` 至 `DR-06` 已全部批准，ADR-0001 至 ADR-0008 已全部接受。工程骨架与质量基线已通过，当前不再有审批、架构或工程门禁阻塞；下一步是实现所有业务切片共用的核心能力基座。
 
 ## 1. 当前完成度
 
 | 事项 | 状态 | 证据 | 是否阻塞下一步 |
 | --- | --- | --- | --- |
-| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v1.7 | 否 |
+| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v1.8 | 否 |
 | 需求基线 | 已完成 | `docs/requirements.md` v1.5 | 否 |
 | 产品方案 | 已完成 | `docs/product-design.md` v1.5 | 否 |
 | 需求决策 `DR-01` 至 `DR-06` | `approved` | `docs/decision-register.md` v0.6 | 否 |
@@ -24,22 +24,27 @@
 | 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.5、`docs/state-machine.md` v0.5 | 否 |
 | 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.6、`docs/threat-model.md` v0.4 | 否 |
 | ADR-0001 至 ADR-0008 | 全部 `accepted` | `docs/adr/` | 否 |
-| Python 工程 | 未开始 | 尚无 `pyproject.toml` 和锁文件 | 是 |
-| 应用与数据库骨架 | 未开始 | 尚无 `app/`、迁移和本地编排 | 是 |
-| 测试、评测与质量门禁 | 未开始 | 尚无 `tests/`、`evals/` 和 CI 配置 | 是 |
+| Python 工程 | 已完成 | `pyproject.toml`、`uv.lock`、`.python-version` | 否 |
+| 应用与数据库骨架 | 已完成 | FastAPI、SQLAlchemy async、Alembic、初始迁移和 Compose | 否 |
+| 可观测性与安全入口 | 已完成 | 请求 ID、结构化日志、脱敏、trace 契约和统一错误信封 | 否 |
+| 测试、评测与质量门禁 | 已完成 | `22 passed, 10 skipped`；集成测试 `32 passed`；eval `1/1` | 否 |
+| LLM 档位与 Client | 未开始 | 尚无 `app/llm/` 和真实调用入口 | 是 |
+| Prompt 与 Tool Registry | 未开始 | 尚无 Markdown Prompt 加载、Schema 工具和统一注册表 | 是 |
+| Agent Loop 与行为评测 | 未开始 | 尚无三重封顶主循环和真实 LLM eval | 是 |
 
-当前阻塞不是审批或架构评审，而是工程目录与运行基线尚未建立。
+当前没有外部审批阻塞或工程质量阻塞；剩余工作集中在核心能力基座。
 
 ## 2. 执行顺序
 
 ```mermaid
 flowchart TD
-    N0["当前：工程骨架与质量基线"] --> N1["uv 工程、依赖与配置"]
-    N1 --> N2["FastAPI 入口与健康检查"]
-    N2 --> N3["SQLAlchemy、Alembic 与初始迁移"]
-    N3 --> N4["日志、请求 ID 与 trace 骨架"]
-    N4 --> N5["测试夹具、质量门禁与 eval 入口"]
-    N5 --> N6["核心基座：LLM、Prompt、Registry、Agent Loop"]
+    S0["工程骨架与质量基线：已完成"] --> N0["当前：核心能力基座"]
+    N0 --> N1["模型档位与 LLM Client"]
+    N1 --> N2["Prompt 加载与变量校验"]
+    N2 --> N3["Tool 基类、截断与错误回灌"]
+    N3 --> N4["Tool Registry 与不可信内容入口"]
+    N4 --> N5["Agent Loop 三重封顶与嵌套限制"]
+    N5 --> N6["真实 LLM 行为 eval 与基线"]
     N6 --> N7["首个纵向切片：账号与工作台"]
     N7 --> N8["简历、问答、面试、报告切片"]
     N8 --> N9["集成、安全、性能与发布评审"]
@@ -52,7 +57,9 @@ flowchart TD
 - 每个骨架项同时交付测试或可重复验证命令，不以“文件已创建”为完成。
 - 核心基座完成前，不并行堆叠多个业务切片。
 
-## 3. 工程骨架交付清单
+## 3. 工程骨架交付清单（已完成）
+
+工程骨架已按下列范围落地，并通过迁移循环、静态检查、单元/集成测试和首次 eval 验证。本节保留为后续改动的影响检查清单。
 
 ### 3.1 Python 工程与配置
 
@@ -105,7 +112,7 @@ flowchart TD
 | 静态检查 | ruff、mypy、pre-commit | `ruff check`、`ruff format --check`、`mypy app` 通过 |
 | CI 门禁 | 单测、lint、类型检查和迁移检查 | 合并前可重复执行，不依赖人工本机状态 |
 
-## 4. 当前阶段的退出条件
+## 4. 上一阶段退出条件（已满足）
 
 “工程骨架与质量基线”完成需要同时满足：
 
@@ -118,7 +125,13 @@ flowchart TD
 - 至少一条 eval 用例可运行并记录基线。
 - `.env.example`、配置模型、迁移和启动文档保持一致。
 
-未满足时不进入业务切片；尤其不能用业务代码绕过健康检查、迁移、trace 或质量门禁。
+验证证据：
+
+- `ruff check .`、`ruff format --check .` 和 `mypy app tests evals migrations` 通过。
+- 默认测试为 `22 passed, 10 skipped`；`RUN_INTEGRATION=1 uv run pytest -q` 为 `32 passed`。
+- 空库迁移、降级、再次升级及 `alembic check` 通过。
+- 首次 eval 为 `1/1 passed`，基线已写入 `evals/baseline.json`。
+- 真实服务可启动，健康检查、请求 ID 和服务端时间响应头可验证。
 
 ## 5. 核心基座与首个切片
 
@@ -188,3 +201,4 @@ flowchart TD
 | v0.3 | 2026-10-17 | 记录 DR-01、DR-02 已批准并完成文档同步；剩余审批收敛为 DR-03 至 DR-06 |
 | v0.4 | 2026-10-17 | 记录 DR-03 至 DR-06 已批准；需求审批全部关闭 |
 | v0.5 | 2026-10-17 | 记录 ADR-0001 至 ADR-0008 全部接受；当前阶段切换为工程骨架与质量基线，补充 `uv`、FastAPI、迁移、SSE、任务租约、日志、测试和 eval 交付清单 |
+| v0.6 | 2026-10-17 | 工程骨架与质量基线通过；记录静态检查、测试、迁移和 eval 证据，当前阶段切换为核心能力基座 |

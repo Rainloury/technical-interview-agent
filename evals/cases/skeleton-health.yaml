@@ -1,0 +1,19 @@
+id: skeleton-health-live
+kind: http_contract
+description: Live health endpoint preserves request correlation and server time.
+cost_cny: 0.0
+input:
+  method: GET
+  path: /health/live
+  headers:
+    X-Request-ID: req_eval_live
+expect:
+  status_code: 200
+  headers:
+    X-Request-ID: req_eval_live
+  json_contains:
+    status: ok
+forbidden:
+  text_contains:
+    - Traceback
+    - sk-private

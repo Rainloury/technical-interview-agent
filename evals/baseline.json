@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-17T10:53:39.858841+00:00",
+  "total": 1,
+  "passed": 1,
+  "pass_rate": 1.0,
+  "total_cost_cny": 0.0,
+  "cases": [
+    {
+      "case_id": "skeleton-health-live",
+      "passed": true,
+      "cost_cny": 0.0,
+      "failure_reason": null
+    }
+  ]
+}
