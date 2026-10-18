@@ -152,7 +152,7 @@ docker build --pull -t "$IMAGE_REPOSITORY:$IMAGE_TAG" .
 docker push "$IMAGE_REPOSITORY:$IMAGE_TAG"
 ```
 
-镜像以 UID/GID `10001` 的非 root 用户运行，根文件系统只读，`/tmp` 使用受限 tmpfs。API 探针检查 `/health/ready`；Worker 探针检查 `/var/run/technical-interview-agent/worker-health.json` 的 `running` 状态和 30 秒内更新时间。
+镜像以 UID/GID `10001` 的非 root 用户运行，根文件系统只读，`/tmp` 和 Worker 心跳目录使用受限 tmpfs。API 探针检查 `/health/ready`；Worker 探针检查 `/var/run/technical-interview-agent/worker-health.json` 的 `running` 状态和 30 秒内更新时间。
 
 启动后检查：
 

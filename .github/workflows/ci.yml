@@ -78,7 +78,7 @@ jobs:
           test "$(docker image inspect technical-interview-agent:ci --format '{{.Config.User}}')" = "app"
           docker run --rm technical-interview-agent:ci technical-interview-agent --help
           docker run --rm technical-interview-agent:ci technical-interview-agent worker --reload 2>&1 | grep -- "--reload is only supported"
-          docker run --rm technical-interview-agent:ci python -c "import app.main, app.worker"
+          docker run --rm -e APP_ENV=test technical-interview-agent:ci python -c "import app.main, app.worker"
 
   webkit-e2e:
     runs-on: ubuntu-latest

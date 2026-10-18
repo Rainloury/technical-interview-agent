@@ -44,6 +44,7 @@ def test_production_compose_separates_migration_api_and_worker() -> None:
         "stop_grace_period: 35s",
         "/health/ready",
         "worker-health.json",
+        "/var/run/technical-interview-agent:size=1m,mode=1777",
         "read_only: true",
         "no-new-privileges:true",
         "cap_drop:",
