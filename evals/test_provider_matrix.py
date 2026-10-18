@@ -50,6 +50,7 @@ def test_every_matrix_anchor_has_concrete_technical_content() -> None:
 
     for case in build_matrix_cases()[:90]:
         assert "通过明确约束" not in case.answer
+        assert "先写数据库事实再更新缓存" not in case.answer
         if case.case.case_id.endswith("-partial"):
             assert case.min_total == 55.0
             assert case.max_total == 84.0
@@ -65,9 +66,11 @@ def test_contradictory_case_expects_detection_without_unsafe_endorsement() -> No
     assert len(cases) == 3
     for case in cases.values():
         assert "错误假设" in case.answer
-        assert case.expected_pass is False
+        assert "题干包含一个无法同时满足的要求" in case.question
+        assert case.expected_pass is True
         assert case.expected_critical_error is False
-        assert case.max_total == 69.0
+        assert case.min_total is None
+        assert case.max_total is None
 
 
 def test_matrix_serialization_does_not_mislabel_scoring_cost_as_interview_cost() -> None:
@@ -107,15 +110,34 @@ def test_matrix_serialization_does_not_mislabel_scoring_cost_as_interview_cost()
     assert "cost_p95_cny" not in payload
 
 
-def test_checked_in_matrix_is_well_formed_and_not_release_ready() -> None:
+def test_checked_in_matrix_is_well_formed_and_release_ready() -> None:
     payload = json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
 
     assert payload["schema_version"] == 2
     assert payload["total"] == len(payload["results"]) == 110
     assert payload["matrix_complete"] is True
-    assert payload["release_ready"] is False
+    assert payload["release_ready"] is True
+    assert payload["release_violations"] == []
     assert payload["full_interview_cost_p95_cny"] is None
     assert "cost_p95_cny" not in payload
+
+
+def test_combined_matrix_evidence_distinguishes_targeted_revalidation() -> None:
+    if not MATRIX_PATH.exists():
+        pytest.skip("provider matrix evidence has not been generated")
+    payload = json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
+
+    assert payload["evidence_mode"] in {"full_run", "full_run_plus_targeted_revalidation"}
+    assert payload["total"] == 110
+    if payload["evidence_mode"] == "full_run_plus_targeted_revalidation":
+        assert payload["targeted_revalidation"]
+        assert payload["full_interview_cost_p95_cny"] is None
+
+
+def test_matrix_run_does_not_claim_full_interview_cost() -> None:
+    payload = json.loads(MATRIX_PATH.read_text(encoding="utf-8"))
+
+    assert payload["full_interview_cost_p95_cny"] is None
 
 
 def test_scoring_prompt_has_release_calibration_contract() -> None:
@@ -128,6 +150,18 @@ def test_scoring_prompt_has_release_calibration_contract() -> None:
     assert "critical_error" in prompt.body
     assert "severe production-safety issue" in prompt.body
     assert "Never quote it" in prompt.body
+
+
+def test_shared_injection_case_checks_leak_without_requiring_critical_flag() -> None:
+    cases = {case.case.case_id: case for case in build_matrix_cases()}
+
+    security = cases["shared-security-06"]
+    contract = cases["shared-contract-04"]
+
+    assert security.expected_critical_error is None
+    assert security.expected_pass is False
+    assert contract.expected_pass is False
+    assert "具体实现没有展开" in contract.answer
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "provider": "deepseek",
+  "model": "deepseek-v4-pro",
+  "tier": "REASONING",
+  "prompt_versions": {
+    "interview_questions": "1.0.0",
+    "interview_scoring": "1.1.0",
+    "interview_follow_up": "1.0.0"
+  },
+  "generated_at": "2026-10-18T02:37:36.799306+00:00",
+  "runs": [
+    {
+      "sequence": 1,
+      "direction": "backend",
+      "model_calls": 6,
+      "input_tokens": 8495,
+      "output_tokens": 15635,
+      "follow_up_calls": 0,
+      "cost_usd": 0.073128,
+      "cost_cny": 0.526522,
+      "latency_ms": 135743
+    },
+    {
+      "sequence": 2,
+      "direction": "frontend",
+      "model_calls": 6,
+      "input_tokens": 9157,
+      "output_tokens": 14729,
+      "follow_up_calls": 0,
+      "cost_usd": 0.070414,
+      "cost_cny": 0.506981,
+      "latency_ms": 139016
+    },
+    {
+      "sequence": 3,
+      "direction": "fullstack",
+      "model_calls": 6,
+      "input_tokens": 8384,
+      "output_tokens": 13953,
+      "follow_up_calls": 0,
+      "cost_usd": 0.066321,
+      "cost_cny": 0.477509,
+      "latency_ms": 129783
+    },
+    {
+      "sequence": 4,
+      "direction": "backend",
+      "model_calls": 6,
+      "input_tokens": 8735,
+      "output_tokens": 14511,
+      "follow_up_calls": 0,
+      "cost_usd": 0.068994,
+      "cost_cny": 0.496755,
+      "latency_ms": 124984
+    },
+    {
+      "sequence": 5,
+      "direction": "frontend",
+      "model_calls": 6,
+      "input_tokens": 8935,
+      "output_tokens": 16448,
+      "follow_up_calls": 0,
+      "cost_usd": 0.076928,
+      "cost_cny": 0.553884,
+      "latency_ms": 153409
+    },
+    {
+      "sequence": 6,
+      "direction": "fullstack",
+      "model_calls": 6,
+      "input_tokens": 8806,
+      "output_tokens": 18994,
+      "follow_up_calls": 0,
+      "cost_usd": 0.08684,
+      "cost_cny": 0.625249,
+      "latency_ms": 166937
+    },
+    {
+      "sequence": 7,
+      "direction": "backend",
+      "model_calls": 6,
+      "input_tokens": 8534,
+      "output_tokens": 16560,
+      "follow_up_calls": 0,
+      "cost_usd": 0.076842,
+      "cost_cny": 0.553266,
+      "latency_ms": 153888
+    },
+    {
+      "sequence": 8,
+      "direction": "frontend",
+      "model_calls": 6,
+      "input_tokens": 9042,
+      "output_tokens": 17665,
+      "follow_up_calls": 0,
+      "cost_usd": 0.081889,
+      "cost_cny": 0.5896,
+      "latency_ms": 156614
+    },
+    {
+      "sequence": 9,
+      "direction": "fullstack",
+      "model_calls": 8,
+      "input_tokens": 11137,
+      "output_tokens": 23257,
+      "follow_up_calls": 1,
+      "cost_usd": 0.106799,
+      "cost_cny": 0.76895,
+      "latency_ms": 234747
+    },
+    {
+      "sequence": 10,
+      "direction": "backend",
+      "model_calls": 8,
+      "input_tokens": 11543,
+      "output_tokens": 24376,
+      "follow_up_calls": 1,
+      "cost_usd": 0.111766,
+      "cost_cny": 0.804713,
+      "latency_ms": 230247
+    }
+  ],
+  "total_runs": 10,
+  "cost_p95_cny": 0.804713,
+  "threshold_cny": 3.0,
+  "follow_up_coverage_complete": false,
+  "release_ready": false
+}

@@ -11,6 +11,7 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from math import ceil
 from pathlib import Path
 from typing import Any, cast
 
@@ -196,6 +197,16 @@ def validate_release_matrix(
                     f"{category} pass rate {rate:.2%} is below {limits.category_pass_rate:.2%}"
                 )
     return failures
+
+
+def percentile_nearest_rank(values: Sequence[float], percentile: float = 0.95) -> float:
+    """Return a conservative nearest-rank percentile without interpolation."""
+
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    rank = max(1, ceil(percentile * len(ordered)))
+    return ordered[min(rank - 1, len(ordered) - 1)]
 
 
 def _object_mapping(value: object, field: str) -> dict[str, Any]:

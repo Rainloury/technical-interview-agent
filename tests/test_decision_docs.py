@@ -84,15 +84,20 @@ def test_phase_docs_describe_the_current_launch_quality_slice() -> None:
     for path in documents:
         text = _read(path)
         assert "上线质量切片进行中" in text, path
-        assert "隐私与可观测门禁已通过" in text, path
+        assert "隐私与可观测门禁" in text and "已通过" in text, path
         assert (
             "真实 provider 三档单轮 eval 已通过" in text or "真实 provider FAST eval 已通过" in text
         ), path
-        assert "完整 G4A 模型矩阵仍未关闭" in text, path
+        assert (
+            "G4A 行为矩阵已通过" in text
+            or "G4A 行为矩阵仅剩整场成本证据" in text
+            or "完整 G4A 仅剩整场成本证据" in text
+        ), path
+        assert "0.804713" in text, path
         assert "12 files / 37 tests" in text, path
-        assert "140 passed" in text, path
+        assert "150 passed" in text, path
         assert "14 passed" in text, path
-        assert "71 files" in text, path
+        assert "73 files" in text, path
         assert "9f4c2a7d1e30" in text, path
         assert "7/7" in text, path
 

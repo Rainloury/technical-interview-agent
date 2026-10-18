@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.7 |
-| 文档状态 | 上线质量切片进行中；隐私与可观测门禁已通过 |
+| 文档版本 | v2.0 |
+| 文档状态 | 上线质量切片进行中；隐私与可观测门禁、G4A 行为矩阵已通过 |
 | 更新日期 | 2026-10-18 |
 
 > 本清单跟踪架构决策、工程骨架和核心能力基座的验收证据。需求和用户可见行为的批准记录在[决策登记](./decision-register.md)。
@@ -83,7 +83,7 @@
 | 完整工具参数 Schema 进入模型上下文 | `passed` | `agent_turn` v1.1.0、Agent Loop 回归测试 |
 | 确定性 Agent 行为 eval | `passed` | `evals/run.py`、`evals/baseline.json` |
 | 阶段与审批文档契约 | `passed` | `tests/test_decision_docs.py` 验证 `DR-07` 已批准、`web/` 资产和当前阶段证据 |
-| 默认与集成质量门禁 | `passed` | `RUN_INTEGRATION=1 pytest` 为 `140 passed`；集成结果包含文档契约与 provider 矩阵契约测试 |
+| 默认与集成质量门禁 | `passed` | `RUN_INTEGRATION=1 pytest` 为 `150 passed`；集成结果包含文档契约、provider 矩阵与整场成本契约测试 |
 | 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `9f4c2a7d1e30` |
 | 确定性行为评测 | `passed` | `pytest -q evals` 与 eval CLI 为 `7/7`，通过率 1.0 |
 | 前端工程与账号路径 | `passed` | `web/`；注册、登录、退出、找回/重置密码、空工作台和响应式导航 |
@@ -92,16 +92,16 @@
 | 简历纵向切片 | `passed` | 上传、PDF/DOCX 校验、异步处理、10 题、失败重试、删除原始简历和 `source_deleted` 证据摘要 |
 | 检索问答切片 | `passed` | owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、持久 SSE 游标重放、终态互斥和前端历史重开 |
 | 浏览器 E2E | `passed` | Playwright 桌面与移动项目 `14 passed`，隐私专项 `2 passed`；macOS 13 不支持本轮 Playwright WebKit 二进制，WebKit 留待兼容 CI |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（71 files）、`RUN_INTEGRATION=1 pytest`（`140 passed`）和 `alembic check` |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（73 files）、`RUN_INTEGRATION=1 pytest`（`150 passed`）和 `alembic check` |
 | 真实 provider 三档单轮 eval | `passed` | 真实 provider 三档单轮 eval 已通过：FAST `deepseek-flash`；DEFAULT/REASONING `deepseek-v4-pro`；均 2 steps、正确调用 `add` 并返回 `42` |
-| 完整 G4A 模型矩阵 | `failed` | 三档单轮与异常边界测试已通过；110 条真实模型矩阵为 `82/110`，未达到发布门槛；完整面试成本 P95 尚未测量 |
+| 完整 G4A 模型矩阵 | `passed` | 三档单轮与异常边界测试已通过；110 条行为矩阵为完整运行 `108/110` 加定向复验 `2/2`；整场成本 P95 ¥0.804713，但追问覆盖仅 2/10 且未含真实检索 |
 
 ## 6. 下一步
 
 1. 账号、简历与检索问答纵向切片已通过浏览器、安全、权限、质量和迁移门禁。
 2. 检索问答覆盖有证据、证据不足、检索失败、任意 URL 拒绝、重连、知识源版本冻结和公开证据字段边界。
 3. 进入模拟面试与报告切片前，确认服务端截止、提交幂等、评分分段、受保护反馈解锁和恢复路径。
-4. 完整 G4A 模型矩阵继续作为发布前独立门禁：修复 110 条行为矩阵失败项，并补齐完整面试成本 P95 基准。
+4. 完整 G4A 模型矩阵继续作为发布前独立门禁：补齐追问链与真实检索成本覆盖，再完成发布评审。
 5. 按[下一步执行计划](./next-steps.md)和[开发全流程](./development-flow.md)推进后续切片。
 
 ## 7. 版本记录
@@ -127,3 +127,4 @@
 | v1.7 | 2026-10-18 | 检索问答切片验收通过：owner 隔离、幂等、URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放和公开字段边界通过；双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70` |
 | v1.8 | 2026-10-18 | 模拟面试与报告切片验收通过：数据库硬截止、操作幂等、中性 202 响应、评分、两层追问、分支结束原因、评分失败收口和受保护反馈通过；双视口 E2E `12 passed`、前端 `11 files / 36 tests`、后端 `126 passed`、mypy 58 files、迁移头 `7d1a3e5b9c42` |
 | v1.9 | 2026-10-18 | 上线质量隐私与可观测门禁通过：账号数据删除、对象与业务主体清理、30/90/365 天保留清理、审计最小化、ops metrics、确定性 eval `7/7` 和双视口隐私 E2E `2 passed`；双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `140 passed`、mypy 71 files、迁移头 `9f4c2a7d1e30`；110 条真实行为矩阵 `82/110`，完整 G4A 模型矩阵仍未关闭 |
+| v2.0 | 2026-10-18 | 修正矩阵构念失真后，完整复跑 `108/110`（98.18%），两条共享契约定向复验 `2/2`，行为矩阵合计 `110/110` 并通过；完整 G4A 仅剩整场面试成本 P95 证据 |
