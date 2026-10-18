@@ -5,11 +5,13 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import signal
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any, Protocol, cast
 
 from sqlalchemy import delete, func, select, update
@@ -1933,18 +1935,37 @@ class WorkerRunner:
         stop_event = asyncio.Event()
         loop = asyncio.get_running_loop()
         llm: ResumeLlm | None = None
+        engine: Any | None = None
+        storage: Any | None = None
+        health_file = Path(self._settings.worker_health_file)
+
+        def write_health(state: str) -> None:
+            health_file.parent.mkdir(parents=True, exist_ok=True)
+            temporary = health_file.with_name(f".{health_file.name}.{uuid.uuid4().hex}.tmp")
+            payload = {
+                "state": state,
+                "worker_id": run_id,
+                "updated_at": datetime.now(UTC).isoformat(),
+            }
+            temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            os.chmod(temporary, 0o600)
+            os.replace(temporary, health_file)
+
+        def clear_health() -> None:
+            health_file.unlink(missing_ok=True)
 
         def request_stop(signum: int) -> None:
             logger.info("worker shutdown requested", signal=signum)
             stop_event.set()
 
-        engine = create_engine(self._settings)
-        storage = create_resume_storage(self._settings)
         try:
             for signum in (signal.SIGINT, signal.SIGTERM):
                 loop.add_signal_handler(signum, request_stop, signum)
+            engine = create_engine(self._settings)
+            storage = create_resume_storage(self._settings)
             session_factory = create_session_factory(engine)
             llm = self._llm_factory(self._settings)
+            write_health("running")
             logger.info(
                 "worker starting",
                 environment=self._settings.app_env,
@@ -1968,12 +1989,15 @@ class WorkerRunner:
                 aclose_llm = getattr(llm, "aclose", None)
                 if callable(aclose_llm):
                     await aclose_llm()
-            aclose = getattr(storage, "aclose", None)
-            if callable(aclose):
-                await aclose()
-            await engine.dispose()
+            if storage is not None:
+                aclose = getattr(storage, "aclose", None)
+                if callable(aclose):
+                    await aclose()
+            if engine is not None:
+                await engine.dispose()
             for signum in (signal.SIGINT, signal.SIGTERM):
                 loop.remove_signal_handler(signum)
+            clear_health()
             logger.info("worker stopped")
 
 

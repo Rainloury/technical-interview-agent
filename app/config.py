@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     worker_max_runtime_seconds: int = Field(default=86_400, ge=1)
     worker_idle_seconds: float = Field(default=1.0, gt=0)
     worker_shutdown_grace_seconds: float = Field(default=30.0, gt=0)
+    worker_health_file: str = "/var/run/technical-interview-agent/worker-health.json"
     ops_metrics_token: SecretStr | None = None
 
     smtp_host: str | None = None

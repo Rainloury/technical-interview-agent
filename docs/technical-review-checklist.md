@@ -12,7 +12,7 @@
 
 | 检查项 | 状态 | 证据 |
 | --- | --- | --- |
-| 分层符合 `AGENTS.md` | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` v0.17 |
+| 分层符合 `AGENTS.md` | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` v0.19 |
 | 模块依赖方向明确 | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` 依赖矩阵 |
 | 业务状态以 PostgreSQL 为事实来源 | `accepted` | `docs/adr/0002-database-as-source-of-truth.md` |
 | 面试截止由服务端控制 | `accepted` | `docs/adr/0003-server-authoritative-deadline.md` |
@@ -83,7 +83,7 @@
 | 完整工具参数 Schema 进入模型上下文 | `passed` | `agent_turn` v1.1.0、Agent Loop 回归测试 |
 | 确定性 Agent 行为 eval | `passed` | `evals/run.py`、`evals/baseline.json` |
 | 阶段与审批文档契约 | `passed` | `tests/test_decision_docs.py` 验证 `DR-07` 已批准、`web/` 资产和当前阶段证据 |
-| 默认与集成质量门禁 | `passed` | 默认测试 `138 passed, 49 skipped`；`RUN_INTEGRATION=1 pytest` 为 `158 passed`；集成结果包含文档契约、provider 矩阵、整场成本、DirectMail 和 OSS 适配器契约测试 |
+| 默认与集成质量门禁 | `passed` | 默认测试 `144 passed, 49 skipped`；`RUN_INTEGRATION=1 pytest` 为 `158 passed`；集成结果包含文档契约、provider 矩阵、整场成本、DirectMail 和 OSS 适配器契约测试 |
 | 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `9f4c2a7d1e30` |
 | 确定性行为评测 | `passed` | `pytest -q evals` 与 eval CLI 为 `7/7`，通过率 1.0 |
 | 前端工程与账号路径 | `passed` | `web/`；注册、登录、退出、找回/重置密码、空工作台和响应式导航 |
@@ -94,9 +94,10 @@
 | 浏览器 E2E | `passed` | Chromium 桌面与移动 `14 passed`，隐私专项 `2 passed`；GitHub Actions Ubuntu 24.04 托管 runner 的 Playwright WebKit Desktop Safari + iPhone 13 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed` |
 | DirectMail SMTP | `passed` | `smtpdm.aliyun.com:465` + SSL 的 TLS 与 SMTP 登录通过；测试邮件已由 SMTP 服务器接受且无拒收收件人；收件箱到达待人工确认 |
 | OSS 私有对象存储 | `passed` | 真实私有桶 PUT/GET/DELETE、简历业务上传内容一致性和源文件删除后不可读均已验证 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（104 files）、默认测试 `138 passed, 49 skipped`、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（105 files）、默认测试 `144 passed, 49 skipped`、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` |
 | 真实 provider 三档单轮 eval | `passed` | 真实 provider 三档单轮 eval 已通过：FAST `deepseek-flash`；DEFAULT/REASONING `deepseek-v4-pro`；均 2 steps、正确调用 `add` 并返回 `42` |
 | 完整 G4A 模型矩阵 | `passed` | 三档单轮与异常边界测试已通过；110 条行为矩阵为完整运行 `108/110` 加定向复验 `2/2`；10 场整场成本 P95 ¥0.83908，每场覆盖追问，检索外部费用 ¥0 |
+| 部署资产 | `passed` | 非 root 生产镜像、migrate/API/Worker Compose、只读根文件系统、API/Worker 健康检查和 CI 镜像构建门禁 |
 
 ## 6. 下一步
 
@@ -139,4 +140,5 @@
 | v2.7 | 2026-10-18 | GitHub Actions `ubuntu-latest` 托管 runner WebKit 实跑通过：Desktop Safari + iPhone 13 `14 passed`（2.4 min），quality job 全绿；修复 preview 构建 API 地址注入，并增加手动 grep、默认零重试和全局超时诊断 |
 | v2.8 | 2026-10-18 | 阶段切换至发布候选：全部技术与生产依赖门禁通过；后续只剩发布批准、回滚/备份检查和灰度上线观测 |
 | v2.9 | 2026-10-18 | 增加生产配置启动 fail-fast 与发布运行手册；默认测试更新为 `121 passed, 49 skipped`、mypy 103 files；生产 Worker、部署资产、密码重置异步投递、备份恢复和回滚演练仍为上线阻断项 |
-| v3.0 | 2026-10-18 | 生产 Worker 命令与有界生命周期验收通过；默认测试更新为 `138 passed, 49 skipped`、mypy 104 files；部署编排、密码重置异步投递、备份恢复、回滚和告警仍为上线阻断项 |
+| v3.0 | 2026-10-18 | 生产 Worker 命令与有界生命周期验收通过；默认测试更新为 `144 passed, 49 skipped`、mypy 105 files；部署编排、密码重置异步投递、备份恢复、回滚和告警仍为上线阻断项 |
+| v3.1 | 2026-10-18 | 部署资产门禁通过：非 root 生产镜像、migrate/API/Worker Compose、Worker 心跳和 CI 镜像构建验证落地 |

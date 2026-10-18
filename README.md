@@ -2,13 +2,13 @@
 
 技术面试问答与模拟面试智能体服务。项目规则见 `AGENTS.md`，需求与技术基线见 `docs/`。
 
-当前阶段：**发布候选（release candidate）；隐私与可观测门禁已通过，G4A 行为矩阵已通过，全部技术与生产依赖门禁已通过，生产 Worker 入口已提供；待发布批准，且部署编排与恢复演练待完成**。`web/` 已实现注册、登录、找回/重置密码、工作台、四类历史分页、桌面/移动导航、简历闭环、检索问答、模拟面试、终态报告、复习中心和账号数据删除确认。后端已接通账号、会话、工作台、历史、异步 Worker、检索问答、面试评分/追问/报告、隐私删除、保留清理与运维聚合指标。技术设计与流程基线分别为 `docs/technical-design.md` v0.18、`docs/development-flow.md` v3.4。真实 provider 三档单轮 eval、110 条行为矩阵、整场成本 P95、生产 DirectMail/OSS 和 GitHub Actions WebKit 均已通过。
+当前阶段：**发布候选（release candidate）；隐私与可观测门禁已通过，G4A 行为矩阵已通过，全部技术与生产依赖门禁已通过，生产 Worker 入口与部署资产已提供；待发布批准，且恢复、告警和邮件异步投递待完成**。`web/` 已实现注册、登录、找回/重置密码、工作台、四类历史分页、桌面/移动导航、简历闭环、检索问答、模拟面试、终态报告、复习中心和账号数据删除确认。后端已接通账号、会话、工作台、历史、异步 Worker、检索问答、面试评分/追问/报告、隐私删除、保留清理与运维聚合指标。技术设计与流程基线分别为 `docs/technical-design.md` v0.19、`docs/development-flow.md` v3.5。真实 provider 三档单轮 eval、110 条行为矩阵、整场成本 P95、生产 DirectMail/OSS 和 GitHub Actions WebKit 均已通过。
 
 登录签发服务端会话 Cookie `interview_session`（`HttpOnly`、`Secure`、`SameSite=Lax`），同时签发前端可读的 `interview_csrf`；写请求通过 `X-CSRF-Token` 校验，数据库在 `auth_sessions.csrf_token_hash` 保存 CSRF 哈希，历史接口返回 `{items, next_cursor}`。
 
 真实 provider 三档单轮 eval 已通过：FAST `deepseek-flash`、DEFAULT/REASONING `deepseek-v4-pro`，均为 2 steps、正确调用 `add` 并返回 `42`；本轮成本分别约 `$0.000465`、`$0.002612`、`$0.002311`，Prompt `agent_system@1.0.0+agent_turn@1.1.0`。三档单轮、110 条行为矩阵和整场成本门禁均已通过。
 
-上线质量门禁证据：前端 `typecheck`、Vitest `12 files / 37 tests`、ESLint、生产构建通过；后端 `ruff`、格式检查、`mypy`（104 files）、默认测试 `138 passed, 49 skipped`、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` 通过，迁移头 `9f4c2a7d1e30`；确定性 eval `7/7`；Playwright Chromium 桌面与移动视口 `14 passed`，其中隐私专项 `2 passed`。GitHub Actions Ubuntu 24.04 托管 runner 的 Playwright WebKit Desktop Safari + iPhone 13 共 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed`。G4A 行为矩阵完整复跑 `108/110`，两条共享契约修正后定向复验 `2/2`，合计 `110/110`。10 场真实整场面试全部覆盖追问，累计 74 次模型调用；模型与检索成本 P95 为 ¥0.83908，低于 ¥3.00。DirectMail 已验证 TLS、登录和实际发送；阿里云 OSS 真实私有桶已验证简历上传、读取与删除。生产配置在启动时执行 fail-fast；发布运行资产和恢复演练仍按[发布与回滚运行手册](docs/release-runbook.md)关闭。
+上线质量门禁证据：前端 `typecheck`、Vitest `12 files / 37 tests`、ESLint、生产构建通过；后端 `ruff`、格式检查、`mypy`（105 files）、默认测试 `144 passed, 49 skipped`、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` 通过，迁移头 `9f4c2a7d1e30`；确定性 eval `7/7`；Playwright Chromium 桌面与移动视口 `14 passed`，其中隐私专项 `2 passed`。GitHub Actions Ubuntu 24.04 托管 runner 的 Playwright WebKit Desktop Safari + iPhone 13 共 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed`。G4A 行为矩阵完整复跑 `108/110`，两条共享契约修正后定向复验 `2/2`，合计 `110/110`。10 场真实整场面试全部覆盖追问，累计 74 次模型调用；模型与检索成本 P95 为 ¥0.83908，低于 ¥3.00。DirectMail 已验证 TLS、登录和实际发送；阿里云 OSS 真实私有桶已验证简历上传、读取与删除。生产配置在启动时执行 fail-fast；发布运行资产和恢复演练仍按[发布与回滚运行手册](docs/release-runbook.md)关闭。
 
 ## 本地启动
 

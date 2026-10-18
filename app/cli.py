@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+from collections.abc import Sequence
 
 import uvicorn
 
@@ -26,13 +27,25 @@ async def _run_worker() -> None:
     await WorkerRunner(settings=settings).run()
 
 
-def main() -> None:
+def main(argv: Sequence[str] | None = None) -> None:
     """Run the API or production Worker from the same executable."""
 
     parser = argparse.ArgumentParser(description="Technical interview agent")
     parser.add_argument("--reload", action="store_true")
-    parser.add_argument("command", nargs="?", choices=("api", "worker"), default="api")
-    args = parser.parse_args()
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=("api", "worker", "migrate"),
+        default="api",
+    )
+    args = parser.parse_args(argv)
+    if args.command == "migrate":
+        if args.reload:
+            parser.error("--reload is only supported for the api command")
+        from alembic.config import main as alembic_main
+
+        alembic_main(argv=["upgrade", "head"])
+        return
     if args.command == "worker":
         if args.reload:
             parser.error("--reload is only supported for the api command")

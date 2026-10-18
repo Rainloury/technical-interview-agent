@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.4 |
+| 文档版本 | v0.5 |
 | 文档状态 | 发布候选；运行手册已建立，发布批准与上线执行待完成 |
 | 更新日期 | 2026-10-18 |
 | 发布基线 | `f6fc0af` |
@@ -21,7 +21,7 @@
 | 生产配置 fail-fast | 本次新增 | `staging` / `production` 启动时校验 LLM、SMTP、OSS、HTTPS 和 Cookie/CORS 安全项 |
 | API 启动 | 已验证开发流程 | `uv run uvicorn app.main:app` |
 | 生产 Worker 入口 | 已提供 | `technical-interview-agent worker`；具备配置 fail-fast、信号停机、并发上限、运行时限和资源清理 |
-| 容器镜像与生产编排 | 未提供 | 仓库只有本地 PostgreSQL/Redis `compose.yaml` |
+| 容器镜像与生产编排 | 已提供 | 非 root 生产镜像、独立 migrate/API/Worker Compose、健康检查、只读根文件系统和 CI 镜像构建门禁 |
 | 备份恢复演练 | 未执行 | 必须在上线前完成并留存结果 |
 | 密码重置投递 | 已知限制 | 请求内同步 SMTP；失败可能影响中性 `202`，技术设计要求异步任务或发件箱 |
 
@@ -29,12 +29,11 @@
 
 以下任一未关闭，Go/No-Go 结论必须为 `NO-GO`：
 
-1. **部署资产**：提供可复现的镜像构建、API 与 Worker 进程编排、非 root 运行和健康检查。
-2. **密码重置投递**：改为可重试异步投递或 outbox，确保 SMTP 失败不改变中性 `202`；若批准为临时限制，必须写明负责人、到期日和用户影响。
-3. **备份恢复**：至少完成一次 PostgreSQL 从备份恢复到独立实例的演练，并验证迁移头和关键表。
-4. **回滚演练**：在预发布环境执行上一应用版本回滚，验证数据库兼容策略和健康检查。
-5. **监控告警**：为 `/health/ready`、`dead_letter`、`scoring_failed`、删除失败、Worker 心跳和 LLM 成本配置可通知的告警。
-6. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
+1. **密码重置投递**：改为可重试异步投递或 outbox，确保 SMTP 失败不改变中性 `202`；若批准为临时限制，必须写明负责人、到期日和用户影响。
+2. **备份恢复**：至少完成一次 PostgreSQL 从备份恢复到独立实例的演练，并验证迁移头和关键表。
+3. **回滚演练**：在预发布环境执行上一应用版本回滚，验证数据库兼容策略和健康检查。
+4. **监控告警**：为 `/health/ready`、`dead_letter`、`scoring_failed`、删除失败、Worker 心跳和 LLM 成本配置可通知的告警。
+5. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
 
 ## 3. 发布前配置
 
@@ -134,16 +133,26 @@ pg_restore --clean --if-exists --no-owner --no-acl \
 当前 API 启动命令：
 
 ```bash
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+docker compose -f deploy/production.compose.yaml --env-file <deployment.env> up -d migrate
+docker compose -f deploy/production.compose.yaml --env-file <deployment.env> up -d api
 ```
 
 当前 Worker 启动命令：
 
 ```bash
-uv run technical-interview-agent worker
+docker compose -f deploy/production.compose.yaml --env-file <deployment.env> up -d worker
 ```
 
 禁止使用 `scripts/e2e_resume_worker.py` 作为生产 Worker。部署平台应在停止时先发送 `SIGTERM`，等待 Worker 退出后再强制终止；`WORKER_CONCURRENCY` 必须与数据库连接池和任务吞吐一起评估。
+
+生产镜像构建：
+
+```bash
+docker build --pull -t "$IMAGE_REPOSITORY:$IMAGE_TAG" .
+docker push "$IMAGE_REPOSITORY:$IMAGE_TAG"
+```
+
+镜像以 UID/GID `10001` 的非 root 用户运行，根文件系统只读，`/tmp` 使用受限 tmpfs。API 探针检查 `/health/ready`；Worker 探针检查 `/var/run/technical-interview-agent/worker-health.json` 的 `running` 状态和 30 秒内更新时间。
 
 启动后检查：
 
@@ -184,7 +193,7 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 
 - [ ] 发布 SHA 已冻结，质量与 WebKit CI 对同一 SHA 全绿。
 - [ ] 生产配置核验通过，密钥未进入仓库或构建产物。
-- [ ] 镜像和编排已补齐并通过启动验证，API 与 Worker 使用同一发布 SHA。
+- [ ] 镜像和编排已补齐，CI 构建门禁通过，API 与 Worker 使用同一发布 SHA。
 - [ ] 数据库备份完成，恢复演练通过。
 - [ ] 上一版本回滚演练通过，数据库向前兼容策略明确。
 - [ ] `/health/live` 与 `/health/ready` 通过，告警可实际送达。
@@ -216,7 +225,6 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 
 | 限制 | 影响 | 当前处理 | 负责人 | 目标日期 |
 | --- | --- | --- | --- | --- |
-| 镜像与生产编排缺失 | 无法复现生产部署 | 上线阻断 | 待指定 | 上线前 |
 | 密码重置同步 SMTP | SMTP 慢或失败可能影响中性 `202` | 上线阻断或限期豁免 | 待指定 | 上线前 |
 | 备份恢复与回滚未演练 | 故障恢复证据不足 | 上线阻断 | 待指定 | 上线前 |
 
@@ -228,3 +236,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v0.2 | 2026-10-18 | 冻结发布基线 `e5e2073`；记录该 SHA 的 quality 与 WebKit CI 实跑结果 |
 | v0.3 | 2026-10-18 | 将发布基线更新为 `f6fc0af`，记录该 SHA 的 quality 与 WebKit CI 全绿结果 |
 | v0.4 | 2026-10-18 | 新增生产 Worker 命令、信号停机、并发与运行时限配置；关闭 Worker 入口阻断项，保留镜像编排、邮件异步投递、恢复回滚和告警阻断项 |
+| v0.5 | 2026-10-18 | 新增非 root 生产镜像、独立 migrate/API/Worker Compose、Worker 心跳、只读容器和 CI 镜像构建门禁；关闭部署资产阻断项 |

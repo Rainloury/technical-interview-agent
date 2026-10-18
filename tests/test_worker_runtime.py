@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import signal
 from argparse import Namespace
+from pathlib import Path
 from typing import Any, ClassVar
 
 import app.worker
@@ -299,6 +301,7 @@ async def test_worker_loop_rejects_unbounded_or_invalid_limits(
 
 async def test_worker_runner_installs_handlers_and_releases_resources(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     events: list[object] = []
 
@@ -326,7 +329,11 @@ async def test_worker_runner_installs_handlers_and_releases_resources(
     monkeypatch.setattr(app.worker, "run_worker", fake_run_worker)
 
     runner = app.worker.WorkerRunner(
-        settings=Settings(app_env="test"),
+        settings=Settings(
+            app_env="test",
+            worker_health_file=str(tmp_path / "worker-health.json"),
+            _env_file=None,
+        ),
         llm_factory=lambda _settings: object(),
     )
     await runner.run()
@@ -341,6 +348,7 @@ async def test_worker_runner_installs_handlers_and_releases_resources(
     ]
     assert "storage-closed" in events
     assert "engine-disposed" in events
+    assert not (tmp_path / "worker-health.json").exists()
 
 
 async def test_worker_runner_rejects_incomplete_production_configuration_before_setup(
@@ -367,6 +375,7 @@ async def test_worker_runner_rejects_incomplete_production_configuration_before_
 
 async def test_worker_runner_preserves_llm_initialization_error_and_releases_resources(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     events: list[str] = []
 
@@ -393,7 +402,11 @@ async def test_worker_runner_preserves_llm_initialization_error_and_releases_res
     monkeypatch.setattr(asyncio, "get_running_loop", lambda: FakeLoop())
 
     runner = app.worker.WorkerRunner(
-        settings=Settings(app_env="test"),
+        settings=Settings(
+            app_env="test",
+            worker_health_file=str(tmp_path / "worker-health.json"),
+            _env_file=None,
+        ),
         llm_factory=fail_llm,
     )
 
@@ -401,6 +414,57 @@ async def test_worker_runner_preserves_llm_initialization_error_and_releases_res
         await runner.run()
 
     assert events == ["storage-closed", "engine-disposed"]
+    assert not (tmp_path / "worker-health.json").exists()
+
+
+async def test_worker_runner_writes_live_health_while_running(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    health_file = tmp_path / "worker-health.json"
+    observed: list[dict[str, object]] = []
+
+    class FakeEngine:
+        async def dispose(self) -> None:
+            return None
+
+    class FakeStorage:
+        async def aclose(self) -> None:
+            return None
+
+    class FakeLoop:
+        def add_signal_handler(self, signum: int, callback: object, *args: object) -> None:
+            del signum, callback, args
+
+        def remove_signal_handler(self, signum: int) -> None:
+            del signum
+
+    async def fake_run_worker(**kwargs: object) -> None:
+        del kwargs
+        observed.append(json.loads(health_file.read_text(encoding="utf-8")))
+        await asyncio.sleep(0)
+
+    monkeypatch.setattr(app.worker, "create_engine", lambda _settings: FakeEngine())
+    monkeypatch.setattr(app.worker, "create_resume_storage", lambda _settings: FakeStorage())
+    monkeypatch.setattr(asyncio, "get_running_loop", lambda: FakeLoop())
+    monkeypatch.setattr(app.worker, "run_worker", fake_run_worker)
+
+    runner = app.worker.WorkerRunner(
+        settings=Settings(
+            app_env="test",
+            worker_health_file=str(health_file),
+            _env_file=None,
+        ),
+        llm_factory=lambda _settings: object(),
+    )
+    await runner.run()
+
+    assert len(observed) == 1
+    assert observed[0]["state"] == "running"
+    worker_id = observed[0]["worker_id"]
+    assert isinstance(worker_id, str)
+    assert worker_id.startswith("resume-worker-")
+    assert not health_file.exists()
 
 
 def test_cli_dispatches_worker_without_reload(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -414,7 +478,7 @@ def test_cli_dispatches_worker_without_reload(monkeypatch: pytest.MonkeyPatch) -
         def add_argument(self, *args: object, **kwargs: object) -> None:
             del args, kwargs
 
-        def parse_args(self) -> Namespace:
+        def parse_args(self, _argv: object = None) -> Namespace:
             return Namespace(command="worker", reload=False)
 
     class FakeRunner:
@@ -440,3 +504,30 @@ def test_cli_dispatches_worker_without_reload(monkeypatch: pytest.MonkeyPatch) -
     assert executed == [True]
     assert len(seen) == 1
     assert seen[0].app_env == "development"
+
+
+def test_cli_dispatches_migration(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[list[str]] = []
+
+    class FakeParser:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+
+        def add_argument(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+
+        def parse_args(self, _argv: object = None) -> Namespace:
+            return Namespace(command="migrate", reload=False)
+
+        def error(self, message: str) -> None:
+            raise AssertionError(message)
+
+    def fake_alembic_main(*, argv: list[str]) -> None:
+        seen.append(argv)
+
+    monkeypatch.setattr("app.cli.argparse.ArgumentParser", FakeParser)
+    monkeypatch.setattr("alembic.config.main", fake_alembic_main)
+
+    cli.main()
+
+    assert seen == [["upgrade", "head"]]

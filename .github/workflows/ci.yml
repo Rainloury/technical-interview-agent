@@ -59,6 +59,27 @@ jobs:
       - run: uv run pytest -q
       - run: uv run python -m evals.run
 
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: technical-interview-agent:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify image runtime contract
+        run: |
+          test "$(docker image inspect technical-interview-agent:ci --format '{{.Config.User}}')" = "app"
+          docker run --rm technical-interview-agent:ci technical-interview-agent --help
+          docker run --rm technical-interview-agent:ci technical-interview-agent worker --reload 2>&1 | grep -- "--reload is only supported"
+          docker run --rm technical-interview-agent:ci python -c "import app.main, app.worker"
+
   webkit-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
