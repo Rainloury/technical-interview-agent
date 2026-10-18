@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v2.0 |
-| 文档状态 | 发布评审待确认；G4A 行为矩阵与整场成本门禁已通过 |
+| 文档版本 | v2.1 |
+| 文档状态 | 发布候选；隐私与可观测门禁已通过，G4A 行为矩阵已通过，全部技术、生产依赖与浏览器兼容门禁通过，待发布批准 |
 | 更新日期 | 2026-10-18 |
 
 > 本清单跟踪架构决策、工程骨架和核心能力基座的验收证据。需求和用户可见行为的批准记录在[决策登记](./decision-register.md)。
@@ -12,7 +12,7 @@
 
 | 检查项 | 状态 | 证据 |
 | --- | --- | --- |
-| 分层符合 `AGENTS.md` | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` v0.12 |
+| 分层符合 `AGENTS.md` | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` v0.15 |
 | 模块依赖方向明确 | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` 依赖矩阵 |
 | 业务状态以 PostgreSQL 为事实来源 | `accepted` | `docs/adr/0002-database-as-source-of-truth.md` |
 | 面试截止由服务端控制 | `accepted` | `docs/adr/0003-server-authoritative-deadline.md` |
@@ -100,11 +100,11 @@
 
 ## 6. 下一步
 
-1. 账号、简历与检索问答纵向切片已通过浏览器、安全、权限、质量和迁移门禁。
-2. 检索问答覆盖有证据、证据不足、检索失败、任意 URL 拒绝、重连、知识源版本冻结和公开证据字段边界。
-3. 进入模拟面试与报告切片前，确认服务端截止、提交幂等、评分分段、受保护反馈解锁和恢复路径。
-4. 完整 G4A 模型矩阵已通过，继续推进发布评审。
-5. 按[下一步执行计划](./next-steps.md)和[开发全流程](./development-flow.md)推进后续切片。
+1. 全部业务切片已通过浏览器、安全、权限、质量和迁移门禁。
+2. 生产 DirectMail 实际发送、OSS 私有桶上传/读取/删除和 GitHub Actions WebKit 均通过。
+3. 完成发布批准、环境变量与密钥复核、数据库迁移、备份恢复和回滚方案确认。
+4. 执行灰度上线，观察任务成功率、首段延迟、评分失败率、检索命中率、成本与删除任务。
+5. 按[下一步执行计划](./next-steps.md)和[开发全流程](./development-flow.md)完成上线与复盘。
 
 ## 7. 版本记录
 
@@ -137,3 +137,4 @@
 | v2.5 | 2026-10-18 | 阿里云 OSS 真实私有桶验收通过：临时对象三步操作、简历上传内容一致性和删除源文件后对象不可读均通过 |
 | v2.6 | 2026-10-18 | Ubuntu 24.04 Playwright WebKit 本地容器实跑通过：Desktop Safari + iPhone 13 共 `14 passed`；`webkit-e2e` 增加 `workflow_dispatch` 与失败报告产物，GitHub Actions 托管 runner 实跑待推送验收 |
 | v2.7 | 2026-10-18 | GitHub Actions `ubuntu-latest` 托管 runner WebKit 实跑通过：Desktop Safari + iPhone 13 `14 passed`（2.4 min），quality job 全绿；修复 preview 构建 API 地址注入，并增加手动 grep、默认零重试和全局超时诊断 |
+| v2.8 | 2026-10-18 | 阶段切换至发布候选：全部技术与生产依赖门禁通过；后续只剩发布批准、回滚/备份检查和灰度上线观测 |

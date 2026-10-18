@@ -2,15 +2,15 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v2.0 |
-| 文档状态 | 发布评审待确认；G4A 行为矩阵与整场成本门禁已通过，生产依赖已选定 |
+| 文档版本 | v2.9 |
+| 文档状态 | 发布候选；全部技术、生产依赖和浏览器兼容门禁已通过 |
 | 更新日期 | 2026-10-18 |
-| 当前阶段 | 发布评审待确认；G4A 与隐私质量门禁已通过 |
-| 当前目标 | 完成生产依赖与兼容性评审 |
-| 后续目标 | 完成上线质量切片并通过发布评审 |
+| 当前阶段 | 发布候选（release candidate）；待发布批准与上线执行 |
+| 当前目标 | 完成发布批准、回滚/备份检查和灰度上线 |
+| 后续目标 | 灰度观测稳定后完成正式发布与复盘 |
 | 审批依据 | `docs/decision-register.md` v0.8 |
 
-> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；真实 provider 三档单轮 eval 已通过。110 条真实模型行为矩阵在修正构念失真后通过：完整运行 `108/110`，两条契约修正后定向复验 `2/2`，合计 `110/110`；单次评分调用成本不能替代完整面试成本 P95 证据。当前上线质量切片进行中。
+> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95 和生产依赖均通过。当前处于发布候选阶段，只剩发布批准与上线执行。
 
 ## 1. 当前完成度
 
@@ -20,7 +20,7 @@
 | 需求基线 | 已完成 | `docs/requirements.md` v1.5 | 否 |
 | 产品方案 | 已完成 | `docs/product-design.md` v1.5 | 否 |
 | 需求决策 `DR-01` 至 `DR-07` | `approved` | `docs/decision-register.md` v0.8 | 否 |
-| 技术设计 | 已完成 | `docs/technical-design.md` v0.14 | 否 |
+| 技术设计 | 已完成 | `docs/technical-design.md` v0.15 | 否 |
 | 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.7、`docs/state-machine.md` v0.5 | 否 |
 | 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.8、`docs/threat-model.md` v0.6 | 否 |
 | ADR-0001 至 ADR-0008 | 全部 `accepted` | `docs/adr/` | 否 |
@@ -30,7 +30,7 @@
 | LLM 档位与 Client | 已完成 | `app/llm/`；OpenAI/Anthropic 适配、重试、Schema 校验、trace 和费用统计测试通过 | 否 |
 | Prompt 与 Tool Registry | 已完成 | Markdown 版本加载、变量校验、Pydantic Schema、注册契约、截断与错误回灌测试通过 | 否 |
 | Agent Loop 与确定性行为评测 | 已完成 | 三重封顶、嵌套限制、终止、不可信内容、截断和工具选择用例通过；完整工具参数 Schema 已进入 Prompt | 否 |
-| 阶段与审批文档契约 | 已完成 | `tests/test_decision_docs.py` 锁定 `DR-07`、首切片边界和当前阶段证据 | 否 |
+| 阶段与审批文档契约 | 已完成 | `tests/test_decision_docs.py` 锁定 `DR-07`、首切片边界和发布候选阶段证据 | 否 |
 | 集成、迁移与确定性评测 | 已完成 | `RUN_INTEGRATION=1 pytest` 为 `158 passed`（含矩阵、整场成本、DirectMail 与 OSS 适配器测试）；`alembic check` 无漂移；迁移头 `9f4c2a7d1e30`；确定性 eval `7/7` | 否 |
 | 真实 provider 三档单轮 eval | `passed` | FAST `deepseek-flash`；DEFAULT/REASONING `deepseek-v4-pro`；均 2 steps、正确调用并返回 `42`；Prompt `agent_system@1.0.0+agent_turn@1.1.0` | 否 |
 | 评分 Prompt 校准 | `passed` | `interview_scoring@1.1.0` 增加分数锚点、关键错误边界和受保护材料禁复述；同时修正矩阵锚点、跨题套话、部分答案覆盖度和矛盾题构念 | 否 |
@@ -48,7 +48,7 @@
 | 隐私与可观测门禁 | `passed` | 账号删除、对象清理、保留清理、审计保留、删除状态、ops metrics、确定性阈值和双视口隐私 E2E 通过 | 否 |
 | 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（76 files）、`158 passed` 集成测试和 `alembic check` | 否 |
 
-隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS 和 GitHub Actions WebKit 均已关闭。当前上线质量切片只剩发布评审确认。
+隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS 和 GitHub Actions WebKit 均已关闭。当前处于发布候选阶段，待项目负责人批准后执行灰度上线。
 
 ## 2. 执行顺序
 
@@ -68,8 +68,8 @@ flowchart TD
     N10 --> N11["简历纵向切片：验收通过"]
     N11 --> N12["检索问答切片：验收通过"]
     N12 --> N13["模拟面试与报告切片：验收通过"]
-    N13 --> N14["当前：发布评审"]
-    N14 --> N15["发布评审：待确认"]
+    N13 --> N14["当前：发布候选"]
+    N14 --> N15["发布批准与灰度上线：待执行"]
 ```
 
 原则：
@@ -220,7 +220,7 @@ flowchart TD
 | 3 | 检索问答（已完成） | LLM、检索工具、知识源 allowlist 和持久 SSE 已就绪 | 证据、重连、降级和版本冻结通过 |
 | 4 | 模拟面试（已完成） | 问答切片、任务、评分和状态机已就绪 | 截止、幂等、恢复和解锁规则通过 |
 | 5 | 报告与复习（已完成） | 面试终态数据稳定 | 追问树、错题、薄弱点和缺口报告通过 |
-| 6 | 上线质量（发布评审） | P0 切片全部完成 | 技术质量门禁已通过；生产邮件、对象存储和 WebKit CI 待确认 |
+| 6 | 发布候选与上线（已完成候选门禁） | P0 切片全部完成 | 技术质量、生产邮件、对象存储和 WebKit CI 均已通过；待发布批准与灰度执行 |
 
 ## 7. 实现约束与风险
 
@@ -232,7 +232,7 @@ flowchart TD
 | ADR-0008 受保护反馈 | 终态且评分离开 `scoring` 后解锁 | 提交接口提前返回分数或评分无限卡住 |
 | 骨架只建不使用 | 健康检查、迁移和 trace 先通过测试 | 业务模块直接绕过基座 |
 | 依赖边界漂移 | 保持 `api -> agent -> tools -> llm` | 反向 import 或跨层直调 |
-| 生产对象存储实跑未验收 | 使用阿里云 OSS 私有桶，验证上传、读取、删除和清理链路 | 使用公开链接或无租约清理 |
+| 生产对象存储已验收 | 阿里云 OSS 私有桶上传、读取、删除和清理链路通过；发布时复核 IAM、加密和版本/生命周期 | 使用公开链接、过宽权限或无租约清理 |
 | 质量门禁后补 | 骨架阶段即建立 lint、类型和测试 | 先堆业务代码再补门禁 |
 
 ## 8. 完成定义
@@ -279,3 +279,4 @@ flowchart TD
 | v2.6 | 2026-10-18 | 阿里云 OSS 真实私有桶验收通过：临时对象 PUT/GET/DELETE 成功；简历业务上传后对象状态 `stored` 且内容一致；删除源文件后状态 `deleted` 且对象不可读 |
 | v2.7 | 2026-10-18 | Ubuntu 24.04 Playwright WebKit 本地容器实跑 `14 passed`（4.1 min），覆盖 Desktop Safari + iPhone 13；新增 `workflow_dispatch` 与失败 Playwright 报告上传，GitHub Actions 托管 runner 实跑待推送 |
 | v2.8 | 2026-10-18 | GitHub Actions `ubuntu-latest` 托管 runner WebKit 实跑通过：Desktop Safari + iPhone 13 `14 passed`（2.4 min）；修复 preview 构建的 API 地址注入，增加手动 grep、默认零重试和全局超时；quality job 全绿 |
+| v2.9 | 2026-10-18 | 阶段切换至发布候选：全部业务切片、技术质量、生产 DirectMail/OSS 和 WebKit 门禁通过；下一步为发布批准、回滚/备份检查、灰度上线与观测 |

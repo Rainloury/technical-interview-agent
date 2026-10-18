@@ -72,7 +72,7 @@ def test_first_slice_assets_are_present_after_approval() -> None:
         assert (ROOT / relative_path).is_file(), f"{relative_path} is missing"
 
 
-def test_phase_docs_describe_the_current_launch_quality_slice() -> None:
+def test_phase_docs_describe_the_release_candidate_stage() -> None:
     documents = (
         README,
         DOCS_README,
@@ -83,7 +83,8 @@ def test_phase_docs_describe_the_current_launch_quality_slice() -> None:
     )
     for path in documents:
         text = _read(path)
-        assert "上线质量切片进行中" in text or "发布评审待确认" in text, path
+        assert "发布候选" in text, path
+        assert "待发布批准" in text or "发布批准与上线执行" in text, path
         assert "隐私与可观测门禁" in text and "已通过" in text, path
         assert (
             "真实 provider 三档单轮 eval 已通过" in text or "真实 provider FAST eval 已通过" in text
@@ -101,6 +102,7 @@ def test_phase_docs_describe_the_current_launch_quality_slice() -> None:
         assert "76 files" in text, path
         assert "9f4c2a7d1e30" in text, path
         assert "7/7" in text, path
+        assert "WebKit" in text and "14 passed" in text, path
 
     implementation_docs = (
         README,
@@ -125,6 +127,23 @@ def test_phase_docs_describe_the_current_launch_quality_slice() -> None:
             "csrf_token_hash",
         ):
             assert fragment in text, f"{fragment} missing from {path}"
+
+
+def test_release_candidate_docs_do_not_reopen_closed_launch_gates() -> None:
+    documents = (
+        README,
+        DOCS_README,
+        NEXT_STEPS,
+        DEVELOPMENT_FLOW,
+        TECHNICAL_REVIEW,
+        TECHNICAL_DESIGN,
+    )
+    for path in documents:
+        text = _read(path)
+        assert "WebKit 待 CI 实跑" not in text, path
+        assert "模拟面试（待开发）" not in text, path
+        current_text = text.rsplit("版本记录", 1)[0]
+        assert "发布评审待确认" not in current_text, path
 
 
 def test_retrieval_qa_assets_and_boundaries_are_present() -> None:

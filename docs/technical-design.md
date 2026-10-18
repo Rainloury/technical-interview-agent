@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.14 |
-| 文档状态 | 发布评审待确认；隐私与可观测门禁、G4A 行为矩阵与整场成本门禁已通过，生产依赖已选定 |
+| 文档版本 | v0.15 |
+| 文档状态 | 发布候选；隐私与可观测门禁已通过，G4A 行为矩阵已通过，全部技术与生产依赖门禁通过，待发布批准与上线执行 |
 | 更新日期 | 2026-10-18 |
 | 需求依据 | `docs/requirements.md` v1.5 |
 | 产品依据 | `docs/product-design.md` v1.5 |
@@ -272,7 +272,7 @@ Reset password -> consume hashed token -> revoke all user sessions
 已完成与剩余证据：
 
 - 真实 provider 三档单轮 eval 已通过：FAST `deepseek-flash`、DEFAULT/REASONING `deepseek-v4-pro`，均 2 steps、正确调用 `add` 并返回 `42`；Prompt `agent_system@1.0.0+agent_turn@1.1.0`。
-- 完整 G4A 模型矩阵已通过；FAST、DEFAULT、REASONING 三档单轮、110 条行为矩阵和整场成本 P95 均已满足发布门槛，异常边界与 `abort`/首 token 超时已有确定性覆盖。发布评审仍保留真实生产邮件、生产对象存储和 WebKit 兼容 CI 确认项。
+- 完整 G4A 模型矩阵已通过；FAST、DEFAULT、REASONING 三档单轮、110 条行为矩阵和整场成本 P95 均已满足发布门槛，异常边界与 `abort`/首 token 超时已有确定性覆盖。生产邮件、生产对象存储和 WebKit 兼容 CI 也已完成验证。
 
 ### 8.2 预算
 
@@ -466,3 +466,4 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 | v0.12 | 2026-10-18 | 检索问答 P0 切片验收通过：owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、持久 SSE 重放与前端 `/qa`、`/qa/:id` 已落地；双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；下一阶段为模拟面试与报告 |
 | v0.13 | 2026-10-18 | 模拟面试与报告切片验收通过：数据库权威截止、操作与轮次幂等、中性提交响应、评分阈值、两层追问、分支终止原因、永久评分失败收口、终态报告和复习解锁已落地 |
 | v0.14 | 2026-10-18 | 发布评审待确认：隐私、G4A 与整场成本门禁通过；DirectMail 与 OSS 适配器已实现；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、迁移头 `9f4c2a7d1e30`；GitHub Actions 托管 runner 与本地 Ubuntu 24.04 WebKit 均 `14 passed` |
+| v0.15 | 2026-10-18 | 阶段切换至发布候选：DirectMail 实际发送、OSS 真实私有桶和 GitHub Actions Ubuntu WebKit `14 passed` 已完成；全部技术与生产依赖门禁关闭，待发布批准、回滚/备份检查和灰度上线 |

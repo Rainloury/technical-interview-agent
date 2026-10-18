@@ -2,7 +2,7 @@
 
 技术面试问答与模拟面试智能体服务。项目规则见 `AGENTS.md`，需求与技术基线见 `docs/`。
 
-当前阶段：**发布评审待确认；隐私与可观测门禁、G4A 行为矩阵与整场成本门禁已通过**。`web/` 已实现注册、登录、找回/重置密码、工作台、四类历史分页、桌面/移动导航、简历闭环、检索问答、模拟面试、终态报告、复习中心和账号数据删除确认。后端已接通账号、会话、工作台、历史、异步 Worker、检索问答、面试评分/追问/报告、隐私删除、保留清理与运维聚合指标。技术设计与流程基线分别为 `docs/technical-design.md` v0.14、`docs/development-flow.md` v3.0。真实 provider 三档单轮 eval、110 条行为矩阵和整场成本 P95 均已通过。
+当前阶段：**发布候选（release candidate）；隐私与可观测门禁已通过，G4A 行为矩阵已通过，全部技术与生产依赖门禁已通过，待发布批准并执行上线**。`web/` 已实现注册、登录、找回/重置密码、工作台、四类历史分页、桌面/移动导航、简历闭环、检索问答、模拟面试、终态报告、复习中心和账号数据删除确认。后端已接通账号、会话、工作台、历史、异步 Worker、检索问答、面试评分/追问/报告、隐私删除、保留清理与运维聚合指标。技术设计与流程基线分别为 `docs/technical-design.md` v0.15、`docs/development-flow.md` v3.1。真实 provider 三档单轮 eval、110 条行为矩阵、整场成本 P95、生产 DirectMail/OSS 和 GitHub Actions WebKit 均已通过。
 
 登录签发服务端会话 Cookie `interview_session`（`HttpOnly`、`Secure`、`SameSite=Lax`），同时签发前端可读的 `interview_csrf`；写请求通过 `X-CSRF-Token` 校验，数据库在 `auth_sessions.csrf_token_hash` 保存 CSRF 哈希，历史接口返回 `{items, next_cursor}`。
 

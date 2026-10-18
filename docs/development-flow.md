@@ -2,12 +2,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v2.8 |
+| 文档版本 | v3.1 |
 | 文档状态 | 流程基线 |
 | 更新日期 | 2026-10-18 |
 | 需求依据 | `docs/requirements.md` v1.5 |
 | 产品依据 | `docs/product-design.md` v1.5 |
-| 技术依据 | `docs/technical-design.md` v0.12 |
+| 技术依据 | `docs/technical-design.md` v0.15 |
 | 审批依据 | `docs/decision-register.md` v0.8 |
 
 > 本文是项目从需求收集到上线迭代的快速入口。流程覆盖交付顺序、责任边界、阶段产物和门禁；具体业务规则以需求基线为准，页面与交互以产品方案为准。
@@ -32,11 +32,11 @@
 | --- | --- |
 | 需求基线 | `v1.5` 已确认，见[需求文档](./requirements.md) |
 | 产品方案 | `v1.5` 已确认，见[产品方案设计](./product-design.md) |
-| 技术基线 | 技术设计 v0.12，ADR-0001 至 ADR-0008 全部接受 |
+| 技术基线 | 技术设计 v0.15，ADR-0001 至 ADR-0008 全部接受 |
 | 工程骨架 | 已完成，应用、迁移、质量门禁和首次 eval 基线均已验证 |
 | 需求审批 | `DR-01` 至 `DR-07` 已批准；`DR-07` 选择方案 A |
-| 当前阶段 | 发布评审待确认；隐私与可观测、G4A 行为矩阵与整场成本门禁已通过 |
-| 下一步 | 确认生产邮件、生产对象存储和 WebKit 兼容 CI |
+| 当前阶段 | 发布候选（release candidate）；隐私与可观测门禁已通过，G4A 行为矩阵已通过，生产依赖与 WebKit 门禁通过，待发布批准 |
+| 下一步 | 完成发布批准、回滚/备份检查并执行灰度上线 |
 
 ## 流程总览
 
@@ -50,8 +50,8 @@ flowchart TD
     F --> G["账号与工作台"]
     G --> H["简历闭环"]
     H --> I["检索问答（已完成）"]
-    I --> J["模拟面试（待开发）"]
-    J --> K["报告与复习"]
+    I --> J["模拟面试（已完成）"]
+    J --> K["报告与复习（已完成）"]
     K --> L["集成、安全与性能"]
     L --> M["全量验收与发布评审"]
     M --> N["灰度上线与观测"]
@@ -139,14 +139,14 @@ flowchart TD
 
 交付物：
 
-- [技术设计](./technical-design.md) v0.14。
+- [技术设计](./technical-design.md) v0.15。
 - [数据模型](./data-model.md) v0.7。
 - [状态机与事务](./state-machine.md) v0.5。
 - [接口契约](./api-contract.md) v0.8。
 - [威胁模型](./threat-model.md) v0.6。
 - [ADR 索引](./adr/README.md)，ADR-0001 至 ADR-0008 均已接受。
 - [技术方案评审清单](./technical-review-checklist.md) v1.5。
-- [下一步执行计划](./next-steps.md) v1.5。
+- [下一步执行计划](./next-steps.md) v2.9。
 
 完成情况：
 
@@ -607,20 +607,20 @@ flowchart TD
 
 既有需求审批、技术评审和工程门禁均已关闭；`DR-07` 已按方案 A 批准。账号、简历与检索问答纵向切片已验收通过：
 
-1. Playwright Chromium 桌面与移动项目通过 `14 passed`，覆盖账号、历史、简历、问答、模拟面试、受保护报告、复习入口和账号数据删除；Ubuntu WebKit 的 Desktop Safari 与 iPhone 13 共 14 条已在 GitHub Actions 配置，待 CI 实跑验收。
+1. Playwright Chromium 桌面与移动项目通过 `14 passed`，GitHub Actions Ubuntu 24.04 托管 runner WebKit Desktop Safari + iPhone 13 通过 `14 passed`（2.4 min）；覆盖账号、历史、简历、问答、模拟面试、受保护报告、复习入口和账号数据删除。
 2. 前端 typecheck、Vitest `12 files / 37 tests`、ESLint 和生产构建通过。
 3. 后端 ruff、格式检查、mypy（76 files）、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` 通过，迁移头为 `9f4c2a7d1e30`。
 4. `interview_session` 的 `HttpOnly` 边界、`interview_csrf`/`X-CSRF-Token` 写请求保护和 `csrf_token_hash` 仅保存哈希均有自动化验证。
 5. 历史接口的 `{items, next_cursor}`、问答历史重开、持久 SSE 游标和公开证据字段边界均已验证。
 
-检索问答切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。发布依赖已选定阿里云 DirectMail、阿里云 OSS 和 GitHub Actions Ubuntu WebKit；尚需完成对应生产配置与 CI 实跑验收。
+全部业务切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。生产依赖已验证：阿里云 DirectMail TLS/登录/实际发送、阿里云 OSS 私有桶上传/读取/删除、GitHub Actions Ubuntu WebKit `14 passed`。当前进入发布候选，等待项目负责人批准上线。
 
 建议执行顺序：
 
-1. 按[下一步执行计划](./next-steps.md)启动模拟面试与报告切片。
-2. 冻结轮次状态、服务端 40 分钟截止、提交幂等、评分分段和受保护反馈解锁。
-3. 实现模拟面试逐轮作答、评分、追问和报告/复习闭环。
-4. 完成 DirectMail/OSS 生产配置与 GitHub Actions WebKit 实跑验收，再完成发布评审。
+1. 按[下一步执行计划](./next-steps.md)完成发布批准与上线清单。
+2. 确认生产环境变量、密钥轮换、数据库迁移和对象存储保留策略。
+3. 确认回滚方案、备份恢复、监控告警和灰度范围。
+4. 执行灰度上线并观察任务成功率、延迟、失败率、成本与删除任务。
 
 ## 版本记录
 
@@ -646,4 +646,5 @@ flowchart TD
 | v2.7 | 2026-10-17 | 简历纵向切片验收通过：桌面与移动 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；当前阶段切换为检索问答切片 |
 | v2.8 | 2026-10-18 | 检索问答切片验收通过：双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；当前阶段切换为模拟面试与报告切片 |
 | v2.9 | 2026-10-18 | 模拟面试与报告切片验收通过：双视口 E2E `12 passed`、面试专项 `4 passed`、前端 `11 files / 36 tests`、后端 `126 passed`、mypy 58 files、确定性 eval `3/3`、迁移头 `7d1a3e5b9c42`；当前阶段切换为上线质量切片 |
-| v3.0 | 2026-10-18 | 发布评审待确认：隐私删除、保留清理、审计保留、ops metrics 和确定性阈值 eval 通过；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、确定性 eval `7/7`、迁移头 `9f4c2a7d1e30`；G4A 与整场成本门禁通过；DirectMail/OSS 已实现，Ubuntu WebKit 待 CI 实跑 |
+| v3.0 | 2026-10-18 | 发布评审启动：隐私删除、保留清理、审计保留、ops metrics 和确定性阈值 eval 通过；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、确定性 eval `7/7`、迁移头 `9f4c2a7d1e30`；G4A 与整场成本门禁通过 |
+| v3.1 | 2026-10-18 | 阶段切换至发布候选：DirectMail 实际发送、OSS 真实私有桶和 GitHub Actions Ubuntu WebKit `14 passed` 均关闭；quality job 全绿，当前仅待项目负责人批准发布及执行回滚/备份检查、灰度上线与观测 |
