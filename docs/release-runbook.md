@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.9 |
+| 文档版本 | v1.0 |
 | 文档状态 | 发布候选；运行手册已建立，发布批准与上线执行待完成 |
 | 更新日期 | 2026-10-18 |
 | 发布基线 | `7b9ed7a` |
@@ -23,15 +23,15 @@
 | 生产 Worker 入口 | 已提供 | `technical-interview-agent worker`；具备配置 fail-fast、信号停机、并发上限、运行时限和资源清理 |
 | 容器镜像与生产编排 | 已提供 | 非 root 生产镜像、独立 migrate/API/Worker Compose、健康检查、只读根文件系统和 CI 镜像构建门禁 |
 | 备份恢复演练 | 通过（本地隔离实例） | PostgreSQL 16.15 custom dump 恢复成功；迁移头 `3b7e1c9d4a20`、27 张 `public` 表行数和关键外键一致；详见[演练记录](./database-restore-drill-2026-10-18.md) |
+| 回滚演练 | 通过（本地隔离预发布编排） | API + Worker 从 `55a1053` 切到 `7b9ed7a`，健康检查通过；保留 `3b7e1c9d4a20` schema，Worker 租约测试任务完成；详见[演练记录](./application-rollback-drill-2026-10-18.md) |
 | 密码重置投递 | 已提供 | 请求事务只保存加密投递密文和 `password_reset_delivery` 任务；Worker 异步发送、有限重试，终态失败清除密文 |
 
 ## 2. 上线阻断项
 
 以下任一未关闭，Go/No-Go 结论必须为 `NO-GO`：
 
-1. **回滚演练**：在预发布环境执行上一应用版本回滚，验证数据库兼容策略和健康检查。
-2. **监控告警**：为 `/health/ready`、`dead_letter`、`scoring_failed`、删除失败、Worker 心跳和 LLM 成本配置可通知的告警。
-3. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
+1. **监控告警**：为 `/health/ready`、`dead_letter`、`scoring_failed`、删除失败、Worker 心跳和 LLM 成本配置可通知的告警。
+2. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
 
 ## 3. 发布前配置
 
@@ -194,7 +194,7 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 - [ ] 生产配置核验通过，密钥未进入仓库或构建产物。
 - [ ] 镜像和编排已补齐，CI 构建门禁通过，API 与 Worker 使用同一发布 SHA。
 - [x] 数据库备份完成，恢复演练通过（本地隔离实例；生产灾备存储仍需复核）。
-- [ ] 上一版本回滚演练通过，数据库向前兼容策略明确。
+- [x] 上一版本回滚演练通过，数据库向前兼容策略明确（本地隔离环境；生产镜像与网络仍需复核）。
 - [ ] `/health/live` 与 `/health/ready` 通过，告警可实际送达。
 - [ ] DirectMail DNS 验证和真实投递人工确认通过。
 - [ ] OSS 私有、加密、权限与生命周期复核通过。
@@ -224,7 +224,7 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 
 | 限制 | 影响 | 当前处理 | 负责人 | 目标日期 |
 | --- | --- | --- | --- | --- |
-| 回滚未演练 | 故障恢复证据不足 | 上线阻断 | 待指定 | 上线前 |
+| 生产灾备与回滚复核 | 本地演练已完成，生产环境证据不足 | 上线前复核 | 待指定 | 上线前 |
 
 ## 10. 版本记录
 
@@ -239,3 +239,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v0.7 | 2026-10-18 | 发布基线推进至 `067f34e`；E2E 启动器同时拉起 API、确定性 Worker 和前端，异步重置投递已纳入 Chromium/WebKit 全链路验证 |
 | v0.8 | 2026-10-18 | 发布基线推进至 `7b9ed7a`；修复 E2E 进程组清理与超时退出，最终验证 run `39136496514` 的 quality、container 与 WebKit 实跑 `14 passed` 全绿 |
 | v0.9 | 2026-10-18 | 完成本地独立 PostgreSQL 恢复演练：迁移头、27 张业务表行数、关键外键与可写性全部核对通过；保留生产灾备存储复核、回滚和告警阻断项 |
+| v1.0 | 2026-10-18 | 完成本地隔离 API + Worker 回滚演练：`55a1053` 切到 `7b9ed7a`，保留 `3b7e1c9d4a20` schema，健康检查与租约接管通过；保留生产灾备、生产镜像/网络复核、告警和发布审批阻断项 |

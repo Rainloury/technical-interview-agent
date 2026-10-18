@@ -16,6 +16,7 @@ THREAT_MODEL = ROOT / "docs" / "threat-model.md"
 DATA_MODEL = ROOT / "docs" / "data-model.md"
 RELEASE_RUNBOOK = ROOT / "docs" / "release-runbook.md"
 RESTORE_DRILL = ROOT / "docs" / "database-restore-drill-2026-10-18.md"
+ROLLBACK_DRILL = ROOT / "docs" / "application-rollback-drill-2026-10-18.md"
 README = ROOT / "README.md"
 DOCS_README = ROOT / "docs" / "README.md"
 
@@ -191,6 +192,23 @@ def test_database_restore_drill_keeps_auditable_evidence() -> None:
         "生产灾备验收",
     ):
         assert fragment in drill, f"{fragment} missing from {RESTORE_DRILL}"
+
+
+def test_application_rollback_drill_keeps_auditable_evidence() -> None:
+    assert ROLLBACK_DRILL.is_file()
+    drill = _read(ROLLBACK_DRILL)
+
+    for fragment in (
+        "`passed`",
+        "7b9ed7a90c9897ecada6f63affd8869bb10dcb37",
+        "55a1053da091fc77b6d3396beb210b9104dafbbb",
+        "3b7e1c9d4a20",
+        "`fencing_token`",
+        "succeeded",
+        "没有执行 `alembic downgrade`",
+        "生产网络",
+    ):
+        assert fragment in drill, f"{fragment} missing from {ROLLBACK_DRILL}"
 
 
 def test_retrieval_qa_assets_and_boundaries_are_present() -> None:
