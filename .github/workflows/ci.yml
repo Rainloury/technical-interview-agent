@@ -56,6 +56,7 @@ jobs:
 
   webkit-e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16-alpine
@@ -119,6 +120,7 @@ jobs:
           E2E_BROWSER: webkit
           MAIL_LOCAL_RESET_FILE: /tmp/technical-interview-agent-password-reset.json
           PLAYWRIGHT_WEB_COMMAND: npm run preview -- --port 3101
+          PLAYWRIGHT_GLOBAL_TIMEOUT_MS: "900000"
           RESUME_STORAGE_DIR: /tmp/technical-interview-agent-resume-files
       - name: Upload Playwright report
         if: failure()

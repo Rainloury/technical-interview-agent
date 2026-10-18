@@ -233,6 +233,7 @@ async def test_create_and_start_are_idempotent_owner_scoped_and_deadline_bound(
     async with app_client.session_factory() as session:
         row = await session.get(Interview, uuid.UUID(interview_id))
         assert row is not None and row.started_at is not None
+        assert row.deadline_at is not None
         assert row.deadline_at - row.started_at == timedelta(minutes=40)
     replay = client.post(
         f"/api/v1/interviews/{interview_id}/start",
@@ -473,10 +474,10 @@ async def test_expired_submission_is_rejected_without_wrong_question(
     assert response.json()["error"]["code"] == "interview_time_expired"
     async with app_client.session_factory() as session:
         interview = await session.get(Interview, uuid.UUID(interview_id))
-        root = await session.get(InterviewTurn, root_id)
-        assert interview is not None and root is not None
+        persisted_root = await session.get(InterviewTurn, root_id)
+        assert interview is not None and persisted_root is not None
         assert interview.state == "timed_out"
-        assert root.state == "unanswered"
+        assert persisted_root.state == "unanswered"
         wrong = list(
             (
                 await session.execute(

@@ -17,6 +17,11 @@ from app.db.models import (
     ResumeTask,
     ResumeText,
 )
+from app.interview_contracts import (
+    InterviewFollowUpOutput,
+    InterviewQuestionsOutput,
+    InterviewScoringOutput,
+)
 from app.llm.client import LlmClientError, LlmResult, PromptMetadata, TraceContext
 from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
@@ -373,7 +378,10 @@ class StaticLlm:
         user_prompt: str,
         output_schema: type[ResumeAnalysisOutput]
         | type[ResumeQuestionsOutput]
-        | type[QaAnswerOutput],
+        | type[QaAnswerOutput]
+        | type[InterviewQuestionsOutput]
+        | type[InterviewScoringOutput]
+        | type[InterviewFollowUpOutput],
         context: TraceContext,
     ) -> Any:
         del prompt, system_prompt, user_prompt, context
@@ -489,7 +497,10 @@ class BrokenQuestionsLlm(StaticLlm):
         user_prompt: str,
         output_schema: type[ResumeAnalysisOutput]
         | type[ResumeQuestionsOutput]
-        | type[QaAnswerOutput],
+        | type[QaAnswerOutput]
+        | type[InterviewQuestionsOutput]
+        | type[InterviewScoringOutput]
+        | type[InterviewFollowUpOutput],
         context: TraceContext,
     ) -> Any:
         if output_schema is ResumeQuestionsOutput:
