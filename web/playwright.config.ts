@@ -37,7 +37,7 @@ export default defineConfig({
   fullyParallel: false,
   globalTimeout: Number(process.env.PLAYWRIGHT_GLOBAL_TIMEOUT_MS ?? 15 * 60_000),
   workers: 1,
-  retries: process.env.CI ? 2 : 0,
+  retries: Number(process.env.PLAYWRIGHT_RETRIES ?? 0),
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: webUrl,
