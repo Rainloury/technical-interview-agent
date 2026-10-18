@@ -7,7 +7,9 @@ import { expect, test, type Page } from "@playwright/test";
 const run = promisify(execFile);
 const password = "correct horse battery staple";
 const newPassword = "new correct horse battery staple";
-const resetFile = "/private/tmp/technical-interview-agent-password-reset.json";
+const resetFile =
+  process.env.MAIL_LOCAL_RESET_FILE ??
+  "/private/tmp/technical-interview-agent-password-reset.json";
 
 function emailFor(projectName: string): string {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -62,7 +64,9 @@ test("account, workspace, history, and password recovery journey", async ({
   page,
 }, testInfo) => {
   const email = emailFor(testInfo.project.name);
-  const isMobile = testInfo.project.name === "mobile-chrome";
+  const isMobile =
+    testInfo.project.name === "mobile-chrome" ||
+    testInfo.project.name === "mobile-webkit-iphone13";
 
   await page.goto("/history?type=qa");
   await expect(page).toHaveURL(

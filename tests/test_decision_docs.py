@@ -96,9 +96,9 @@ def test_phase_docs_describe_the_current_launch_quality_slice() -> None:
         ), path
         assert "0.83908" in text, path
         assert "12 files / 37 tests" in text, path
-        assert "152 passed" in text, path
+        assert "158 passed" in text, path
         assert "14 passed" in text, path
-        assert "74 files" in text, path
+        assert "76 files" in text, path
         assert "9f4c2a7d1e30" in text, path
         assert "7/7" in text, path
 

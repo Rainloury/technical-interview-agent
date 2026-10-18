@@ -36,10 +36,39 @@ def test_settings_reject_invalid_values(field: str, value: object) -> None:
 
 
 def test_sensitive_keys_are_secret() -> None:
-    settings = Settings(llm_api_key="sk-private", smtp_password="smtp-private")
+    settings = Settings(
+        llm_api_key="sk-private",
+        smtp_password="smtp-private",
+        oss_access_key_secret="oss-private",
+    )
 
     assert "sk-private" not in repr(settings)
     assert "smtp-private" not in repr(settings)
+    assert "oss-private" not in repr(settings)
+
+
+def test_directmail_and_oss_settings_are_validated() -> None:
+    settings = Settings(
+        smtp_host="smtpdm.aliyun.com",
+        smtp_port=465,
+        smtp_security="ssl",
+        resume_storage_backend="oss",
+        oss_endpoint="https://oss-cn-hangzhou.aliyuncs.com/",
+        oss_bucket="interview-private",
+        oss_access_key_id="key",
+        oss_access_key_secret="secret",
+        oss_prefix="/resumes/",
+    )
+
+    assert settings.smtp_port == 465
+    assert settings.smtp_security == "ssl"
+    assert settings.oss_endpoint == "https://oss-cn-hangzhou.aliyuncs.com"
+    assert settings.oss_prefix == "resumes/"
+
+
+def test_oss_prefix_cannot_escape_bucket_root() -> None:
+    with pytest.raises(ValidationError):
+        Settings(oss_prefix="../private")
 
 
 def test_relative_prompt_dir_is_independent_of_working_directory(

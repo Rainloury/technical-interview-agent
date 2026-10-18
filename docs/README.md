@@ -2,7 +2,7 @@
 
 当前阶段：**发布评审待确认；隐私与可观测门禁、G4A 行为矩阵与整场成本门禁已通过**。`DR-07` 已批准，`web/` 已实现账号、工作台、历史、响应式导航、简历闭环、问答、模拟面试、报告、复习中心和数据删除。后端已提供 `interview_session`（`HttpOnly`）、`interview_csrf`、`X-CSRF-Token`、`{items, next_cursor}`、owner-scoped 业务与隐私 API、持久 SSE 重放、数据库权威截止和数据保留清理，并在 `auth_sessions.csrf_token_hash` 只保存 CSRF 哈希。
 
-上线质量门禁当前覆盖桌面与移动 E2E `14 passed`、隐私专项 `2 passed`、前端 Vitest `12 files / 37 tests`、后端集成测试 `152 passed`、Mypy `74 files`、确定性 eval `7/7` 和迁移头 `9f4c2a7d1e30`。真实 provider 三档单轮 eval 已通过；110 条行为矩阵为 `110/110`（完整运行 `108/110` + 定向复验 `2/2`）；10 场整场成本 P95 为 ¥0.83908，且每场均覆盖追问，检索为数据库内词法排序、外部费用 ¥0。
+上线质量门禁当前覆盖 Chromium 桌面与移动 E2E `14 passed`、隐私专项 `2 passed`、前端 Vitest `12 files / 37 tests`、后端集成测试 `158 passed`、Mypy `76 files`、确定性 eval `7/7` 和迁移头 `9f4c2a7d1e30`。Ubuntu 24.04 Playwright WebKit Desktop Safari + iPhone 13 本地容器实跑 `14 passed`；GitHub Actions 托管 runner 待推送后验收。真实 provider 三档单轮 eval 已通过；110 条行为矩阵为 `110/110`（完整运行 `108/110` + 定向复验 `2/2`）；10 场整场成本 P95 为 ¥0.83908，且每场均覆盖追问，检索为数据库内词法排序、外部费用 ¥0。
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |

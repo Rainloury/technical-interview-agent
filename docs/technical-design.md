@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 文档版本 | v0.14 |
-| 文档状态 | 上线质量切片进行中；隐私与可观测门禁已通过 |
+| 文档状态 | 发布评审待确认；隐私与可观测门禁、G4A 行为矩阵与整场成本门禁已通过，生产依赖已选定 |
 | 更新日期 | 2026-10-18 |
 | 需求依据 | `docs/requirements.md` v1.5 |
 | 产品依据 | `docs/product-design.md` v1.5 |
@@ -389,6 +389,12 @@ P0 不新增消息队列依赖，采用 PostgreSQL 任务表：
 
 详细威胁与测试见[安全威胁模型](./threat-model.md)。
 
+生产基础设施选型：
+
+- 邮件使用阿里云 DirectMail SMTP，当前采用 `smtpdm.aliyun.com:465` + SSL；本机已验证 TLS、SMTP 登录与实际发送，587/StartTLS 不可达。`staging`/`production` 投递失败会向上抛出并记录错误类型，不再静默成功。
+- 原始简历使用阿里云 OSS 私有桶；适配器使用 OSS V1 签名，对象键统一加 `OSS_PREFIX`，删除对 404 幂等。真实桶已验收简历上传、读取与删除。
+- WebKit 兼容性由 GitHub Actions `ubuntu-latest` 的 Playwright WebKit 覆盖，项目为 Desktop Safari 与 iPhone 13；相同 Ubuntu 24.04 环境的本地容器已实跑 `14 passed`，托管 runner 待推送后验收。
+
 关键控制：
 
 - 文件校验扩展名、声明 MIME、魔数、大小和页数。
@@ -459,4 +465,4 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 | v0.11 | 2026-10-17 | 简历纵向切片验收通过：双视口 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；下一阶段进入检索问答 |
 | v0.12 | 2026-10-18 | 检索问答 P0 切片验收通过：owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、持久 SSE 重放与前端 `/qa`、`/qa/:id` 已落地；双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；下一阶段为模拟面试与报告 |
 | v0.13 | 2026-10-18 | 模拟面试与报告切片验收通过：数据库权威截止、操作与轮次幂等、中性提交响应、评分阈值、两层追问、分支终止原因、永久评分失败收口、终态报告和复习解锁已落地 |
-| v0.14 | 2026-10-18 | 发布评审待确认：账号数据删除、30/90/365 天保留清理、隐私状态查询、审计最小化、运维聚合指标、确定性阈值 eval 和双视口隐私 E2E 已落地；双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `152 passed`、mypy 74 files、迁移头 `9f4c2a7d1e30`；G4A 行为矩阵与整场成本门禁已通过 |
+| v0.14 | 2026-10-18 | 发布评审待确认：隐私、G4A 与整场成本门禁通过；DirectMail 与 OSS 适配器已实现；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、迁移头 `9f4c2a7d1e30`；Ubuntu 24.04 WebKit 本地容器 `14 passed`，GitHub Actions 托管 runner 待推送实跑 |

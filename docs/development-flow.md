@@ -215,7 +215,7 @@ flowchart TD
 - `AgentLoop` 将完整工具参数 Schema 注入每轮 Prompt，并把工具清单与观察结果计入调用前的 token 预算。
 - `app/agent/loop.py` 实现 plan -> act -> observe，默认 8 步、200000 token、60 秒、深度不超过 2。
 - 确定性 Agent eval 验证工具选择、不可信内容隔离、2000 字符预览边界和终止行为。
-- 启用集成测试后 `152 passed`；迁移检查与前端质量门禁通过；确定性 eval `7/7`。测试包含审批边界、账号/简历/问答/面试切片资产、双 Cookie/CSRF 契约、异步 Worker 状态链、证据引用校验、SSE 重放、数据库硬截止、受保护反馈解锁、隐私删除、保留清理、运维指标、provider 矩阵、整场成本和邮件适配器契约。
+- 启用集成测试后 `158 passed`；迁移检查与前端质量门禁通过；确定性 eval `7/7`。测试包含审批边界、账号/简历/问答/面试切片资产、双 Cookie/CSRF 契约、异步 Worker 状态链、证据引用校验、SSE 重放、数据库硬截止、受保护反馈解锁、隐私删除、保留清理、运维指标、provider 矩阵、整场成本、DirectMail 和 OSS 适配器契约。
 
 尚未完成：
 
@@ -233,7 +233,7 @@ flowchart TD
 | 架构与技术 | ADR、数据、接口、安全、质量门禁 | ADR-0001 至 ADR-0008 已接受 |
 | 后端 | API、数据库、Agent、LLM、Worker | 工程骨架、核心能力基座、账号接口和简历异步 Worker 已落地 |
 | 前端 | Web UI、路由、交互、可访问性 | `web/` 已交付账号、工作台、历史分页、响应式导航和简历闭环，简历切片验收通过 |
-| 质量与发布 | 集成、安全、性能、行为评测、发布评审 | FAST provider eval、账号与简历双视口 E2E 已通过；完整 G4A 仍待完成 |
+| 质量与发布 | 集成、安全、性能、行为评测、发布评审 | FAST provider eval、账号与简历双视口 E2E、Ubuntu WebKit 容器实跑已通过；GitHub Actions 托管 runner 待验收 |
 
 首个用户可见切片现已形成“注册/登录 -> 工作台 -> 历史分页 -> 退出/找回密码”的可操作闭环。验收时必须同时检查浏览器流程、权限隔离、Cookie/CSRF、分页契约和响应式布局。
 
@@ -285,7 +285,7 @@ flowchart TD
 - 异步任务、租约、重试、分析结构化输出、10 题覆盖计划和失败恢复已接通。
 - 原始简历单独删除、源文件不可访问、证据摘要脱敏和衍生数据保留已验证。
 - Playwright 桌面与移动项目覆盖上传、处理中、10 道题、删除原始简历和删除后状态。
-- 后端集成测试 `152 passed`，前端 Vitest `12 files / 37 tests`，双视口 E2E `14 passed`。
+- 后端集成测试 `158 passed`，前端 Vitest `12 files / 37 tests`，Chromium 双视口 E2E `14 passed`。
 
 阶段结论：已满足进入检索问答的条件。
 
@@ -607,20 +607,20 @@ flowchart TD
 
 既有需求审批、技术评审和工程门禁均已关闭；`DR-07` 已按方案 A 批准。账号、简历与检索问答纵向切片已验收通过：
 
-1. Playwright 桌面与移动项目通过 `14 passed`，覆盖账号、历史、简历、问答、模拟面试、受保护报告、复习入口和账号数据删除。
+1. Playwright Chromium 桌面与移动项目通过 `14 passed`，覆盖账号、历史、简历、问答、模拟面试、受保护报告、复习入口和账号数据删除；Ubuntu WebKit 的 Desktop Safari 与 iPhone 13 共 14 条已在 GitHub Actions 配置，待 CI 实跑验收。
 2. 前端 typecheck、Vitest `12 files / 37 tests`、ESLint 和生产构建通过。
-3. 后端 ruff、格式检查、mypy（74 files）、`RUN_INTEGRATION=1 pytest`（`152 passed`）和 `alembic check` 通过，迁移头为 `9f4c2a7d1e30`。
+3. 后端 ruff、格式检查、mypy（76 files）、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` 通过，迁移头为 `9f4c2a7d1e30`。
 4. `interview_session` 的 `HttpOnly` 边界、`interview_csrf`/`X-CSRF-Token` 写请求保护和 `csrf_token_hash` 仅保存哈希均有自动化验证。
 5. 历史接口的 `{items, next_cursor}`、问答历史重开、持久 SSE 游标和公开证据字段边界均已验证。
 
-检索问答切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标；发布评审仍需确认真实生产邮件供应商、生产对象存储和 WebKit 兼容 CI。
+检索问答切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。发布依赖已选定阿里云 DirectMail、阿里云 OSS 和 GitHub Actions Ubuntu WebKit；尚需完成对应生产配置与 CI 实跑验收。
 
 建议执行顺序：
 
 1. 按[下一步执行计划](./next-steps.md)启动模拟面试与报告切片。
 2. 冻结轮次状态、服务端 40 分钟截止、提交幂等、评分分段和受保护反馈解锁。
 3. 实现模拟面试逐轮作答、评分、追问和报告/复习闭环。
-4. 确认生产依赖与兼容性条件，完成发布评审。
+4. 完成 DirectMail/OSS 生产配置与 GitHub Actions WebKit 实跑验收，再完成发布评审。
 
 ## 版本记录
 
@@ -646,4 +646,4 @@ flowchart TD
 | v2.7 | 2026-10-17 | 简历纵向切片验收通过：桌面与移动 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；当前阶段切换为检索问答切片 |
 | v2.8 | 2026-10-18 | 检索问答切片验收通过：双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；当前阶段切换为模拟面试与报告切片 |
 | v2.9 | 2026-10-18 | 模拟面试与报告切片验收通过：双视口 E2E `12 passed`、面试专项 `4 passed`、前端 `11 files / 36 tests`、后端 `126 passed`、mypy 58 files、确定性 eval `3/3`、迁移头 `7d1a3e5b9c42`；当前阶段切换为上线质量切片 |
-| v3.0 | 2026-10-18 | 发布评审待确认：隐私删除、保留清理、审计保留、ops metrics 和确定性阈值 eval 通过；双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `152 passed`、mypy 74 files、确定性 eval `7/7`、迁移头 `9f4c2a7d1e30`；G4A 与整场成本门禁通过 |
+| v3.0 | 2026-10-18 | 发布评审待确认：隐私删除、保留清理、审计保留、ops metrics 和确定性阈值 eval 通过；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、确定性 eval `7/7`、迁移头 `9f4c2a7d1e30`；G4A 与整场成本门禁通过；DirectMail/OSS 已实现，Ubuntu WebKit 待 CI 实跑 |

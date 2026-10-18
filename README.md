@@ -8,7 +8,7 @@
 
 真实 provider 三档单轮 eval 已通过：FAST `deepseek-flash`、DEFAULT/REASONING `deepseek-v4-pro`，均为 2 steps、正确调用 `add` 并返回 `42`；本轮成本分别约 `$0.000465`、`$0.002612`、`$0.002311`，Prompt `agent_system@1.0.0+agent_turn@1.1.0`。三档单轮、110 条行为矩阵和整场成本门禁均已通过。
 
-上线质量门禁证据：前端 `typecheck`、Vitest `12 files / 37 tests`、ESLint、生产构建通过；后端 `ruff`、格式检查、`mypy`（74 files）、`RUN_INTEGRATION=1 pytest`（`152 passed`）和 `alembic check` 通过，迁移头 `9f4c2a7d1e30`；确定性 eval `7/7`；Playwright 桌面与移动视口 `14 passed`，其中隐私专项 `2 passed`。G4A 行为矩阵完整复跑 `108/110`，两条共享契约修正后定向复验 `2/2`，合计 `110/110`。10 场真实整场面试全部覆盖追问，累计 74 次模型调用；模型与检索成本 P95 为 ¥0.83908，低于 ¥3.00。生产邮件供应商与生产对象存储仍是发布前事项。
+上线质量门禁证据：前端 `typecheck`、Vitest `12 files / 37 tests`、ESLint、生产构建通过；后端 `ruff`、格式检查、`mypy`（76 files）、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` 通过，迁移头 `9f4c2a7d1e30`；确定性 eval `7/7`；Playwright Chromium 桌面与移动视口 `14 passed`，其中隐私专项 `2 passed`。Ubuntu 24.04 的 Playwright WebKit 桌面 Safari 与 iPhone 13 共 `14 passed`；GitHub Actions 托管 runner 实跑仍待推送后验收。G4A 行为矩阵完整复跑 `108/110`，两条共享契约修正后定向复验 `2/2`，合计 `110/110`。10 场真实整场面试全部覆盖追问，累计 74 次模型调用；模型与检索成本 P95 为 ¥0.83908，低于 ¥3.00。DirectMail 已验证 TLS、登录和实际发送；阿里云 OSS 真实私有桶已验证简历上传、读取与删除。
 
 ## 本地启动
 
@@ -55,7 +55,7 @@ npm run build
 npm run test:e2e
 ```
 
-`web/playwright.config.ts` 默认使用本机 Google Chrome 通道，适合当前 macOS 13 环境；在具备对应浏览器二进制的 CI 环境中可恢复 Chromium/WebKit 项目矩阵。
+`web/playwright.config.ts` 默认使用本机 Google Chrome；设置 `E2E_BROWSER=webkit` 可运行 Desktop Safari 与 iPhone 13 WebKit 项目。GitHub Actions 的 `webkit-e2e` job 在 `ubuntu-latest` 上启动 PostgreSQL/Redis、安装 WebKit 并运行完整双视口 E2E，可通过 `workflow_dispatch` 手动触发。
 
 没有 PostgreSQL 和 Redis 时，默认测试仍可运行；集成测试通过 `RUN_INTEGRATION=1` 显式启用。
 `uv run python -m evals.run` 当前运行可在无网络环境重复执行的 HTTP 与 Agent 行为用例，不会调用真实供应商。
@@ -68,3 +68,8 @@ uv run python -m evals.run --save-baseline
 ```
 
 模型档位默认来自 `app/llm/models.py`；当前 DeepSeek 账号可用的模型是 `deepseek-flash` 与 `deepseek-v4-pro`，`.env.example` 已按这两项配置三档映射。如需切换账号已开通的具体模型，在 `.env` 中覆盖 `LLM_FAST_MODEL`、`LLM_DEFAULT_MODEL`、`LLM_REASONING_MODEL`。`deepseek-v4.1-flash` 不在供应商 `/models` 列表中，批量评测会在调用前通过 preflight 拒绝。Prompt 目录和工具结果限制也可通过 `.env.example` 中的对应配置调整。
+
+生产依赖：
+
+- 邮件：阿里云 DirectMail，`SMTP_HOST=smtpdm.aliyun.com`；当前验证通过的是 465 端口 + `SMTP_SECURITY=ssl`（TLS、登录和实际发送成功），587/StartTLS 在本地网络不可达。
+- 对象存储：阿里云 OSS。设置 `RESUME_STORAGE_BACKEND=oss`、`OSS_ENDPOINT`、`OSS_BUCKET`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`，存储桶必须私有。

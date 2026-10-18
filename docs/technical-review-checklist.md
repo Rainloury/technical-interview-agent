@@ -83,7 +83,7 @@
 | 完整工具参数 Schema 进入模型上下文 | `passed` | `agent_turn` v1.1.0、Agent Loop 回归测试 |
 | 确定性 Agent 行为 eval | `passed` | `evals/run.py`、`evals/baseline.json` |
 | 阶段与审批文档契约 | `passed` | `tests/test_decision_docs.py` 验证 `DR-07` 已批准、`web/` 资产和当前阶段证据 |
-| 默认与集成质量门禁 | `passed` | `RUN_INTEGRATION=1 pytest` 为 `152 passed`；集成结果包含文档契约、provider 矩阵、整场成本和邮件适配器契约测试 |
+| 默认与集成质量门禁 | `passed` | `RUN_INTEGRATION=1 pytest` 为 `158 passed`；集成结果包含文档契约、provider 矩阵、整场成本、DirectMail 和 OSS 适配器契约测试 |
 | 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `9f4c2a7d1e30` |
 | 确定性行为评测 | `passed` | `pytest -q evals` 与 eval CLI 为 `7/7`，通过率 1.0 |
 | 前端工程与账号路径 | `passed` | `web/`；注册、登录、退出、找回/重置密码、空工作台和响应式导航 |
@@ -91,8 +91,10 @@
 | 历史分页 | `passed` | 历史接口返回 `{items, next_cursor}`；前端每页 10 条并支持继续加载 |
 | 简历纵向切片 | `passed` | 上传、PDF/DOCX 校验、异步处理、10 题、失败重试、删除原始简历和 `source_deleted` 证据摘要 |
 | 检索问答切片 | `passed` | owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、持久 SSE 游标重放、终态互斥和前端历史重开 |
-| 浏览器 E2E | `passed` | Playwright 桌面与移动项目 `14 passed`，隐私专项 `2 passed`；macOS 13 不支持本轮 Playwright WebKit 二进制，WebKit 留待兼容 CI |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（74 files）、`RUN_INTEGRATION=1 pytest`（`152 passed`）和 `alembic check` |
+| 浏览器 E2E | `partial` | Chromium 桌面与移动 `14 passed`，隐私专项 `2 passed`；Ubuntu 24.04 Playwright WebKit Desktop Safari + iPhone 13 本地容器实跑 `14 passed`（4.1 min）；GitHub Actions 托管 runner 待推送后实跑 |
+| DirectMail SMTP | `passed` | `smtpdm.aliyun.com:465` + SSL 的 TLS 与 SMTP 登录通过；测试邮件已由 SMTP 服务器接受且无拒收收件人；收件箱到达待人工确认 |
+| OSS 私有对象存储 | `passed` | 真实私有桶 PUT/GET/DELETE、简历业务上传内容一致性和源文件删除后不可读均已验证 |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（76 files）、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` |
 | 真实 provider 三档单轮 eval | `passed` | 真实 provider 三档单轮 eval 已通过：FAST `deepseek-flash`；DEFAULT/REASONING `deepseek-v4-pro`；均 2 steps、正确调用 `add` 并返回 `42` |
 | 完整 G4A 模型矩阵 | `passed` | 三档单轮与异常边界测试已通过；110 条行为矩阵为完整运行 `108/110` 加定向复验 `2/2`；10 场整场成本 P95 ¥0.83908，每场覆盖追问，检索外部费用 ¥0 |
 
@@ -129,3 +131,8 @@
 | v1.9 | 2026-10-18 | 上线质量隐私与可观测门禁通过：账号数据删除、对象与业务主体清理、30/90/365 天保留清理、审计最小化、ops metrics、确定性 eval `7/7` 和双视口隐私 E2E `2 passed`；双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `140 passed`、mypy 71 files、迁移头 `9f4c2a7d1e30`；110 条真实行为矩阵 `82/110`，完整 G4A 模型矩阵仍未关闭 |
 | v2.0 | 2026-10-18 | 修正矩阵构念失真后，完整复跑 `108/110`（98.18%），两条共享契约定向复验 `2/2`，行为矩阵合计 `110/110` 并通过；完整 G4A 仅剩整场面试成本 P95 证据 |
 | v2.1 | 2026-10-18 | 整场成本基准通过：10 场完整面试全部覆盖追问，模型与检索成本 P95 ¥0.83908；生产 SMTP 失败改为可诊断上抛；发布评审保留生产邮件、对象存储和 WebKit 兼容 CI 确认项 |
+| v2.2 | 2026-10-18 | 生产依赖选定并落地适配器：DirectMail SMTP、阿里云 OSS 私有桶、GitHub Actions Ubuntu Playwright WebKit（Desktop Safari + iPhone 13）；本地质量门禁 `158 passed / 76 files`，待真实凭据和 CI 实跑验收 |
+| v2.3 | 2026-10-18 | DirectMail 凭据验证通过：465/SSL TLS 握手与 SMTP 登录成功；587/StartTLS 本机超时；实际邮件投递仍待验证 |
+| v2.4 | 2026-10-18 | DirectMail 实际发送通过：测试邮件发往 `no-reply@rainstone.top`，SMTP 服务器接受且无拒收收件人 |
+| v2.5 | 2026-10-18 | 阿里云 OSS 真实私有桶验收通过：临时对象三步操作、简历上传内容一致性和删除源文件后对象不可读均通过 |
+| v2.6 | 2026-10-18 | Ubuntu 24.04 Playwright WebKit 本地容器实跑通过：Desktop Safari + iPhone 13 共 `14 passed`；`webkit-e2e` 增加 `workflow_dispatch` 与失败报告产物，GitHub Actions 托管 runner 实跑待推送验收 |

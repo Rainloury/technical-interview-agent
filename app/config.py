@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     tool_result_ttl_seconds: int = Field(default=3600, ge=1)
 
     resume_storage_dir: str = "/private/tmp/technical-interview-agent-resume-files"
+    resume_storage_backend: Literal["local", "oss"] = "local"
+    oss_endpoint: str | None = None
+    oss_bucket: str | None = None
+    oss_access_key_id: SecretStr | None = None
+    oss_access_key_secret: SecretStr | None = None
+    oss_prefix: str = "resumes/"
     resume_max_bytes: int = Field(default=10_485_760, ge=1)
     resume_max_pages: int = Field(default=10, ge=1)
     resume_max_docx_characters: int = Field(default=40_000, ge=1)
@@ -71,10 +77,12 @@ class Settings(BaseSettings):
     ops_metrics_token: SecretStr | None = None
 
     smtp_host: str | None = None
-    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_port: int = Field(default=465, ge=1, le=65535)
+    smtp_security: Literal["starttls", "ssl", "none"] = "ssl"
     smtp_username: str | None = None
     smtp_password: SecretStr | None = None
     smtp_from_email: str | None = None
+    mail_local_reset_file: str = "/private/tmp/technical-interview-agent-password-reset.json"
     password_reset_base_url: str = "http://127.0.0.1:3001/reset-password"  # noqa: S105
 
     @field_validator("app_allowed_origins", "csrf_allowed_origins")
@@ -107,6 +115,31 @@ class Settings(BaseSettings):
         if not path.is_absolute():
             path = PROJECT_ROOT / path
         return str(path.resolve())
+
+    @field_validator("oss_endpoint")
+    @classmethod
+    def validate_oss_endpoint(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        endpoint = value.strip()
+        if not endpoint.startswith(("https://", "http://")):
+            raise ValueError("oss_endpoint must use http or https")
+        return endpoint.rstrip("/")
+
+    @field_validator("oss_access_key_id", "oss_access_key_secret")
+    @classmethod
+    def validate_oss_secret(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and not value.get_secret_value().strip():
+            return None
+        return value
+
+    @field_validator("oss_prefix")
+    @classmethod
+    def validate_oss_prefix(cls, value: str) -> str:
+        prefix = value.strip().lstrip("/")
+        if ".." in Path(prefix).parts:
+            raise ValueError("oss_prefix must not escape the bucket root")
+        return prefix
 
 
 @lru_cache
