@@ -6,6 +6,7 @@ import base64
 import os
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -19,16 +20,25 @@ WEB_URL = os.getenv("WEB_URL", "http://127.0.0.1:3101")
 WEB_COMMAND = os.getenv("PLAYWRIGHT_WEB_COMMAND", "npm run dev -- --port 3101").split()
 
 
-def _wait_for_url(url: str, *, timeout: float = 120) -> None:
+def _wait_for_url(
+    url: str,
+    *,
+    timeout: float = 120,
+    processes: tuple[subprocess.Popen[str], ...] = (),
+) -> None:
     import urllib.request
 
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
+        for process in processes:
+            returncode = process.poll()
+            if returncode is not None:
+                raise RuntimeError(f"service exited with code {returncode}: {url}")
         try:
             with urllib.request.urlopen(url, timeout=2) as response:  # noqa: S310
                 if response.status < 500:
                     return
-        except Exception:
+        except (OSError, ValueError):
             time.sleep(0.25)
     raise RuntimeError(f"service did not become ready: {url}")
 
@@ -80,7 +90,7 @@ def main() -> int:
         ["uv", "run", "python", "-m", "scripts.e2e_resume_worker"],
         WEB_COMMAND,
     )
-    processes = [
+    processes = tuple(
         subprocess.Popen(  # noqa: S603
             command,
             cwd=ROOT if index < 2 else WEB,
@@ -89,10 +99,13 @@ def main() -> int:
             text=True,
         )
         for index, command in enumerate(commands)
-    ]
+    )
     worker_output: list[str] = []
+    stop_requested = False
 
     def stop(signum: int, _frame: object) -> None:
+        nonlocal stop_requested
+        stop_requested = True
         for process in processes:
             if process.poll() is None:
                 process.send_signal(signum)
@@ -100,23 +113,32 @@ def main() -> int:
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
     try:
-        _wait_for_url(f"{API_URL}/health/live")
+        _wait_for_url(f"{API_URL}/health/live", processes=processes)
         deadline = time.monotonic() + 120
-        while time.monotonic() < deadline:
+        while "ready" not in "".join(worker_output) and time.monotonic() < deadline:
+            if processes[1].poll() is not None:
+                break
             line = processes[1].stdout.readline() if processes[1].stdout else ""
             if line:
                 worker_output.append(line)
-                if "ready" in line:
-                    break
+                continue
             time.sleep(0.1)
         if "ready" not in "".join(worker_output):
             raise RuntimeError(f"worker did not report ready: {''.join(worker_output)}")
         if processes[1].poll() is not None:
             raise RuntimeError(f"worker exited: {''.join(worker_output)}")
-        _wait_for_url(WEB_URL)
+        _wait_for_url(WEB_URL, processes=processes)
         print("ready", flush=True)
         while all(process.poll() is None for process in processes):
             time.sleep(0.5)
+        if stop_requested:
+            return 0
+        failed = next(
+            (process for process in processes if process.poll() not in (None, 0)),
+            None,
+        )
+        if failed is not None:
+            raise RuntimeError(f"E2E service exited with code {failed.returncode}")
     finally:
         for process in processes:
             if process.poll() is None:
@@ -126,8 +148,15 @@ def main() -> int:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 process.kill()
+                process.wait()
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        raise SystemExit(0) from None
+    except Exception as error:
+        print(f"E2E service startup failed: {error}", file=sys.stderr, flush=True)
+        raise SystemExit(1) from None

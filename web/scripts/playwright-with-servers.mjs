@@ -1,7 +1,16 @@
 import { spawn } from "node:child_process";
+import console from "node:console";
 import { randomBytes } from "node:crypto";
 import process from "node:process";
+import { clearTimeout, setTimeout } from "node:timers";
 
+const terminateGraceMs = 5_000;
+const killGraceMs = 5_000;
+const testsTerminateGraceMs = 1_000;
+const parseTimeout = (value, fallback) => {
+  const timeout = Number(value ?? fallback);
+  return Number.isFinite(timeout) && timeout > 0 ? timeout : fallback;
+};
 const dataEncryptionKey =
   process.env.DATA_ENCRYPTION_KEY ?? randomBytes(32).toString("base64url");
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
@@ -27,34 +36,81 @@ delete serverEnvironment.OSS_ACCESS_KEY_SECRET;
 delete serverEnvironment.RESUME_STORAGE_BACKEND;
 const server = spawn("uv", ["run", "python", "-m", "scripts.run_e2e_servers"], {
   cwd: "..",
-  env: serverEnvironment,
+  detached: process.platform !== "win32",
+  env: {
+    ...serverEnvironment,
+    ...(process.platform === "win32"
+      ? {}
+      : { PYTHONUNBUFFERED: "1" }),
+  },
   stdio: ["ignore", "pipe", "inherit"],
 });
 
-const stop = () => {
-  if (!server.killed) {
-    server.kill("SIGTERM");
+let tests = null;
+
+const isRunning = (child) =>
+  child !== null && child.exitCode === null && child.signalCode === null;
+
+const signal = (child, signalName) => {
+  if (!isRunning(child)) {
+    return;
+  }
+  try {
+    if (process.platform === "win32") {
+      child.kill(signalName);
+    } else {
+      process.kill(-child.pid, signalName);
+    }
+  } catch (error) {
+    if (error.code !== "ESRCH") {
+      throw error;
+    }
   }
 };
 
-process.on("SIGINT", stop);
-process.on("SIGTERM", stop);
-
-const ready = new Promise((resolve, reject) => {
-  server.once("error", reject);
-  server.once("exit", (code) => {
-    reject(new Error(`E2E servers exited before ready (code ${String(code)})`));
+for (const event of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(event, () => {
+    signal(tests, "SIGTERM");
+    signal(server, "SIGTERM");
+    process.exitCode = 128 + (event === "SIGINT" ? 2 : event === "SIGTERM" ? 15 : 1);
   });
-  server.stdout.on("data", (chunk) => {
-    if (String(chunk).includes("ready")) {
-      resolve();
-    }
-  });
+}
+process.on("exit", () => {
+  signal(tests, "SIGKILL");
+  signal(server, "SIGKILL");
 });
 
-try {
-  await ready;
-  const tests = spawn("npx", ["playwright", "test"], {
+const waitForReady = () =>
+  new Promise((resolve, reject) => {
+    const onExit = (code, signalName) => {
+      reject(
+        new Error(
+          `E2E servers exited before ready (code ${String(code)}, signal ${String(signalName)})`,
+        ),
+      );
+    };
+    server.once("error", reject);
+    server.once("exit", onExit);
+    server.stdout.on("data", (chunk) => {
+      if (!String(chunk).includes("ready")) {
+        return;
+      }
+      server.removeListener("exit", onExit);
+      resolve();
+    });
+  });
+
+const waitForExit = async (child, timeoutMs) => {
+  const deadline = Date.now() + timeoutMs;
+  while (isRunning(child) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+};
+
+const run = async () => {
+  await waitForReady();
+  tests = spawn("npx", ["playwright", "test"], {
+    detached: process.platform !== "win32",
     env: {
       ...process.env,
       DATA_ENCRYPTION_KEY: dataEncryptionKey,
@@ -67,8 +123,49 @@ try {
     },
     stdio: "inherit",
   });
-  const code = await new Promise((resolve) => tests.on("exit", resolve));
-  process.exitCode = code ?? 1;
+  const wrapperTimeout = parseTimeout(
+    process.env.PLAYWRIGHT_WRAPPER_TIMEOUT_MS,
+    900_000,
+  );
+  let timedOut = false;
+  let timeout;
+  const finished = new Promise((resolve, reject) => {
+    tests.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    tests.once("exit", (code, signalName) => {
+      clearTimeout(timeout);
+      if (!timedOut) {
+        process.exitCode = code ?? (signalName ? 1 : 0);
+      }
+      resolve();
+    });
+  });
+  timeout = setTimeout(async () => {
+    timedOut = true;
+    signal(tests, "SIGTERM");
+    await waitForExit(tests, testsTerminateGraceMs);
+    signal(tests, "SIGKILL");
+    await waitForExit(tests, killGraceMs);
+    process.exitCode = 124;
+  }, wrapperTimeout);
+  await finished;
+  clearTimeout(timeout);
+};
+
+try {
+  await run();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
 } finally {
-  stop();
+  signal(tests, "SIGTERM");
+  signal(server, "SIGTERM");
+  await waitForExit(tests, terminateGraceMs);
+  await waitForExit(server, terminateGraceMs);
+  signal(tests, "SIGKILL");
+  signal(server, "SIGKILL");
+  await waitForExit(tests, killGraceMs);
+  await waitForExit(server, killGraceMs);
 }
