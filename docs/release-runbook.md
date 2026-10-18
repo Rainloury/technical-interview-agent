@@ -14,8 +14,8 @@
 
 | 项目 | 当前状态 | 证据或限制 |
 | --- | --- | --- |
-| 代码质量 | 通过 | GitHub Actions run `39136103786` 的 `quality` 与 `container` job 成功 |
-| WebKit 兼容 | 通过 | run `39136103786` 的 WebKit Desktop Safari + iPhone 13 实跑 `14 passed`（2.4 min） |
+| 代码质量 | 通过 | 最终验证 run `39136496514` 的 `quality` 与 `container` job 成功 |
+| WebKit 兼容 | 通过 | 最终验证 run `39136496514` 的 WebKit Desktop Safari + iPhone 13 实跑 `14 passed`（1.7 min） |
 | 生产邮件 | 部分验证 | DirectMail `smtpdm.aliyun.com:465` + SSL 已通过 TLS、登录和 SMTP 接受 |
 | 生产对象存储 | 通过 | 阿里云 OSS 私有桶 PUT/GET/DELETE 已通过 |
 | 生产配置 fail-fast | 本次新增 | `staging` / `production` 启动时校验 LLM、SMTP、OSS、HTTPS 和 Cookie/CORS 安全项 |
@@ -238,4 +238,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v0.5 | 2026-10-18 | 新增非 root 生产镜像、独立 migrate/API/Worker Compose、Worker 心跳、只读容器和 CI 镜像构建门禁；关闭部署资产阻断项 |
 | v0.6 | 2026-10-18 | 密码重置改为加密密文 + 持久任务异步投递；新增 `DATA_ENCRYPTION_KEY`、`password_reset_delivery` 任务、重试/死信和密文清理，关闭邮件同步阻断项 |
 | v0.7 | 2026-10-18 | 发布基线推进至 `067f34e`；E2E 启动器同时拉起 API、确定性 Worker 和前端，异步重置投递已纳入 Chromium/WebKit 全链路验证 |
-| v0.8 | 2026-10-18 | 发布基线推进至 `7b9ed7a`；修复 E2E 进程组清理与超时退出，run `39136103786` 的 quality、container 与 WebKit 实跑 `14 passed` 全绿 |
+| v0.8 | 2026-10-18 | 发布基线推进至 `7b9ed7a`；修复 E2E 进程组清理与超时退出，最终验证 run `39136496514` 的 quality、container 与 WebKit 实跑 `14 passed` 全绿 |
