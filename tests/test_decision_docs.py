@@ -72,7 +72,7 @@ def test_first_slice_assets_are_present_after_approval() -> None:
         assert (ROOT / relative_path).is_file(), f"{relative_path} is missing"
 
 
-def test_phase_docs_describe_the_current_interview_report_slice() -> None:
+def test_phase_docs_describe_the_current_launch_quality_slice() -> None:
     documents = (
         README,
         DOCS_README,
@@ -83,16 +83,18 @@ def test_phase_docs_describe_the_current_interview_report_slice() -> None:
     )
     for path in documents:
         text = _read(path)
-        assert "模拟面试与报告切片验收通过" in text, path
-        assert "真实 provider FAST eval 已通过" in text, path
+        assert "上线质量切片进行中" in text, path
+        assert "隐私与可观测门禁已通过" in text, path
+        assert (
+            "真实 provider 三档单轮 eval 已通过" in text or "真实 provider FAST eval 已通过" in text
+        ), path
         assert "完整 G4A 模型矩阵仍未关闭" in text, path
-        assert "准备进入上线质量切片" in text, path
-        assert "11 files / 36 tests" in text, path
-        assert "126 passed" in text, path
-        assert "12 passed" in text, path
-        assert "58 files" in text, path
-        assert "7d1a3e5b9c42" in text, path
-        assert "3/3" in text, path
+        assert "12 files / 37 tests" in text, path
+        assert "140 passed" in text, path
+        assert "14 passed" in text, path
+        assert "71 files" in text, path
+        assert "9f4c2a7d1e30" in text, path
+        assert "7/7" in text, path
 
     implementation_docs = (
         README,
@@ -176,3 +178,31 @@ def test_interview_report_assets_and_boundaries_are_present() -> None:
         "advance_interview",
     ):
         assert fragment in design, f"{fragment} missing from {TECHNICAL_DESIGN}"
+
+
+def test_launch_privacy_metrics_and_retention_assets_are_present() -> None:
+    for relative_path in (
+        "app/api/v1/privacy.py",
+        "app/services/privacy.py",
+        "app/services/metrics.py",
+        "app/schemas/privacy.py",
+        "migrations/versions/9f4c2a7d1e30_add_privacy_lifecycle.py",
+        "tests/test_privacy_api.py",
+        "web/e2e/privacy-slice.spec.ts",
+        "evals/cases/interview-threshold-gates.yaml",
+        "evals/cases/interview-threshold-mid.yaml",
+        "evals/cases/interview-threshold-fail.yaml",
+        "evals/cases/interview-critical-error.yaml",
+    ):
+        assert (ROOT / relative_path).is_file(), f"{relative_path} is missing"
+
+    contract = _read(API_CONTRACT)
+    for fragment in (
+        "DELETE /api/v1/me/data",
+        "GET /api/v1/me/data-deletion",
+        "data_deletion_requests",
+        "retention_cleanup",
+        "delete_account_data",
+        "ops_metrics_token",
+    ):
+        assert fragment in contract, f"{fragment} missing from {API_CONTRACT}"

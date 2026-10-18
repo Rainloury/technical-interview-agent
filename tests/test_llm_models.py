@@ -7,6 +7,7 @@ from app.llm.models import ModelTier, estimate_cost_usd, resolve_model_tier
 
 
 def test_model_tiers_are_provider_specific_and_centrally_configured() -> None:
+    assert Settings().llm_provider == "deepseek"
     openai = Settings(llm_provider="openai")
     anthropic = Settings(llm_provider="anthropic")
     deepseek = Settings(llm_provider="deepseek")

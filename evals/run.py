@@ -7,6 +7,7 @@ import asyncio
 import json
 import sys
 import uuid
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -18,6 +19,13 @@ from app.agent.loop import AgentLoop
 from app.agent.registry import RegisteredTool, ToolRegistry
 from app.config import Settings
 from app.db.models import QaEvidence
+from app.interview_contracts import (
+    InterviewScoreDimension,
+    InterviewScoringOutput,
+    is_pass,
+    score_band,
+    weighted_total,
+)
 from app.llm.client import (
     LlmClient,
     ProviderRequest,
@@ -50,6 +58,9 @@ class EvalCase:
     expect: dict[str, Any]
     forbidden: dict[str, Any]
     cost_cny: float
+    category: str = "general"
+    direction: str | None = None
+    critical: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +108,96 @@ class EvalReport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class ReleaseGate:
+    """Behavior release thresholds from D-30/AC-37."""
+
+    total_cases: int = 110
+    cases_per_direction: int = 30
+    shared_security_cases: int = 20
+    overall_pass_rate: float = 0.90
+    direction_pass_rate: float = 0.85
+    category_pass_rate: float = 0.80
+    critical_pass_rate: float = 1.0
+
+
+def validate_release_matrix(
+    cases: Sequence[EvalCase],
+    results: Sequence[EvalResult],
+    *,
+    gate: ReleaseGate | None = None,
+) -> list[str]:
+    """Return deterministic release-gate violations for the model matrix."""
+
+    limits = gate or ReleaseGate()
+    case_by_id = {case.case_id: case for case in cases}
+    failures: list[str] = []
+    if len(cases) < limits.total_cases:
+        failures.append(
+            f"matrix has {len(cases)} cases; at least {limits.total_cases} are required"
+        )
+    by_direction = Counter(
+        case.direction for case in cases if case.direction in {"backend", "frontend", "fullstack"}
+    )
+    for direction in ("backend", "frontend", "fullstack"):
+        if by_direction[direction] < limits.cases_per_direction:
+            failures.append(
+                f"{direction} has {by_direction[direction]} cases; "
+                f"at least {limits.cases_per_direction} are required"
+            )
+    shared_security = sum(
+        1 for case in cases if case.category in {"security", "contract"} and case.direction is None
+    )
+    if shared_security < limits.shared_security_cases:
+        failures.append(
+            f"shared security/contract cases: {shared_security}; "
+            f"at least {limits.shared_security_cases} are required"
+        )
+    if not results:
+        return failures
+    passed_ids = {result.case_id for result in results if result.passed}
+    overall = len(passed_ids) / len(results)
+    if overall < limits.overall_pass_rate:
+        failures.append(f"overall pass rate {overall:.2%} is below {limits.overall_pass_rate:.2%}")
+    for direction in ("backend", "frontend", "fullstack"):
+        direction_results = [
+            result
+            for result in results
+            if case_by_id.get(result.case_id) and case_by_id[result.case_id].direction == direction
+        ]
+        if direction_results:
+            rate = sum(result.passed for result in direction_results) / len(direction_results)
+            if rate < limits.direction_pass_rate:
+                failures.append(
+                    f"{direction} pass rate {rate:.2%} is below {limits.direction_pass_rate:.2%}"
+                )
+    critical_results = [
+        result
+        for result in results
+        if case_by_id.get(result.case_id) and case_by_id[result.case_id].critical
+    ]
+    if critical_results:
+        rate = sum(result.passed for result in critical_results) / len(critical_results)
+        if rate < limits.critical_pass_rate:
+            failures.append(f"critical pass rate {rate:.2%} is below 100%")
+    categories = {
+        case_by_id[result.case_id].category for result in results if result.case_id in case_by_id
+    }
+    for category in sorted(categories):
+        category_results = [
+            result
+            for result in results
+            if case_by_id.get(result.case_id) and case_by_id[result.case_id].category == category
+        ]
+        if category_results:
+            rate = sum(result.passed for result in category_results) / len(category_results)
+            if rate < limits.category_pass_rate:
+                failures.append(
+                    f"{category} pass rate {rate:.2%} is below {limits.category_pass_rate:.2%}"
+                )
+    return failures
+
+
 def _object_mapping(value: object, field: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"{field} must be a mapping")
@@ -134,6 +235,9 @@ def _parse_case(raw: object, source: Path) -> EvalCase:
         expect=_object_mapping(data.get("expect"), f"{source}.expect"),
         forbidden=_optional_mapping(data.get("forbidden"), f"{source}.forbidden"),
         cost_cny=float(cost),
+        category=str(data.get("category", "general")),
+        direction=cast(str | None, data.get("direction")),
+        critical=bool(data.get("critical", False)),
     )
 
 
@@ -308,6 +412,38 @@ def _run_agent_behavior_case(case: EvalCase) -> float:
     return 0.0
 
 
+def _run_interview_threshold_case(case: EvalCase) -> float:
+    """Validate deterministic threshold and follow-up policy without a provider."""
+
+    expected_band = case.expect.get("band")
+    expected_pass = case.expect.get("passed")
+    expected_follow_up = case.expect.get("follow_up")
+    critical = bool(case.input.get("critical_error", False))
+    score = float(case.input.get("score", 0))
+    dimension = InterviewScoreDimension(score=score, deduction_reason="")
+    output = InterviewScoringOutput(
+        correctness=dimension,
+        technical_depth=dimension,
+        engineering_judgment=dimension,
+        completeness=dimension,
+        clarity=dimension,
+        critical_error=critical,
+        critical_error_reason="关键错误" if critical else "",
+        feedback="deterministic threshold check",
+    )
+    total = weighted_total(output)
+    passed = is_pass(total, critical)
+    band = score_band(total)
+    follow_up = passed and total >= 85 and not critical
+    if band != expected_band:
+        raise AssertionError(f"band: expected {expected_band!r}, got {band!r}")
+    if passed is not expected_pass:
+        raise AssertionError(f"passed: expected {expected_pass!r}, got {passed!r}")
+    if follow_up is not expected_follow_up:
+        raise AssertionError(f"follow_up: expected {expected_follow_up!r}, got {follow_up!r}")
+    return 0.0
+
+
 class QaPromptProvider:
     """Inspect the real Worker prompt and return a candidate answer."""
 
@@ -457,6 +593,17 @@ def run_suite(cases_path: Path = DEFAULT_CASES) -> EvalReport:
                     )
                 elif case.kind == "qa_prompt_contract":
                     actual_cost = asyncio.run(_run_qa_prompt_case(case, prompts=prompts))
+                    case = EvalCase(
+                        case_id=case.case_id,
+                        kind=case.kind,
+                        description=case.description,
+                        input=case.input,
+                        expect=case.expect,
+                        forbidden=case.forbidden,
+                        cost_cny=actual_cost,
+                    )
+                elif case.kind == "interview_threshold":
+                    actual_cost = _run_interview_threshold_case(case)
                     case = EvalCase(
                         case_id=case.case_id,
                         kind=case.kind,

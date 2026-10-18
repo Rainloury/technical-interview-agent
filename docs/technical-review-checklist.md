@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 文档版本 | v1.7 |
-| 文档状态 | 模拟面试与报告切片验收通过，准备进入上线质量切片 |
+| 文档状态 | 上线质量切片进行中；隐私与可观测门禁已通过 |
 | 更新日期 | 2026-10-18 |
 
 > 本清单跟踪架构决策、工程骨架和核心能力基座的验收证据。需求和用户可见行为的批准记录在[决策登记](./decision-register.md)。
@@ -21,9 +21,9 @@
 | 问答流式协议可重连 | `accepted` | `docs/adr/0006-sse-contract.md` |
 | 异步任务方案可实施 | `accepted` | `docs/adr/0007-database-job-queue.md` |
 | 受保护反馈在服务端裁剪 | `accepted` | `docs/adr/0008-protected-feedback.md` |
-| 数据表、关系、索引和迁移入口明确 | `accepted` | `docs/data-model.md` v0.6 |
+| 数据表、关系、索引和迁移入口明确 | `accepted` | `docs/data-model.md` v0.7 |
 | 状态机可闭合 | `accepted` | `docs/state-machine.md` v0.5 |
-| 接口和错误语义明确 | `accepted` | `docs/api-contract.md` v0.7 |
+| 接口和错误语义明确 | `accepted` | `docs/api-contract.md` v0.8 |
 | 安全威胁和控制明确 | `accepted` | `docs/threat-model.md` v0.6 |
 
 ## 2. 项目负责人审批结论
@@ -83,25 +83,25 @@
 | 完整工具参数 Schema 进入模型上下文 | `passed` | `agent_turn` v1.1.0、Agent Loop 回归测试 |
 | 确定性 Agent 行为 eval | `passed` | `evals/run.py`、`evals/baseline.json` |
 | 阶段与审批文档契约 | `passed` | `tests/test_decision_docs.py` 验证 `DR-07` 已批准、`web/` 资产和当前阶段证据 |
-| 默认与集成质量门禁 | `passed` | `RUN_INTEGRATION=1 pytest` 为 `126 passed`；集成结果包含文档契约测试 |
-| 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `7d1a3e5b9c42` |
-| 确定性行为评测 | `passed` | `pytest -q evals` 为 `3/3`，通过率 1.0 |
+| 默认与集成质量门禁 | `passed` | `RUN_INTEGRATION=1 pytest` 为 `140 passed`；集成结果包含文档契约与 provider 矩阵契约测试 |
+| 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `9f4c2a7d1e30` |
+| 确定性行为评测 | `passed` | `pytest -q evals` 与 eval CLI 为 `7/7`，通过率 1.0 |
 | 前端工程与账号路径 | `passed` | `web/`；注册、登录、退出、找回/重置密码、空工作台和响应式导航 |
 | 会话与 CSRF | `passed` | `interview_session` 为 `HttpOnly`；`interview_csrf` 配合 `X-CSRF-Token`；`auth_sessions.csrf_token_hash` 只保存哈希 |
 | 历史分页 | `passed` | 历史接口返回 `{items, next_cursor}`；前端每页 10 条并支持继续加载 |
 | 简历纵向切片 | `passed` | 上传、PDF/DOCX 校验、异步处理、10 题、失败重试、删除原始简历和 `source_deleted` 证据摘要 |
 | 检索问答切片 | `passed` | owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、持久 SSE 游标重放、终态互斥和前端历史重开 |
-| 浏览器 E2E | `passed` | Playwright 桌面与移动项目 `12 passed`，面试专项 `4 passed`；macOS 13 不支持本轮 Playwright WebKit 二进制，WebKit 留待兼容 CI |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `11 files / 36 tests`、ESLint、build；后端 ruff、格式、mypy（58 files）、`RUN_INTEGRATION=1 pytest`（`126 passed`）和 `alembic check` |
-| 真实 provider FAST eval | `passed` | 真实 provider FAST eval 已通过：`deepseek-flash`；2 steps；tokens `773 / 131`；latency `3471ms`；cost `$0.0003891`；Prompt `agent_system@1.0.0+agent_turn@1.1.0` |
-| 完整 G4A 模型矩阵 | `open` | FAST 已通过；DEFAULT、REASONING、异常边界和发布成本门槛仍未关闭 |
+| 浏览器 E2E | `passed` | Playwright 桌面与移动项目 `14 passed`，隐私专项 `2 passed`；macOS 13 不支持本轮 Playwright WebKit 二进制，WebKit 留待兼容 CI |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（71 files）、`RUN_INTEGRATION=1 pytest`（`140 passed`）和 `alembic check` |
+| 真实 provider 三档单轮 eval | `passed` | 真实 provider 三档单轮 eval 已通过：FAST `deepseek-flash`；DEFAULT/REASONING `deepseek-v4-pro`；均 2 steps、正确调用 `add` 并返回 `42` |
+| 完整 G4A 模型矩阵 | `failed` | 三档单轮与异常边界测试已通过；110 条真实模型矩阵为 `82/110`，未达到发布门槛；完整面试成本 P95 尚未测量 |
 
 ## 6. 下一步
 
 1. 账号、简历与检索问答纵向切片已通过浏览器、安全、权限、质量和迁移门禁。
 2. 检索问答覆盖有证据、证据不足、检索失败、任意 URL 拒绝、重连、知识源版本冻结和公开证据字段边界。
 3. 进入模拟面试与报告切片前，确认服务端截止、提交幂等、评分分段、受保护反馈解锁和恢复路径。
-4. 完整 G4A 模型矩阵继续作为发布前独立门禁：补齐 DEFAULT、REASONING、异常边界和发布成本门槛。
+4. 完整 G4A 模型矩阵继续作为发布前独立门禁：修复 110 条行为矩阵失败项，并补齐完整面试成本 P95 基准。
 5. 按[下一步执行计划](./next-steps.md)和[开发全流程](./development-flow.md)推进后续切片。
 
 ## 7. 版本记录
@@ -126,3 +126,4 @@
 | v1.6 | 2026-10-17 | 复核移动端 E2E 与剩余质量门禁；记录一次 Vitest 偶发加载超时及连续复跑通过结果，保留测试稳定性风险 |
 | v1.7 | 2026-10-18 | 检索问答切片验收通过：owner 隔离、幂等、URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放和公开字段边界通过；双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70` |
 | v1.8 | 2026-10-18 | 模拟面试与报告切片验收通过：数据库硬截止、操作幂等、中性 202 响应、评分、两层追问、分支结束原因、评分失败收口和受保护反馈通过；双视口 E2E `12 passed`、前端 `11 files / 36 tests`、后端 `126 passed`、mypy 58 files、迁移头 `7d1a3e5b9c42` |
+| v1.9 | 2026-10-18 | 上线质量隐私与可观测门禁通过：账号数据删除、对象与业务主体清理、30/90/365 天保留清理、审计最小化、ops metrics、确定性 eval `7/7` 和双视口隐私 E2E `2 passed`；双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `140 passed`、mypy 71 files、迁移头 `9f4c2a7d1e30`；110 条真实行为矩阵 `82/110`，完整 G4A 模型矩阵仍未关闭 |

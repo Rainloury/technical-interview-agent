@@ -1,0 +1,11 @@
+id: interview-threshold-gates
+kind: interview_threshold
+description: Verify deterministic pass and follow-up thresholds at all policy bands.
+input:
+  score: 96
+expect:
+  band: 85_plus
+  passed: true
+  follow_up: true
+forbidden: {}
+cost_cny: 0.0

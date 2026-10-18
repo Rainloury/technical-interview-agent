@@ -1,6 +1,8 @@
 id: qa-evidence-boundary
 kind: qa_prompt_contract
 description: Isolate QA prompt inputs, enforce evidence status, and reject invented citations.
+category: security
+critical: true
 cost_cny: 0.0
 input:
   question: >-

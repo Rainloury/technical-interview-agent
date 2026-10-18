@@ -85,11 +85,24 @@ def resolve_model_tier(tier: ModelTier | str, settings: Settings) -> ModelProfil
     )
 
 
+def configured_model_names(settings: Settings) -> tuple[str, ...]:
+    """Return the explicitly configured non-empty model names for preflight."""
+
+    return tuple(
+        value.strip()
+        for value in (
+            settings.llm_fast_model,
+            settings.llm_default_model,
+            settings.llm_reasoning_model,
+        )
+        if value.strip()
+    )
+
+
 def estimate_cost_usd(profile: ModelProfile, input_tokens: int, output_tokens: int) -> Decimal:
     """Calculate a conservative per-call cost from centralized pricing metadata."""
 
     million = Decimal(1_000_000)
-    return (
-        Decimal(input_tokens) * profile.input_usd_per_million
-        + Decimal(output_tokens) * profile.output_usd_per_million
-    ) / million
+    input_cost = Decimal(input_tokens) * profile.input_usd_per_million
+    output_cost = Decimal(output_tokens) * profile.output_usd_per_million
+    return (input_cost + output_cost) / million

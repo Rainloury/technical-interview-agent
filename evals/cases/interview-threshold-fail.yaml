@@ -1,0 +1,11 @@
+id: interview-threshold-fail
+kind: interview_threshold
+description: Verify below 70 fails and never triggers follow-up.
+input:
+  score: 69
+expect:
+  band: below_70
+  passed: false
+  follow_up: false
+forbidden: {}
+cost_cny: 0.0

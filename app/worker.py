@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -19,6 +19,8 @@ from app.config import Settings
 from app.db.jobs import finish_job, lease_next_job, renew_job_lease
 from app.db.models import (
     AsyncJob,
+    AuditEvent,
+    DataDeletionRequest,
     FollowUpChain,
     GeneratedQuestion,
     Interview,
@@ -31,6 +33,7 @@ from app.db.models import (
     ResumeTask,
     ResumeText,
     ScoringAttempt,
+    User,
     WeakPoint,
     WeakPointEvidence,
     WrongQuestion,
@@ -237,6 +240,19 @@ class ResumeWorker:
                     resource_id=resource_id,
                     owner_user_id=owner_user_id,
                 )
+            elif job_type == "delete_account_data":
+                await self._process_account_deletion(
+                    job_id=job_id,
+                    fencing_token=fencing_token,
+                    resource_id=resource_id,
+                    owner_user_id=owner_user_id,
+                )
+            elif job_type == "retention_cleanup":
+                await self._process_retention_cleanup(
+                    job_id=job_id,
+                    fencing_token=fencing_token,
+                    resource_id=resource_id,
+                )
             else:
                 raise ResumeWorkerError("unsupported_job_type", retryable=False)
         except StaleLeaseError:
@@ -402,6 +418,11 @@ class ResumeWorker:
                     attempt_count=attempt_count,
                     max_attempts=max_attempts,
                 )
+            elif job_type == "delete_account_data":
+                await self._fail_account_deletion(
+                    resource_id=resource_id,
+                    code=code,
+                )
             else:
                 task = await session.get(ResumeTask, resource_id)
                 if task is not None and task.state not in {"completed", "source_deleted"}:
@@ -416,6 +437,24 @@ class ResumeWorker:
                     task.error_message = "简历处理未完成，请稍后重试"
             await session.commit()
         return "dead_letter"
+
+    async def _fail_account_deletion(
+        self,
+        *,
+        resource_id: uuid.UUID,
+        code: str,
+    ) -> None:
+        async with self._sessions() as session:
+            request = await session.get(
+                DataDeletionRequest,
+                resource_id,
+                with_for_update=True,
+            )
+            if request is None or request.state == "completed":
+                return
+            request.state = "failed"
+            request.error_code = code
+            await session.commit()
 
     async def _mark_scoring_attempt_failed(
         self,
@@ -555,6 +594,173 @@ class ResumeWorker:
             if source is not None:
                 source.storage_state = "deleted"
                 source.deleted_at = datetime.now(UTC)
+            await session.commit()
+
+    async def _process_account_deletion(
+        self,
+        *,
+        job_id: uuid.UUID,
+        fencing_token: int,
+        resource_id: uuid.UUID,
+        owner_user_id: uuid.UUID | None,
+    ) -> None:
+        """Finish an account-wide deletion after the visibility tombstone."""
+
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            request = await session.get(
+                DataDeletionRequest,
+                resource_id,
+                with_for_update=True,
+            )
+            if request is None:
+                raise ResumeWorkerError("resource_not_found", retryable=False)
+            if owner_user_id is None or request.owner_user_id != owner_user_id:
+                raise ResumeWorkerError("resource_not_found", retryable=False)
+            if request.state == "completed":
+                return
+            request.state = "deleting"
+            await session.commit()
+
+        async with self._sessions() as session:
+            sources = list(
+                (
+                    await session.execute(
+                        select(ResumeFile)
+                        .where(ResumeFile.owner_user_id == owner_user_id)
+                        .with_for_update()
+                    )
+                ).scalars()
+            )
+            object_keys = [source.object_key for source in sources]
+        try:
+            for object_key in object_keys:
+                with suppress(FileNotFoundError):
+                    await self._storage.delete(object_key)
+        except Exception:
+            async with self._sessions() as session:
+                failed = await session.get(
+                    DataDeletionRequest,
+                    resource_id,
+                    with_for_update=True,
+                )
+                if failed is not None:
+                    failed.state = "failed"
+                    failed.error_code = "object_delete_failed"
+                    await session.commit()
+            raise
+
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            request = await session.get(
+                DataDeletionRequest,
+                resource_id,
+                with_for_update=True,
+            )
+            if request is None or request.owner_user_id != owner_user_id:
+                raise ResumeWorkerError("resource_not_found", retryable=False)
+            user = await session.get(User, owner_user_id, with_for_update=True)
+            interview_ids = select(Interview.id).where(Interview.owner_user_id == owner_user_id)
+            await session.execute(
+                delete(ResumeFile).where(ResumeFile.owner_user_id == owner_user_id)
+            )
+            await session.execute(
+                delete(ResumeTask).where(ResumeTask.owner_user_id == owner_user_id)
+            )
+            await session.execute(delete(QaRequest).where(QaRequest.owner_user_id == owner_user_id))
+            await session.execute(
+                delete(WrongQuestion).where(WrongQuestion.interview_id.in_(interview_ids))
+            )
+            await session.execute(delete(Interview).where(Interview.owner_user_id == owner_user_id))
+            await session.execute(
+                delete(WrongQuestion).where(WrongQuestion.owner_user_id == owner_user_id)
+            )
+            request.state = "completed"
+            request.completed_at = datetime.now(UTC)
+            request.result = {
+                "resume_files_deleted": len(object_keys),
+                "business_scope_deleted": True,
+            }
+            if user is not None:
+                user.status = "deleted"
+                user.email_normalized = f"deleted-{user.id.hex}@invalid.local"
+                user.password_hash = "!"  # noqa: S105 - disabled account sentinel
+                user.deleted_at = datetime.now(UTC)
+            session.add(
+                AuditEvent(
+                    action="delete_account_data",
+                    resource_type="data_deletion_request",
+                    resource_id_hash=hashlib.sha256(request.id.hex.encode()).hexdigest(),
+                    result="success",
+                    request_id=f"worker_{job_id.hex}",
+                )
+            )
+            await session.commit()
+
+    async def _process_retention_cleanup(
+        self,
+        *,
+        job_id: uuid.UUID,
+        fencing_token: int,
+        resource_id: uuid.UUID,
+    ) -> None:
+        """Delete expired private objects and anonymize expired metadata."""
+
+        del resource_id
+        now = datetime.now(UTC)
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            sources = list(
+                (
+                    await session.execute(
+                        select(ResumeFile)
+                        .where(
+                            ResumeFile.retention_expires_at <= now,
+                            ResumeFile.storage_state != "deleted",
+                        )
+                        .with_for_update()
+                    )
+                ).scalars()
+            )
+            object_keys = [source.object_key for source in sources]
+        for object_key in object_keys:
+            with suppress(FileNotFoundError):
+                await self._storage.delete(object_key)
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            await session.execute(
+                update(ResumeFile)
+                .where(
+                    ResumeFile.retention_expires_at <= now,
+                    ResumeFile.storage_state != "deleted",
+                )
+                .values(
+                    storage_state="deleted",
+                    original_filename="已删除简历",
+                    deleted_at=now,
+                )
+            )
+            await session.execute(
+                update(ResumeTask)
+                .where(ResumeTask.expires_at <= now, ResumeTask.deleted_at.is_(None))
+                .values(deleted_at=now)
+            )
+            await session.execute(
+                update(QaRequest)
+                .where(QaRequest.expires_at <= now, QaRequest.deleted_at.is_(None))
+                .values(deleted_at=now)
+            )
+            await session.execute(
+                update(Interview)
+                .where(Interview.expires_at <= now, Interview.deleted_at.is_(None))
+                .values(deleted_at=now)
+            )
+            await session.execute(
+                update(WrongQuestion)
+                .where(WrongQuestion.expires_at <= now, WrongQuestion.deleted_at.is_(None))
+                .values(deleted_at=now)
+            )
+            await session.execute(delete(AuditEvent).where(AuditEvent.expires_at <= now))
             await session.commit()
 
     async def _process_resume(

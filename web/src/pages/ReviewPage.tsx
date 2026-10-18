@@ -1,16 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ArrowRight,
   BookOpenText,
   ChevronDown,
   CircleAlert,
+  ShieldAlert,
   Target,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { api } from "../api/client";
+import { newIdempotencyKey } from "../api/idempotency";
 import { queryKeys } from "../api/queryKeys";
 import type { WeakPoint, WrongQuestionDetail } from "../api/types";
 import { ErrorNotice } from "../components/Feedback";
@@ -23,6 +25,8 @@ type ReviewTab = "wrong" | "weak";
 
 export function ReviewPage() {
   const [params, setParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const tab: ReviewTab = params.get("tab") === "weak" ? "weak" : "wrong";
   const focusWeak = params.get("weak");
   const wrong = useQuery({
@@ -34,6 +38,29 @@ export function ReviewPage() {
     queryKey: queryKeys.weakPoints,
     queryFn: () => api.weakPoints(),
     enabled: tab === "weak" || Boolean(focusWeak),
+  });
+  const deletion = useQuery({
+    queryKey: ["data-deletion"] as const,
+    queryFn: api.latestDataDeletion,
+    refetchInterval: (query) => {
+      const value = query.state.data;
+      return value && value.state !== "completed" && value.state !== "failed"
+        ? 1000
+        : false;
+    },
+  });
+  const requestDeletion = useMutation({
+    mutationFn: () => api.deleteMyData(newIdempotencyKey()),
+    onSuccess: () => {
+      setDeleteConfirm(false);
+      void queryClient.invalidateQueries({ queryKey: ["data-deletion"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.wrongQuestions });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.weakPoints });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.history("interview") });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.history("qa") });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.history("resume") });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
   });
   useSessionGuard(wrong.error ?? weak.error);
 
@@ -114,6 +141,70 @@ export function ReviewPage() {
             ))
           }
         </ReviewQuery>
+      )}
+
+      <section className="privacy-controls" aria-labelledby="privacy-title">
+        <div>
+          <span className="section-kicker">PRIVACY</span>
+          <h2 id="privacy-title">删除全部业务数据</h2>
+          <p>
+            删除请求会立即隐藏简历、问答、面试、错题和薄弱点，并在后台清除私有文件与已存业务数据。
+            该操作不可撤销。
+          </p>
+        </div>
+        {deletion.data?.state === "completed" ? (
+          <div className="privacy-status privacy-status--completed">
+            删除已完成
+          </div>
+        ) : deletion.data ? (
+          <div className="privacy-status">
+            {deletion.data.state === "failed" ? "删除未完成" : "删除处理中"}
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="danger-button"
+            onClick={() => setDeleteConfirm(true)}
+          >
+            <ShieldAlert size={17} aria-hidden="true" />
+            <span>删除全部数据</span>
+          </button>
+        )}
+      </section>
+
+      {deleteConfirm && (
+        <div className="modal-scrim" role="presentation">
+          <div
+            className="interview-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-all-title"
+          >
+            <ShieldAlert size={22} aria-hidden="true" />
+            <h2 id="delete-all-title">确认删除全部业务数据？</h2>
+            <p>
+              账户会立即停用，业务内容将不可再访问；删除在后台继续执行，且无法恢复。
+            </p>
+            <div>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setDeleteConfirm(false)}
+                disabled={requestDeletion.isPending}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="danger-button"
+                onClick={() => requestDeletion.mutate()}
+                disabled={requestDeletion.isPending}
+              >
+                {requestDeletion.isPending ? "正在提交" : "确认删除"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

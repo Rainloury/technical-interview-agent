@@ -2,6 +2,8 @@ import { readCsrfToken } from "./csrf";
 import type {
   ApiErrorBody,
   Dashboard,
+  DataDeletionAccepted,
+  DataDeletionStatus,
   HistoryPage,
   HistoryType,
   Interview,
@@ -523,4 +525,11 @@ export const api = {
     request<ReviewPage<WeakPoint>>("/api/v1/weak-points", {
       query: { cursor, limit },
     }),
+  deleteMyData: (idempotencyKey: string) =>
+    request<DataDeletionAccepted>("/api/v1/me/data", {
+      method: "DELETE",
+      headers: { "Idempotency-Key": idempotencyKey },
+    }),
+  latestDataDeletion: () =>
+    request<DataDeletionStatus | null>("/api/v1/me/data-deletion"),
 };

@@ -748,7 +748,8 @@ class AsyncJob(Base):
         CheckConstraint(
             "job_type IN ('parse_resume','analyze_resume','generate_questions',"
             "'answer_question','score_open_interview_turn','score_interview_turn',"
-            "'advance_interview','generate_report','delete_data')",
+            "'advance_interview','generate_report','delete_data','delete_account_data',"
+            "'retention_cleanup')",
             name="job_type",
         ),
         CheckConstraint(
@@ -814,3 +815,38 @@ class AuditEvent(Base):
     expires_at: Mapped[datetime] = mapped_column(
         UTCDateTime, nullable=False, server_default=text("now() + interval '365 days'")
     )
+
+
+class DataDeletionRequest(Base):
+    __tablename__ = "data_deletion_requests"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('requested','deleting','completed','failed')",
+            name="state",
+        ),
+        UniqueConstraint(
+            "owner_user_id",
+            "idempotency_key",
+            name="owner_idempotency_key",
+        ),
+        Index(
+            "ix_data_deletion_requests_owner_created",
+            "owner_user_id",
+            "created_at",
+        ),
+        Index("ix_data_deletion_requests_state_updated", "state", "updated_at"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUIDType, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    idempotency_key: Mapped[str] = mapped_column(Text, nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, server_default="requested")
+    scope: Mapped[dict[str, Any]] = mapped_column(JSONBType, nullable=False)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONBType)
+    error_code: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)

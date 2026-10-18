@@ -1,0 +1,11 @@
+id: interview-threshold-mid
+kind: interview_threshold
+description: Verify 70-84 passes without follow-up.
+input:
+  score: 80
+expect:
+  band: "70_84"
+  passed: true
+  follow_up: false
+forbidden: {}
+cost_cny: 0.0

@@ -1,0 +1,14 @@
+id: interview-critical-error
+kind: interview_threshold
+description: Verify a critical error vetoes an otherwise high-scoring answer.
+category: interview
+critical: true
+input:
+  score: 96
+  critical_error: true
+expect:
+  band: 85_plus
+  passed: false
+  follow_up: false
+forbidden: {}
+cost_cny: 0.0

@@ -1,8 +1,8 @@
 # 文档导航
 
-当前阶段：**模拟面试与报告切片验收通过，准备进入上线质量切片**。`DR-07` 已批准，`web/` 已实现账号、工作台、四类历史分页、响应式导航、简历闭环、检索问答、模拟面试、终态报告和复习中心。后端已提供 `interview_session`（`HttpOnly`）、`interview_csrf`、`X-CSRF-Token`、`{items, next_cursor}`、owner-scoped 面试与复习 API、持久 SSE 重放和数据库权威截止，并在 `auth_sessions.csrf_token_hash` 只保存 CSRF 哈希。
+当前阶段：**上线质量切片进行中；隐私与可观测门禁已通过**。`DR-07` 已批准，`web/` 已实现账号、工作台、历史、响应式导航、简历闭环、问答、模拟面试、报告、复习中心和数据删除。后端已提供 `interview_session`（`HttpOnly`）、`interview_csrf`、`X-CSRF-Token`、`{items, next_cursor}`、owner-scoped 业务与隐私 API、持久 SSE 重放、数据库权威截止和数据保留清理，并在 `auth_sessions.csrf_token_hash` 只保存 CSRF 哈希。
 
-模拟面试与报告切片验收通过，已覆盖桌面与移动 E2E `12 passed`、面试专项 `4 passed`、前端 Vitest `11 files / 36 tests`、后端集成测试 `126 passed`、Mypy `58 files`、确定性 eval `3/3` 和迁移头 `7d1a3e5b9c42`；下一步进入上线质量切片。真实 provider FAST eval 已通过；完整 G4A 模型矩阵仍未关闭。
+上线质量门禁当前覆盖桌面与移动 E2E `14 passed`、隐私专项 `2 passed`、前端 Vitest `12 files / 37 tests`、后端集成测试 `140 passed`、Mypy `71 files`、确定性 eval `7/7` 和迁移头 `9f4c2a7d1e30`。真实 provider 三档单轮 eval 已通过；110 条行为矩阵为 `82/110`（74.55%），完整 G4A 模型矩阵仍未关闭，因此上线质量切片尚未整体验收。
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
@@ -17,7 +17,7 @@
 | [威胁模型](./threat-model.md) | 信任边界、主要威胁、控制措施和上线阻断条件 | v0.6 首切片安全控制已验收 |
 | [架构决策记录](./adr/README.md) | ADR-0001 至 ADR-0008 及后续技术决策 | 8 项已接受 |
 | [技术方案评审清单](./technical-review-checklist.md) | 架构门禁、已批准需求、基座验收证据和后续条件 | v1.7 检索问答切片已验收 |
-| [下一步执行计划](./next-steps.md) | 核心基座和业务纵向切片的执行顺序与退出条件 | v1.6 模拟面试与报告准备 |
+| [下一步执行计划](./next-steps.md) | 核心基座和业务纵向切片的执行顺序与退出条件 | v1.9 G4A 行为矩阵未通过 |
 | [项目规则](../AGENTS.md) | 技术栈、分层边界、智能体开发约束、安全底线和 DoD | 生效中 |
 
 ## 快速定位

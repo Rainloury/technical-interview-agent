@@ -2,27 +2,27 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.7 |
-| 文档状态 | 模拟面试与报告切片验收通过，进入上线质量准备 |
+| 文档版本 | v1.9 |
+| 文档状态 | 上线质量切片进行中；G4A 行为矩阵未通过 |
 | 更新日期 | 2026-10-18 |
-| 当前阶段 | 模拟面试与报告切片验收通过，准备进入上线质量切片 |
-| 当前目标 | 收敛上线质量、安全、性能和发布门禁，继续补齐完整 G4A 模型矩阵 |
+| 当前阶段 | 上线质量切片进行中；隐私与可观测门禁已通过 |
+| 当前目标 | 修复 G4A 行为矩阵失败项，并补齐完整面试成本 P95 证据 |
 | 后续目标 | 完成上线质量切片并通过发布评审 |
 | 审批依据 | `docs/decision-register.md` v0.8 |
 
-> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。工程骨架、核心基座、简历异步 Worker、检索问答、模拟面试与报告链路已落地，真实 provider FAST eval 已通过；完整 G4A 模型矩阵仍未关闭。当前模拟面试与报告切片已验收，下一步进入上线质量切片。
+> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；真实 provider 三档单轮 eval 已通过。110 条真实模型行为矩阵已完成，结果为 `82/110`，未达到发布门槛；单次评分调用成本不能替代完整面试成本 P95 证据。当前上线质量切片进行中。
 
 ## 1. 当前完成度
 
 | 事项 | 状态 | 证据 | 是否阻塞下一步 |
 | --- | --- | --- | --- |
-| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v2.8 | 否 |
+| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.0 | 否 |
 | 需求基线 | 已完成 | `docs/requirements.md` v1.5 | 否 |
 | 产品方案 | 已完成 | `docs/product-design.md` v1.5 | 否 |
 | 需求决策 `DR-01` 至 `DR-07` | `approved` | `docs/decision-register.md` v0.8 | 否 |
-| 技术设计 | 已完成 | `docs/technical-design.md` v0.12 | 否 |
-| 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.6、`docs/state-machine.md` v0.5 | 否 |
-| 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.7、`docs/threat-model.md` v0.6 | 否 |
+| 技术设计 | 已完成 | `docs/technical-design.md` v0.14 | 否 |
+| 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.7、`docs/state-machine.md` v0.5 | 否 |
+| 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.8、`docs/threat-model.md` v0.6 | 否 |
 | ADR-0001 至 ADR-0008 | 全部 `accepted` | `docs/adr/` | 否 |
 | Python 工程 | 已完成 | `pyproject.toml`、`uv.lock`、`.python-version` | 否 |
 | 应用与数据库骨架 | 已完成 | FastAPI、SQLAlchemy async、Alembic、初始迁移和 Compose | 否 |
@@ -31,19 +31,22 @@
 | Prompt 与 Tool Registry | 已完成 | Markdown 版本加载、变量校验、Pydantic Schema、注册契约、截断与错误回灌测试通过 | 否 |
 | Agent Loop 与确定性行为评测 | 已完成 | 三重封顶、嵌套限制、终止、不可信内容、截断和工具选择用例通过；完整工具参数 Schema 已进入 Prompt | 否 |
 | 阶段与审批文档契约 | 已完成 | `tests/test_decision_docs.py` 锁定 `DR-07`、首切片边界和当前阶段证据 | 否 |
-| 集成、迁移与确定性评测 | 已完成 | `RUN_INTEGRATION=1 pytest` 为 `126 passed`；`alembic check` 无漂移；迁移头 `7d1a3e5b9c42`；确定性 eval `3/3` | 否 |
-| 真实 provider FAST eval | `passed` | `deepseek-flash`；2 steps；tokens `773 / 131`；latency `3471ms`；cost `$0.0003891`；Prompt `agent_system@1.0.0+agent_turn@1.1.0` | 否 |
-| 完整 G4A 模型矩阵 | `open` | FAST 已通过；DEFAULT、REASONING、异常边界和发布成本门槛仍待验证 | 是 |
+| 集成、迁移与确定性评测 | 已完成 | `RUN_INTEGRATION=1 pytest` 为 `140 passed`（含本轮矩阵契约测试）；`alembic check` 无漂移；迁移头 `9f4c2a7d1e30`；确定性 eval `7/7` | 否 |
+| 真实 provider 三档单轮 eval | `passed` | FAST `deepseek-flash`；DEFAULT/REASONING `deepseek-v4-pro`；均 2 steps、正确调用并返回 `42`；Prompt `agent_system@1.0.0+agent_turn@1.1.0` | 否 |
+| 评分 Prompt 校准 | `failed` | `interview_scoring@1.1.0` 首轮定向 14 条真实复核为 `8/14`；参考泄露两项已修复、关键错误误判由 4 条降至 2 条。第二轮仅复跑 6 条失败样本为 `1/6`，强答案仍明显偏低、中等答案仍可越过阈值，未达到可进入全量的稳定性 | 是 |
+| 110 条真实模型行为矩阵 | `failed` | `evals/provider_matrix.json`；`82/110`（74.55%）；方向 backend 73.33%、frontend 60.00%、fullstack 80.00%；关键项 86.21%；`release_ready=false` | 是 |
+| 完整面试成本 P95 | `open` | 现有矩阵只测得单次评分调用 P95 ¥0.097853，不能代表 5 个主问题、追问链和检索的整场成本 | 是 |
 | 首个用户可见切片 `DR-07` | `approved` | `docs/decision-register.md` v0.8；方案 A | 否 |
 | 前端工程与账号路径 | 已完成 | `web/`；注册、登录、找回/重置密码、空工作台和响应式导航 | 否 |
 | 历史分页 | 已完成 | `web/src/pages/HistoryPage.tsx`；`{items, next_cursor}`，每页 10 条 | 否 |
-| 浏览器 E2E | `passed` | 桌面与移动项目 `8 passed`，问答专项 `4 passed`；macOS 13 不支持的 WebKit 留待兼容 CI | 否 |
+| 浏览器 E2E | `passed` | 桌面与移动项目 `14 passed`，隐私专项 `2 passed`；macOS 13 不支持的 WebKit 留待兼容 CI | 否 |
 | 简历纵向切片 | `passed` | 上传、PDF/DOCX 校验、异步处理、10 道题、失败重试、原始文件删除和 `source_deleted` 状态通过 | 否 |
 | 检索问答切片 | `passed` | owner 鉴权、幂等、任意 URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放、终态互斥和前端历史重开通过 | 否 |
 | 模拟面试与报告切片 | `passed` | 数据库硬截止、操作幂等、202 中性响应、评分阈值、两层追问、跳过/结束分支、评分失败收口、报告解锁、错题与薄弱点、双视口 E2E 通过 | 否 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `11 files / 36 tests`、lint、build；后端 ruff、格式、mypy（58 files）、`126 passed` 集成测试和 `alembic check` | 否 |
+| 隐私与可观测门禁 | `passed` | 账号删除、对象清理、保留清理、审计保留、删除状态、ops metrics、确定性阈值和双视口隐私 E2E 通过 | 否 |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（71 files）、`140 passed` 集成测试和 `alembic check` | 否 |
 
-模拟面试与报告切片已关闭，不再受审批或质量门禁阻塞。完整 G4A 模型矩阵与上线质量切片并行推进，但不能把 FAST 单档通过写成 G4A 已关闭。
+隐私与可观测门禁已关闭。G4A 行为矩阵与完整面试成本 P95 仍是发布阻塞；不能把三档单轮通过或单次评分成本写成 G4A 已关闭。
 
 ## 2. 执行顺序
 
@@ -63,7 +66,7 @@ flowchart TD
     N10 --> N11["简历纵向切片：验收通过"]
     N11 --> N12["检索问答切片：验收通过"]
     N12 --> N13["模拟面试与报告切片：验收通过"]
-    N13 --> N14["当前：上线质量切片与完整 G4A 模型矩阵"]
+    N13 --> N14["当前：G4A 行为矩阵修复与整场成本基准"]
     N14 --> N15["发布评审"]
 ```
 
@@ -145,7 +148,7 @@ flowchart TD
 验证证据：
 
 - `ruff check .`、`ruff format --check .` 和 `mypy app tests evals migrations` 通过。
-- 默认测试可运行；`RUN_INTEGRATION=1 uv run pytest -q` 当前为 `126 passed`。
+- 默认测试可运行；`RUN_INTEGRATION=1 uv run pytest -q` 当前为 `140 passed`。
 - 空库迁移、降级、再次升级及 `alembic check` 通过。
 - 首次 eval 已通过并写入 `evals/baseline.json`；当前确定性 eval 为 `3/3`。
 - 真实服务可启动，健康检查、请求 ID 和服务端时间响应头可验证。
@@ -165,7 +168,7 @@ flowchart TD
 1. 配置真实 `LLM_API_KEY`、供应商和至少一组可用模型名。
 2. 运行 `uv run python -m evals.provider_behavior --tier FAST`，记录工具选择、结构化输出、终止、延迟、token 和费用；本轮已完成。
 3. 将真实评测结果与确定性基线分开记录，不以 mock 结果代替模型验收。
-4. 评估首次真实调用成本与超时；FAST 已通过，剩余档位与异常边界再形成完整 G4A 结论。
+4. 评估三档真实调用成本与超时；三档单轮已通过，异常边界、110 条矩阵和成本 P95 再形成完整 G4A 结论。
 
 异步 Worker 已随简历切片落地，提供任务租约、fencing、重试和简历状态链；生产对象存储适配仍待发布前完成。
 
@@ -215,7 +218,7 @@ flowchart TD
 | 3 | 检索问答（已完成） | LLM、检索工具、知识源 allowlist 和持久 SSE 已就绪 | 证据、重连、降级和版本冻结通过 |
 | 4 | 模拟面试（已完成） | 问答切片、任务、评分和状态机已就绪 | 截止、幂等、恢复和解锁规则通过 |
 | 5 | 报告与复习（已完成） | 面试终态数据稳定 | 追问树、错题、薄弱点和缺口报告通过 |
-| 6 | 上线质量（下一项） | P0 切片全部完成 | 安全、性能、评测和发布门禁通过 |
+| 6 | 上线质量（进行中） | P0 切片全部完成 | 隐私与可观测门禁已通过；110 条行为矩阵为 `82/110`，整场成本 P95 未测 |
 
 ## 7. 实现约束与风险
 
@@ -239,6 +242,8 @@ flowchart TD
 - `DR-01` 至 `DR-06` 在需求、接口、数据、状态和安全测试中一致。
 - 账号、简历、检索问答、模拟面试与报告切片通过接口、权限、安全、质量和文档门禁。
 - 开发全流程的当前阶段、阻塞和下一步与仓库实际状态一致。
+- 110 条真实模型行为矩阵达到发布门槛。
+- 完整面试模型与检索成本 P95 不高于 ¥3.00。
 
 ## 9. 版本记录
 
@@ -261,3 +266,5 @@ flowchart TD
 | v1.5 | 2026-10-17 | 简历纵向切片验收通过：双视口 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；下一阶段切换为检索问答 |
 | v1.6 | 2026-10-18 | 检索问答切片验收通过：双视口 E2E `8 passed`、问答专项 `4 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；下一阶段切换为模拟面试与报告切片 |
 | v1.7 | 2026-10-18 | 模拟面试与报告切片验收通过：双视口 E2E `12 passed`、面试专项 `4 passed`、前端 `11 files / 36 tests`、后端 `126 passed`、mypy 58 files、确定性 eval `3/3`、迁移头 `7d1a3e5b9c42`；下一阶段切换为上线质量切片 |
+| v1.8 | 2026-10-18 | 上线质量切片进行中：隐私删除、保留清理、审计保留、ops metrics、确定性阈值 eval 与双视口隐私 E2E 已通过；双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `130 passed`、mypy 67 files、确定性 eval `7/7`、迁移头 `9f4c2a7d1e30`；完整 G4A 模型矩阵仍未关闭 |
+| v1.9 | 2026-10-18 | 完成 110 条真实模型行为矩阵：`82/110`（74.55%），critical 86.21%，`release_ready=false`；记录 backend/frontend/fullstack 分别 73.33%/60.00%/80.00%；单次评分调用成本 P95 为 ¥0.097853，但不作为完整面试成本 P95 证据 |

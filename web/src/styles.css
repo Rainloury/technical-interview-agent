@@ -3110,6 +3110,46 @@ strong {
   padding-top: 0.65rem;
 }
 
+.privacy-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #e2c8c5;
+  border-radius: var(--radius);
+  background: #fcf6f5;
+  margin-top: 1.4rem;
+  padding: 1rem;
+}
+
+.privacy-controls h2 {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 1rem;
+}
+
+.privacy-controls p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.privacy-status {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--warm-soft);
+  color: var(--warm);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.privacy-status--completed {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
 @media (max-width: 900px) {
   .auth-page {
     grid-template-columns: 0.85fr 1.15fr;
@@ -3182,7 +3222,7 @@ strong {
 
   .mobile-header {
     position: sticky;
-    z-index: 10;
+    z-index: 30;
     top: 0;
     display: flex;
     min-height: 60px;
@@ -3323,6 +3363,15 @@ strong {
     align-items: flex-start;
     flex-direction: column;
     gap: 0.2rem;
+  }
+
+  .privacy-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .privacy-controls .danger-button {
+    width: 100%;
   }
 
   .page-header {

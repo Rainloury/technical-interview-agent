@@ -2,9 +2,9 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.6 |
-| 文档状态 | 账号与历史切片数据约束已落地 |
-| 更新日期 | 2026-10-17 |
+| 文档版本 | v0.7 |
+| 文档状态 | 隐私删除、保留清理与审计保留数据约束已落地 |
+| 更新日期 | 2026-10-18 |
 | 技术基线 | PostgreSQL 16+、SQLAlchemy 2.0 async、Alembic |
 | 需求依据 | `docs/requirements.md` v1.5 |
 
@@ -559,13 +559,35 @@ erDiagram
 
 ## 8. 异步任务与审计
 
-### 8.1 `async_jobs`
+### 8.1 `data_deletion_requests`
+
+| 字段 | 类型 | 约束/说明 |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `owner_user_id` | UUID | FK -> `users.id` |
+| `idempotency_key` | text | 调用方幂等键哈希 |
+| `request_fingerprint` | text | 固定删除范围指纹 |
+| `state` | enum | `requested`、`deleting`、`completed`、`failed` |
+| `scope` | jsonb | 固定范围枚举列表 |
+| `result` | jsonb | 可空，数量摘要，不含正文 |
+| `error_code` | text | 可空、稳定错误码 |
+| `created_at` | timestamptz | 非空 |
+| `updated_at` | timestamptz | 非空 |
+| `completed_at` | timestamptz | 可空 |
+
+约束：
+
+- `UNIQUE (owner_user_id, idempotency_key)`。
+- `INDEX (owner_user_id, created_at)`、`INDEX (state, updated_at)`。
+- 删除请求只保存范围和中性结果摘要，不保存用户内容、对象键或原始资源 ID。
+
+### 8.2 `async_jobs`
 
 | 字段 | 类型 | 约束/说明 |
 | --- | --- | --- |
 | `id` | UUID | PK |
 | `owner_user_id` | UUID | 可空，内部任务可空 |
-| `job_type` | enum | `parse_resume`、`analyze_resume`、`generate_questions`、`score_answer`、`generate_report`、`delete_data` |
+| `job_type` | enum | 简历、问答、面试评分、`delete_data`、`delete_account_data`、`retention_cleanup` 等固定枚举 |
 | `resource_type` | text | 业务对象类型 |
 | `resource_id` | UUID | 业务对象 ID |
 | `idempotency_key` | text | 唯一 |
@@ -590,7 +612,7 @@ erDiagram
 - 成功、失败和续期写入必须匹配当前 `lease_owner` 与 `fencing_token`；条件不匹配时拒绝写入，旧 Worker 不得覆盖新租约。
 - 幂等键和业务唯一约束负责最终防重；租约与 fencing token 负责并发执行隔离。
 
-### 8.2 `audit_events`
+### 8.3 `audit_events`
 
 | 字段 | 类型 | 约束/说明 |
 | --- | --- | --- |
@@ -611,6 +633,7 @@ erDiagram
 - `INDEX (expires_at)` 供清理任务使用。
 - `UNIQUE (request_id, action, resource_type, resource_id_hash)` 防止同一操作重放产生重复审计事实。
 - `actor_user_id` 不进入审计保存结构；如确需关联操作者，只使用不可逆哈希化标识，且不得与业务正文关联。
+- 到期审计由 `retention_cleanup` 删除，不允许继续保留可关联的原始元数据。
 
 ## 9. 迁移与初始化
 
@@ -661,3 +684,4 @@ ADR 对模型的影响：
 | v0.4 | 2026-10-17 | 按 DR-03 至 DR-06 冻结 200 字符证据摘要、来源删除定位清理、结束原因分离和 365 天最小审计模型 |
 | v0.5 | 2026-10-17 | 接受 ADR-0003、ADR-0006、ADR-0007、ADR-0008；增加持久 SSE 事件模型、数据库时钟截止、任务租约 fencing 字段和受保护反馈终态约束 |
 | v0.6 | 2026-10-17 | 落实 `DR-07` 方案 A：`auth_sessions` 增加 `csrf_token_hash`，`interview_session`/`interview_csrf` 双 Cookie，历史使用 `{items, next_cursor}` 稳定游标分页 |
+| v0.7 | 2026-10-18 | 增加 `data_deletion_requests`、`delete_account_data`、`retention_cleanup`、隐私删除幂等和 365 天审计清理数据约束 |

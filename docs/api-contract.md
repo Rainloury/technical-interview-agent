@@ -2,9 +2,9 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.7 |
-| 文档状态 | 账号、工作台与历史分页契约已落地 |
-| 更新日期 | 2026-10-17 |
+| 文档版本 | v0.8 |
+| 文档状态 | 隐私删除、保留清理与运维指标契约已落地 |
+| 更新日期 | 2026-10-18 |
 | 基础路径 | `/api/v1` |
 | 数据格式 | JSON UTF-8；文件上传使用 `multipart/form-data` |
 
@@ -721,9 +721,26 @@ Idempotency-Key: <uuid>
 
 ```http
 GET /api/v1/me/data-deletion
+GET /api/v1/me/data-deletion/{request_id}
 ```
 
 返回删除范围、状态、时间和审计摘要。`DR-05`、`DR-06` 已批准，响应只能包含操作类型、资源类型内部枚举、结果、时间和请求标识；资源标识使用不可逆哈希，不返回原始资源 ID。
+
+删除实现约定：
+
+- 删除请求立即把简历任务、问答、面试和错题标记为不可见，并把私有对象标记为 `delete_pending`。
+- `delete_account_data` Worker 任务完成对象清理和业务主体删除后，把用户状态转为 `deleted`，后续会话返回 `401 authentication_required`。
+- `retention_cleanup` 任务清理 30 天到期原始简历、90 天到期衍生数据和 365 天到期审计记录。
+- 删除请求状态保存在 `data_deletion_requests`，终态只包含范围、结果摘要和稳定错误码，不包含用户正文或原始资源 ID。
+
+运维指标：
+
+```http
+GET /api/v1/ops/metrics
+Authorization: Bearer <ops_metrics_token>
+```
+
+未配置或错误 token 统一返回 `404 resource_not_found`。响应只包含任务状态/类型计数、评分失败数、追问终止原因、删除请求状态和过期审计数，不包含用户内容或资源 ID。
 
 原始简历删除后的证据 DTO 固定为：
 
@@ -789,3 +806,4 @@ GET /api/v1/me/data-deletion
 | v0.5 | 2026-10-17 | 按 DR-03 至 DR-06 冻结中性进度字段、P0 结束追问、P1 整场结束边界、删除后证据 DTO 和最小审计保留规则，并补充契约测试矩阵 |
 | v0.6 | 2026-10-17 | 接受 ADR-0003、ADR-0006、ADR-0007、ADR-0008；冻结数据库时钟截止、持久 SSE 游标、评分失败终态和 `incomplete_scoring` 报告语义 |
 | v0.7 | 2026-10-17 | 落实 `DR-07` 方案 A：补充 `interview_session`/`interview_csrf`、`X-CSRF-Token`、`csrf_token_hash` 和 `{items, next_cursor}` 历史分页契约 |
+| v0.8 | 2026-10-18 | 冻结账号数据删除、删除状态查询、30/90/365 天保留清理和 `ops_metrics_token` 运维指标契约 |

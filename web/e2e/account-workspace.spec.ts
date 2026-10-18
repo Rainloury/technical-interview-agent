@@ -94,8 +94,9 @@ test("account, workspace, history, and password recovery journey", async ({
 
   if (isMobile) {
     await page.getByRole("button", { name: "打开导航" }).click();
-    await expect(page.getByRole("button", { name: "关闭导航" }).first()).toBeVisible();
-    await page.locator(".nav-scrim").click();
+    const closeNavigation = page.getByRole("button", { name: "关闭导航" }).first();
+    await expect(closeNavigation).toBeVisible();
+    await closeNavigation.click();
   }
 
   const overflow = await page.evaluate(

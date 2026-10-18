@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     password_reset_ttl_seconds: int = Field(default=1800, gt=0)
     csrf_allowed_origins: list[str] = Field(default_factory=lambda: ["http://127.0.0.1:3001"])
 
-    llm_provider: Literal["openai", "anthropic", "deepseek"] = "openai"
+    llm_provider: Literal["openai", "anthropic", "deepseek"] = "deepseek"
     llm_api_key: SecretStr | None = None
     llm_base_url: str | None = None
     llm_fast_model: str = ""
@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     worker_max_attempts: int = Field(default=3, ge=1, le=10)
     worker_retry_base_seconds: int = Field(default=5, ge=1)
     worker_retry_max_seconds: int = Field(default=300, ge=1)
+    ops_metrics_token: SecretStr | None = None
 
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)

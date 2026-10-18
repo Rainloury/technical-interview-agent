@@ -12,7 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import AuthSession, User
 from app.db.session import get_session
 from app.errors import AppError
-from app.services.auth import current_auth, verify_csrf
+from app.services.auth import (
+    current_auth,
+    current_auth_for_deletion_status,
+    verify_csrf,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +39,20 @@ async def get_auth_context(request: Request, session: SessionDependency) -> Auth
 
 
 AuthDependency = Annotated[AuthContext, Depends(get_auth_context)]
+
+
+async def get_deletion_status_auth(
+    request: Request,
+    session: SessionDependency,
+) -> AuthContext:
+    """Authenticate deletion-status reads for active or anonymized owners."""
+
+    user, auth_session = await current_auth_for_deletion_status(session, request)
+    await session.commit()
+    return AuthContext(user=user, session=auth_session)
+
+
+DeletionStatusAuthDependency = Annotated[AuthContext, Depends(get_deletion_status_auth)]
 
 
 def require_idempotency_key(

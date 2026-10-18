@@ -247,6 +247,44 @@ async def current_auth(session: AsyncSession, request: Request) -> tuple[User, A
     return user, auth_session
 
 
+async def current_auth_for_deletion_status(
+    session: AsyncSession,
+    request: Request,
+) -> tuple[User, AuthSession]:
+    """Allow only the deletion-status endpoint to read after account anonymization."""
+
+    raw_token = request.cookies.get(request.app.state.settings.session_cookie_name)
+    if not raw_token:
+        raise AppError(
+            status_code=401,
+            code="authentication_required",
+            message="请先登录",
+        )
+    now = datetime.now(UTC)
+    result = (
+        await session.execute(
+            select(User, AuthSession)
+            .join(AuthSession, AuthSession.user_id == User.id)
+            .where(
+                AuthSession.token_hash == token_hash(raw_token),
+                AuthSession.revoked_at.is_(None),
+                AuthSession.expires_at > now,
+                User.status.in_(("active", "deleted")),
+            )
+        )
+    ).first()
+    if result is None:
+        raise AppError(
+            status_code=401,
+            code="authentication_required",
+            message="登录状态已失效，请重新登录",
+        )
+    user, auth_session = result
+    auth_session.last_seen_at = now
+    await session.flush()
+    return user, auth_session
+
+
 def verify_csrf(request: Request, settings: Settings, auth_session: AuthSession) -> None:
     """Require an explicit token plus an allowed request origin."""
 
