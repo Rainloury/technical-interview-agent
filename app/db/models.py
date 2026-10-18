@@ -102,6 +102,7 @@ class PasswordResetToken(Base):
         UUIDType, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    delivery_ciphertext: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     used_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
@@ -749,7 +750,7 @@ class AsyncJob(Base):
             "job_type IN ('parse_resume','analyze_resume','generate_questions',"
             "'answer_question','score_open_interview_turn','score_interview_turn',"
             "'advance_interview','generate_report','delete_data','delete_account_data',"
-            "'retention_cleanup')",
+            "'retention_cleanup','password_reset_delivery')",
             name="job_type",
         ),
         CheckConstraint(

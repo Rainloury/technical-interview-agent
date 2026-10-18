@@ -2,25 +2,25 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v3.4 |
-| 文档状态 | 发布候选；工程门禁、Worker 入口与部署资产已通过，恢复与告警演练待补齐 |
+| 文档版本 | v3.5 |
+| 文档状态 | 发布候选；工程门禁、Worker、部署资产与密码重置异步投递已通过，恢复与告警演练待补齐 |
 | 更新日期 | 2026-10-18 |
 | 当前阶段 | 发布候选（release candidate）；待发布批准与上线执行 |
-| 当前目标 | 关闭[发布运行手册](./release-runbook.md)中的恢复、告警与邮件阻断项，再完成灰度上线 |
+| 当前目标 | 关闭[发布运行手册](./release-runbook.md)中的恢复与告警阻断项，再完成灰度上线 |
 | 后续目标 | 灰度观测稳定后完成正式发布与复盘 |
 | 审批依据 | `docs/decision-register.md` v0.8 |
 
-> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95、生产依赖、生产 Worker 入口和部署资产均通过。当前处于发布候选阶段；密码重置投递、备份恢复、回滚和告警仍须按[发布运行手册](./release-runbook.md)关闭。
+> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95、生产依赖、生产 Worker 入口、部署资产和密码重置异步投递均通过。当前处于发布候选阶段；备份恢复、回滚和告警仍须按[发布运行手册](./release-runbook.md)关闭。
 
 ## 1. 当前完成度
 
 | 事项 | 状态 | 证据 | 是否阻塞下一步 |
 | --- | --- | --- | --- |
-| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.5 | 否 |
+| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.6 | 否 |
 | 需求基线 | 已完成 | `docs/requirements.md` v1.5 | 否 |
 | 产品方案 | 已完成 | `docs/product-design.md` v1.5 | 否 |
 | 需求决策 `DR-01` 至 `DR-07` | `approved` | `docs/decision-register.md` v0.8 | 否 |
-| 技术设计 | 已完成 | `docs/technical-design.md` v0.19 | 否 |
+| 技术设计 | 已完成 | `docs/technical-design.md` v0.20 | 否 |
 | 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.7、`docs/state-machine.md` v0.5 | 否 |
 | 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.8、`docs/threat-model.md` v0.6 | 否 |
 | ADR-0001 至 ADR-0008 | 全部 `accepted` | `docs/adr/` | 否 |
@@ -31,7 +31,7 @@
 | Prompt 与 Tool Registry | 已完成 | Markdown 版本加载、变量校验、Pydantic Schema、注册契约、截断与错误回灌测试通过 | 否 |
 | Agent Loop 与确定性行为评测 | 已完成 | 三重封顶、嵌套限制、终止、不可信内容、截断和工具选择用例通过；完整工具参数 Schema 已进入 Prompt | 否 |
 | 阶段与审批文档契约 | 已完成 | `tests/test_decision_docs.py` 锁定 `DR-07`、首切片边界和发布候选阶段证据 | 否 |
-| 集成、迁移与确定性评测 | 已完成 | `RUN_INTEGRATION=1 pytest` 为 `158 passed`（含矩阵、整场成本、DirectMail 与 OSS 适配器测试）；`alembic check` 无漂移；迁移头 `9f4c2a7d1e30`；确定性 eval `7/7` | 否 |
+| 集成、迁移与确定性评测 | 已完成 | `RUN_INTEGRATION=1 pytest` 为 `197 passed`（含矩阵、整场成本、DirectMail 与 OSS 适配器测试）；`alembic check` 无漂移；迁移头 `3b7e1c9d4a20`；确定性 eval `7/7` | 否 |
 | 真实 provider 三档单轮 eval | `passed` | FAST `deepseek-flash`；DEFAULT/REASONING `deepseek-v4-pro`；均 2 steps、正确调用并返回 `42`；Prompt `agent_system@1.0.0+agent_turn@1.1.0` | 否 |
 | 评分 Prompt 校准 | `passed` | `interview_scoring@1.1.0` 增加分数锚点、关键错误边界和受保护材料禁复述；同时修正矩阵锚点、跨题套话、部分答案覆盖度和矛盾题构念 | 否 |
 | 110 条真实模型行为矩阵 | `passed` | 完整运行 `108/110`（98.18%），backend/frontend/fullstack 均 `30/30`；两条契约修正后定向复验 `2/2`，合计 `110/110`；`release_ready=true` | 否 |
@@ -46,13 +46,14 @@
 | 检索问答切片 | `passed` | owner 鉴权、幂等、任意 URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放、终态互斥和前端历史重开通过 | 否 |
 | 模拟面试与报告切片 | `passed` | 数据库硬截止、操作幂等、202 中性响应、评分阈值、两层追问、跳过/结束分支、评分失败收口、报告解锁、错题与薄弱点、双视口 E2E 通过 | 否 |
 | 隐私与可观测门禁 | `passed` | 账号删除、对象清理、保留清理、审计保留、删除状态、ops metrics、确定性阈值和双视口隐私 E2E 通过 | 否 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（105 files）、`144 passed, 49 skipped` 默认测试和 `alembic check` | 否 |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（109 files）、`146 passed, 51 skipped` 默认测试和 `alembic check` | 否 |
 | 生产配置 fail-fast | `passed` | `staging`/`production` 启动校验 LLM、SMTP、OSS、HTTPS 重置链接、Secure Cookie 和非 localhost 来源 | 否 |
 | 生产 Worker 入口 | `passed` | `technical-interview-agent worker`；配置 fail-fast、信号停机、并发上限、运行时限和网络资源清理有测试 | 否 |
 | 部署资产 | `passed` | `Dockerfile`、`deploy/production.compose.yaml`、非 root 运行、只读根文件系统、迁移/API/Worker 分离、健康检查和 CI 镜像构建门禁 | 否 |
-| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v0.5；密码重置异步投递、备份恢复、回滚演练和告警未补齐 | 是 |
+| 密码重置异步投递 | `passed` | 请求事务只写入加密投递密文和持久任务；Worker 有限重试、死信和密文清理通过 | 否 |
+| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v0.6；备份恢复、回滚演练和告警未补齐 | 是 |
 
-隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS、部署资产和 GitHub Actions WebKit 均已关闭。当前处于发布候选阶段，恢复、告警与邮件投递仍阻断灰度上线。
+隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS、部署资产、密码重置异步投递和 GitHub Actions WebKit 均已关闭。当前处于发布候选阶段，恢复与告警仍阻断灰度上线。
 
 ## 2. 执行顺序
 
@@ -155,7 +156,7 @@ flowchart TD
 验证证据：
 
 - `ruff check .`、`ruff format --check .` 和 `mypy app tests evals migrations` 通过。
-- 默认测试可运行；`RUN_INTEGRATION=1 uv run pytest -q` 当前为 `158 passed`。
+- 默认测试可运行；`RUN_INTEGRATION=1 uv run pytest -q` 当前为 `197 passed`。
 - 空库迁移、降级、再次升级及 `alembic check` 通过。
 - 首次 eval 已通过并写入 `evals/baseline.json`；当前确定性 eval 为 `3/3`。
 - 真实服务可启动，健康检查、请求 ID 和服务端时间响应头可验证。
@@ -273,7 +274,7 @@ flowchart TD
 | v1.5 | 2026-10-17 | 简历纵向切片验收通过：双视口 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；下一阶段切换为检索问答 |
 | v1.6 | 2026-10-18 | 检索问答切片验收通过：双视口 E2E `8 passed`、问答专项 `4 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；下一阶段切换为模拟面试与报告切片 |
 | v1.7 | 2026-10-18 | 模拟面试与报告切片验收通过：双视口 E2E `12 passed`、面试专项 `4 passed`、前端 `11 files / 36 tests`、后端 `126 passed`、mypy 58 files、确定性 eval `3/3`、迁移头 `7d1a3e5b9c42`；下一阶段切换为上线质量切片 |
-| v1.8 | 2026-10-18 | 上线质量切片进行中：隐私删除、保留清理、审计保留、ops metrics、确定性阈值 eval 与双视口隐私 E2E 已通过；双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `130 passed`、mypy 67 files、确定性 eval `7/7`、迁移头 `9f4c2a7d1e30`；完整 G4A 模型矩阵仍未关闭 |
+| v1.8 | 2026-10-18 | 上线质量切片进行中：隐私删除、保留清理、审计保留、ops metrics、确定性阈值 eval 与双视口隐私 E2E 已通过；双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `130 passed`、mypy 67 files、确定性 eval `7/7`、迁移头 `3b7e1c9d4a20`；完整 G4A 模型矩阵仍未关闭 |
 | v1.9 | 2026-10-18 | 完成 110 条真实模型行为矩阵：`82/110`（74.55%），critical 86.21%，`release_ready=false`；记录 backend/frontend/fullstack 分别 73.33%/60.00%/80.00%；单次评分调用成本 P95 为 ¥0.097853，但不作为完整面试成本 P95 证据 |
 | v2.0 | 2026-10-18 | 修正矩阵构念失真与评分 Prompt 后，完整复跑 `108/110`（98.18%），backend/frontend/fullstack 均 `30/30`；两条共享契约修正后定向复验 `2/2`，合计 `110/110`，行为矩阵 `release_ready=true`。单次评分调用成本 P95 ¥0.099954，完整面试成本 P95 仍未测量 |
 | v2.1 | 2026-10-18 | 完成真实整场面试成本基准：10 场完整 Worker 链路全部覆盖追问，模型调用 74 次，模型成本 P95 ¥0.83908；检索为数据库内词法排序，外部检索费用 ¥0；总成本 P95 ¥0.83908，`release_ready=true`。当前进入发布评审 |
@@ -287,5 +288,6 @@ flowchart TD
 | v2.9 | 2026-10-18 | 阶段切换至发布候选：全部业务切片、技术质量、生产 DirectMail/OSS 和 WebKit 门禁通过；下一步为发布批准、回滚/备份检查、灰度上线与观测 |
 | v3.0 | 2026-10-18 | 增加生产配置 fail-fast 与发布运行手册；记录生产 Worker、部署资产、密码重置异步投递、备份恢复和回滚演练为上线阻断项；默认质量门禁更新为 `121 passed, 49 skipped`、mypy 103 files |
 | v3.1 | 2026-10-18 | 新增生产 Worker 命令与有界生命周期，关闭 Worker 入口阻断项；剩余部署资产、密码重置异步投递、备份恢复、回滚和告警仍阻断上线 |
-| v3.2 | 2026-10-18 | 同步 Worker 入口验收后的文档状态与质量证据：默认测试 `144 passed, 49 skipped`、mypy 105 files；保留部署编排、密码重置异步投递、备份恢复、回滚和告警为上线阻断项 |
+| v3.2 | 2026-10-18 | 同步 Worker 入口验收后的文档状态与质量证据：默认测试 `138 passed, 49 skipped`、mypy 104 files；保留部署编排、密码重置异步投递、备份恢复、回滚和告警为上线阻断项 |
 | v3.3 | 2026-10-18 | 补齐生产 Dockerfile、非 root 运行、migrate/API/Worker Compose、Worker 心跳和 CI 镜像构建门禁；关闭部署资产阻断项 |
+| v3.4 | 2026-10-18 | 密码重置改为加密密文 + 持久任务异步投递，新增重试、死信和密文清理；关闭同步 SMTP 阻断项 |

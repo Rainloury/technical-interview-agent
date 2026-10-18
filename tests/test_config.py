@@ -1,5 +1,7 @@
 """Configuration validation tests."""
 
+import base64
+import os
 from pathlib import Path
 
 import pytest
@@ -77,6 +79,7 @@ def _production_settings() -> Settings:
         app_allowed_origins=["https://app.example.com"],
         csrf_allowed_origins=["https://app.example.com"],
         cookie_secure=True,
+        data_encryption_key=base64.urlsafe_b64encode(os.urandom(32)).decode(),
         llm_api_key="sk-production",
         llm_fast_model="fast-model",
         llm_default_model="default-model",

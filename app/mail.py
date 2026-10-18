@@ -50,11 +50,9 @@ def _send_smtp(settings: Settings, email: str, reset_url: str) -> None:
         client.send_message(message)
 
 
-async def deliver_password_reset(settings: Settings, *, email: str, token: str | None) -> None:
+async def deliver_password_reset(settings: Settings, *, email: str, token: str) -> None:
     """Deliver a reset link without exposing delivery state to API callers."""
 
-    if token is None:
-        return
     reset_url = f"{settings.password_reset_base_url}?token={token}"
     if settings.app_env == "development" and not settings.smtp_host:
         await asyncio.to_thread(

@@ -19,6 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
+from app.crypto import decrypt_secret
 from app.db.jobs import finish_job, lease_next_job, renew_job_lease
 from app.db.models import (
     AsyncJob,
@@ -29,6 +30,7 @@ from app.db.models import (
     Interview,
     InterviewReport,
     InterviewTurn,
+    PasswordResetToken,
     QaEvidence,
     QaRequest,
     ResumeAnalysis,
@@ -61,6 +63,7 @@ from app.llm.client import (
 )
 from app.llm.models import ModelTier
 from app.logging import configure_logging, get_logger
+from app.mail import deliver_password_reset
 from app.prompts.loader import PromptError, PromptLoader
 from app.qa_contracts import QaAnswerOutput, retrieve_evidence
 from app.resume_contracts import ResumeAnalysisOutput, ResumeQuestionsOutput
@@ -258,6 +261,12 @@ class ResumeWorker:
                     fencing_token=fencing_token,
                     resource_id=resource_id,
                 )
+            elif job_type == "password_reset_delivery":
+                await self._process_password_reset_delivery(
+                    job_id=job_id,
+                    fencing_token=fencing_token,
+                    resource_id=resource_id,
+                )
             else:
                 raise ResumeWorkerError("unsupported_job_type", retryable=False)
         except StaleLeaseError:
@@ -395,6 +404,12 @@ class ResumeWorker:
         )
         if not finished:
             return "lease_lost"
+        if job_type == "password_reset_delivery":
+            await self._fail_password_reset_delivery(
+                resource_id=resource_id,
+                code=code,
+            )
+            return "dead_letter"
         async with self._sessions() as session:
             if job_type == "answer_question":
                 qa_request = await session.get(
@@ -425,6 +440,11 @@ class ResumeWorker:
                 )
             elif job_type == "delete_account_data":
                 await self._fail_account_deletion(
+                    resource_id=resource_id,
+                    code=code,
+                )
+            elif job_type == "password_reset_delivery":
+                await self._fail_password_reset_delivery(
                     resource_id=resource_id,
                     code=code,
                 )
@@ -460,6 +480,62 @@ class ResumeWorker:
             request.state = "failed"
             request.error_code = code
             await session.commit()
+
+    async def _fail_password_reset_delivery(
+        self,
+        *,
+        resource_id: uuid.UUID,
+        code: str,
+    ) -> None:
+        """Drop encrypted delivery material after the final failed attempt."""
+
+        del code
+        async with self._sessions() as session:
+            reset = await session.get(
+                PasswordResetToken,
+                resource_id,
+                with_for_update=True,
+            )
+            if reset is not None:
+                reset.delivery_ciphertext = None
+                await session.commit()
+
+    async def _process_password_reset_delivery(
+        self,
+        *,
+        job_id: uuid.UUID,
+        fencing_token: int,
+        resource_id: uuid.UUID,
+    ) -> None:
+        """Decrypt one queued reset link and send it outside the request path."""
+
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            reset = await session.get(PasswordResetToken, resource_id)
+            if (
+                reset is None
+                or reset.delivery_ciphertext is None
+                or reset.used_at is not None
+                or reset.revoked_at is not None
+            ):
+                return
+            try:
+                payload = decrypt_secret(self._settings, reset.delivery_ciphertext)
+            except ValueError as exc:
+                raise ResumeWorkerError("reset_delivery_invalid", retryable=False) from exc
+            email, separator, token = payload.partition("\0")
+            if not separator or not email or not token:
+                raise ResumeWorkerError("reset_delivery_invalid", retryable=False)
+        await deliver_password_reset(self._settings, email=email, token=token)
+        async with self._sessions() as session:
+            reset = await session.get(
+                PasswordResetToken,
+                resource_id,
+                with_for_update=True,
+            )
+            if reset is not None:
+                reset.delivery_ciphertext = None
+                await session.commit()
 
     async def _mark_scoring_attempt_failed(
         self,

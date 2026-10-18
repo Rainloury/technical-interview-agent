@@ -6,9 +6,12 @@ from http.cookies import SimpleCookie
 from typing import Any
 
 import pytest
-from app.api.v1 import auth as auth_routes
 from app.config import Settings
+from app.db.models import AsyncJob, PasswordResetToken
+from app.prompts.loader import PromptLoader
+from app.worker import ResumeWorker
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from tests.conftest import AppHarness
 
@@ -187,14 +190,6 @@ async def test_password_reset_is_neutral_and_revokes_sessions(
         session.add(user)
         await session.commit()
 
-    delivered: list[str] = []
-
-    async def capture_delivery(settings: Settings, *, email: str, token: str | None) -> None:
-        del settings, email
-        if token is not None:
-            delivered.append(token)
-
-    monkeypatch.setattr(auth_routes, "deliver_password_reset", capture_delivery)
     client = app_client.client
     _login(client, "reset@example.com")
     accepted = client.post(
@@ -204,7 +199,9 @@ async def test_password_reset_is_neutral_and_revokes_sessions(
     )
     assert accepted.status_code == 202
     assert accepted.json() == {"accepted": True}
-    assert delivered == []
+
+    async with app_client.session_factory() as session:
+        assert (await session.execute(select(PasswordResetToken))).scalar_one_or_none() is None
 
     reset_request = client.post(
         "/api/v1/auth/password-reset/request",
@@ -213,7 +210,46 @@ async def test_password_reset_is_neutral_and_revokes_sessions(
     )
     assert reset_request.status_code == 202
     assert reset_request.json() == {"accepted": True}
+
+    async with app_client.session_factory() as session:
+        reset = (await session.execute(select(PasswordResetToken))).scalar_one()
+        queued = (
+            await session.execute(
+                select(AsyncJob).where(AsyncJob.job_type == "password_reset_delivery")
+            )
+        ).scalar_one()
+        ciphertext = reset.delivery_ciphertext
+        reset_id = reset.id
+    assert queued.resource_id == reset_id
+    assert queued.state == "queued"
+    assert ciphertext is not None
+    delivered: list[str] = []
+
+    async def capture_delivery(settings: Settings, *, email: str, token: str) -> None:
+        del settings, email
+        delivered.append(token)
+
+    monkeypatch.setattr("app.worker.deliver_password_reset", capture_delivery)
+
+    async def run_delivery() -> None:
+        worker = ResumeWorker(
+            settings=app_client.app.state.settings,
+            session_factory=app_client.session_factory,
+            storage=app_client.app.state.resume_storage,
+            llm=Any,  # type: ignore[arg-type]
+            prompt_loader=PromptLoader(app_client.app.state.settings.prompt_dir),
+            worker_id="reset-delivery-worker",
+        )
+        result = await worker.run_once()
+        assert result.outcome == "succeeded"
+
+    await run_delivery()
     assert len(delivered) == 1
+
+    async with app_client.session_factory() as session:
+        stored_reset = await session.get(PasswordResetToken, reset_id)
+        assert stored_reset is not None
+        assert stored_reset.delivery_ciphertext is None
 
     confirmed = client.post(
         "/api/v1/auth/password-reset/confirm",

@@ -14,6 +14,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
+from app.crypto import encrypt_secret
+from app.db.jobs import enqueue_job
 from app.db.models import AuditEvent, AuthSession, PasswordResetToken, User
 from app.errors import AppError
 from app.logging import get_logger
@@ -332,7 +334,7 @@ async def request_password_reset(
     request: Request,
     settings: Settings,
 ) -> str | None:
-    """Create a one-time reset token, returning it only to the mail adapter."""
+    """Create a one-time reset token and enqueue neutral link delivery."""
 
     check_write_origin(request, settings)
     normalized = normalize_email(email)
@@ -365,12 +367,25 @@ async def request_password_reset(
             .values(revoked_at=now)
         )
         raw_token = opaque_token()
-        session.add(
-            PasswordResetToken(
-                user_id=user.id,
-                token_hash=token_hash(raw_token),
-                expires_at=now + timedelta(seconds=settings.password_reset_ttl_seconds),
-            )
+        reset = PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash(raw_token),
+            expires_at=now + timedelta(seconds=settings.password_reset_ttl_seconds),
+        )
+        session.add(reset)
+        await session.flush()
+        reset.delivery_ciphertext = encrypt_secret(
+            settings,
+            f"{normalized}\0{raw_token}",
+        )
+        await enqueue_job(
+            session,
+            owner_user_id=user.id,
+            job_type="password_reset_delivery",
+            resource_type="password_reset_token",
+            resource_id=reset.id,
+            idempotency_key=f"password-reset-delivery:{reset.id.hex}",
+            max_attempts=settings.worker_max_attempts,
         )
     await audit(
         session,

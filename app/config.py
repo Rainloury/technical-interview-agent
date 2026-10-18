@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     session_ttl_seconds: int = Field(default=604800, gt=0)
     password_reset_ttl_seconds: int = Field(default=1800, gt=0)
     csrf_allowed_origins: list[str] = Field(default_factory=lambda: ["http://127.0.0.1:3001"])
+    data_encryption_key: SecretStr | None = None
 
     llm_provider: Literal["openai", "anthropic", "deepseek", "local"] = "deepseek"
     llm_api_key: SecretStr | None = None
@@ -160,6 +161,7 @@ class Settings(BaseSettings):
             raise ValueError("staging/production must not use LLM_PROVIDER=local")
 
         required = {
+            "DATA_ENCRYPTION_KEY": self.data_encryption_key,
             "LLM_API_KEY": self.llm_api_key,
             "LLM_FAST_MODEL": self.llm_fast_model,
             "LLM_DEFAULT_MODEL": self.llm_default_model,

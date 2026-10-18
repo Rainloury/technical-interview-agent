@@ -8,7 +8,6 @@ from fastapi import APIRouter, Request, Response, status
 
 from app.api.dependencies import AuthDependency, SessionDependency
 from app.config import Settings
-from app.mail import deliver_password_reset
 from app.schemas.auth import (
     EmailRequest,
     LoginResponse,
@@ -151,16 +150,11 @@ async def request_reset(
 ) -> dict[str, bool]:
     """Return a neutral acceptance regardless of account existence."""
 
-    token = await request_password_reset(
+    await request_password_reset(
         session,
         email=payload.email,
         request=request,
         settings=request.app.state.settings,
-    )
-    await deliver_password_reset(
-        request.app.state.settings,
-        email=payload.email,
-        token=token,
     )
     return {"accepted": True}
 

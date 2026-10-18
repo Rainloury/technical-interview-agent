@@ -2,11 +2,11 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.5 |
+| 文档版本 | v0.6 |
 | 文档状态 | 发布候选；运行手册已建立，发布批准与上线执行待完成 |
 | 更新日期 | 2026-10-18 |
 | 发布基线 | `f6fc0af` |
-| 迁移头 | `9f4c2a7d1e30` |
+| 迁移头 | `3b7e1c9d4a20` |
 
 > 本手册区分“已验证”和“上线前必须补齐”。未关闭的阻断项不得通过口头豁免进入生产。
 
@@ -23,17 +23,16 @@
 | 生产 Worker 入口 | 已提供 | `technical-interview-agent worker`；具备配置 fail-fast、信号停机、并发上限、运行时限和资源清理 |
 | 容器镜像与生产编排 | 已提供 | 非 root 生产镜像、独立 migrate/API/Worker Compose、健康检查、只读根文件系统和 CI 镜像构建门禁 |
 | 备份恢复演练 | 未执行 | 必须在上线前完成并留存结果 |
-| 密码重置投递 | 已知限制 | 请求内同步 SMTP；失败可能影响中性 `202`，技术设计要求异步任务或发件箱 |
+| 密码重置投递 | 已提供 | 请求事务只保存加密投递密文和 `password_reset_delivery` 任务；Worker 异步发送、有限重试，终态失败清除密文 |
 
 ## 2. 上线阻断项
 
 以下任一未关闭，Go/No-Go 结论必须为 `NO-GO`：
 
-1. **密码重置投递**：改为可重试异步投递或 outbox，确保 SMTP 失败不改变中性 `202`；若批准为临时限制，必须写明负责人、到期日和用户影响。
-2. **备份恢复**：至少完成一次 PostgreSQL 从备份恢复到独立实例的演练，并验证迁移头和关键表。
-3. **回滚演练**：在预发布环境执行上一应用版本回滚，验证数据库兼容策略和健康检查。
-4. **监控告警**：为 `/health/ready`、`dead_letter`、`scoring_failed`、删除失败、Worker 心跳和 LLM 成本配置可通知的告警。
-5. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
+1. **备份恢复**：至少完成一次 PostgreSQL 从备份恢复到独立实例的演练，并验证迁移头和关键表。
+2. **回滚演练**：在预发布环境执行上一应用版本回滚，验证数据库兼容策略和健康检查。
+3. **监控告警**：为 `/health/ready`、`dead_letter`、`scoring_failed`、删除失败、Worker 心跳和 LLM 成本配置可通知的告警。
+4. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
 
 ## 3. 发布前配置
 
@@ -54,6 +53,7 @@
 | 重置链接 | `PASSWORD_RESET_BASE_URL` 使用生产 HTTPS 地址 |
 | Worker | `WORKER_CONCURRENCY`、`WORKER_MAX_RUNTIME_SECONDS`、`WORKER_IDLE_SECONDS`、`WORKER_SHUTDOWN_GRACE_SECONDS` |
 | 运维 | `OPS_METRICS_TOKEN` 使用高熵随机值 |
+| 加密 | `DATA_ENCRYPTION_KEY` 使用 32 字节随机密钥的 URL-safe Base64 编码；不要轮换后直接丢弃旧密钥，否则在途重置邮件将无法解密 |
 
 ### 3.2 配置核验
 
@@ -114,7 +114,7 @@ uv run alembic upgrade head
 uv run alembic current
 ```
 
-预期迁移头为 `9f4c2a7d1e30`。迁移完成后再启动新应用版本和 Worker。
+预期迁移头为 `3b7e1c9d4a20`。迁移完成后再启动新应用版本和 Worker。
 
 ### 4.3 恢复
 
@@ -199,7 +199,7 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 - [ ] `/health/live` 与 `/health/ready` 通过，告警可实际送达。
 - [ ] DirectMail DNS 验证和真实投递人工确认通过。
 - [ ] OSS 私有、加密、权限与生命周期复核通过。
-- [ ] 密码重置投递失败不会破坏中性响应，或有明确、限期的批准豁免。
+- [ ] 密码重置投递由持久 Worker 任务完成，SMTP 失败不影响中性响应；待发布演练复核。
 - [ ] 灰度范围、观察窗口、回滚负责人和 No-Go 阈值已批准。
 
 ## 8. 回滚
@@ -225,7 +225,6 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 
 | 限制 | 影响 | 当前处理 | 负责人 | 目标日期 |
 | --- | --- | --- | --- | --- |
-| 密码重置同步 SMTP | SMTP 慢或失败可能影响中性 `202` | 上线阻断或限期豁免 | 待指定 | 上线前 |
 | 备份恢复与回滚未演练 | 故障恢复证据不足 | 上线阻断 | 待指定 | 上线前 |
 
 ## 10. 版本记录
@@ -237,3 +236,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v0.3 | 2026-10-18 | 将发布基线更新为 `f6fc0af`，记录该 SHA 的 quality 与 WebKit CI 全绿结果 |
 | v0.4 | 2026-10-18 | 新增生产 Worker 命令、信号停机、并发与运行时限配置；关闭 Worker 入口阻断项，保留镜像编排、邮件异步投递、恢复回滚和告警阻断项 |
 | v0.5 | 2026-10-18 | 新增非 root 生产镜像、独立 migrate/API/Worker Compose、Worker 心跳、只读容器和 CI 镜像构建门禁；关闭部署资产阻断项 |
+| v0.6 | 2026-10-18 | 密码重置改为加密密文 + 持久任务异步投递；新增 `DATA_ENCRYPTION_KEY`、`password_reset_delivery` 任务、重试/死信和密文清理，关闭邮件同步阻断项 |

@@ -1,5 +1,6 @@
 """Shared test configuration and transactional database fixtures."""
 
+import base64
 import os
 import uuid
 from collections.abc import AsyncIterator, Callable
@@ -47,6 +48,7 @@ def settings(tmp_path: Path) -> Settings:
         app_env="test",
         app_allowed_origins=["https://testserver"],
         csrf_allowed_origins=["https://testserver"],
+        data_encryption_key=base64.urlsafe_b64encode(os.urandom(32)).decode(),
         resume_storage_dir=str(tmp_path / "resume-files"),
     )
 
