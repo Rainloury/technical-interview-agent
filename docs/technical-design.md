@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.16 |
+| 文档版本 | v0.18 |
 | 文档状态 | 发布候选；隐私与可观测门禁已通过，G4A 行为矩阵已通过，工程与生产依赖门禁通过；发布运行资产和恢复演练待关闭，之后才能待发布批准 |
 | 更新日期 | 2026-10-18 |
 | 需求依据 | `docs/requirements.md` v1.5 |
@@ -392,8 +392,9 @@ P0 不新增消息队列依赖，采用 PostgreSQL 任务表：
 生产基础设施选型：
 
 - 邮件使用阿里云 DirectMail SMTP，当前采用 `smtpdm.aliyun.com:465` + SSL；本机已验证 TLS、SMTP 登录与实际发送，587/StartTLS 不可达。`staging`/`production` 投递失败会向上抛出并记录错误类型，不再静默成功。
-- `staging`/`production` 在 API 装配入口执行配置 fail-fast：缺少 LLM、SMTP、私有 OSS 凭据、HTTPS 重置链接、Secure Cookie 或出现 localhost 来源时拒绝启动。
-- 默认质量门禁为 `121 passed, 49 skipped`、mypy `103 files`；集成门禁保留 `158 passed` 证据。
+- `staging`/`production` 在 API 和 Worker 装配入口执行配置 fail-fast：缺少 LLM、SMTP、私有 OSS 凭据、HTTPS 重置链接、Secure Cookie 或出现 localhost 来源时拒绝启动。
+- 生产 Worker 使用 `technical-interview-agent worker` 启动，注册 `SIGINT`/`SIGTERM`，按 `WORKER_CONCURRENCY` 并发轮询，并受 `WORKER_MAX_RUNTIME_SECONDS` 和 `WORKER_IDLE_SECONDS` 约束；退出时关闭 LLM、OSS 和数据库资源。
+- 默认质量门禁为 `138 passed, 49 skipped`、mypy `104 files`；集成门禁保留 `158 passed` 证据。
 - 原始简历使用阿里云 OSS 私有桶；适配器使用 OSS V1 签名，对象键统一加 `OSS_PREFIX`，删除对 404 幂等。真实桶已验收简历上传、读取与删除。
 - WebKit 兼容性由 GitHub Actions `ubuntu-latest` 的 Playwright WebKit 覆盖，项目为 Desktop Safari 与 iPhone 13；托管 runner 与本地 Ubuntu 24.04 容器均已实跑 `14 passed`。
 
@@ -470,3 +471,5 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 | v0.14 | 2026-10-18 | 发布评审待确认：隐私、G4A 与整场成本门禁通过；DirectMail 与 OSS 适配器已实现；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、迁移头 `9f4c2a7d1e30`；GitHub Actions 托管 runner 与本地 Ubuntu 24.04 WebKit 均 `14 passed` |
 | v0.15 | 2026-10-18 | 阶段切换至发布候选：DirectMail 实际发送、OSS 真实私有桶和 GitHub Actions Ubuntu WebKit `14 passed` 已完成；全部技术与生产依赖门禁关闭，待发布批准、回滚/备份检查和灰度上线 |
 | v0.16 | 2026-10-18 | 增加生产配置启动 fail-fast 与发布运行手册；明确生产 Worker、部署资产、密码重置异步投递、备份恢复和回滚演练仍阻断上线；默认测试更新为 `121 passed, 49 skipped`、mypy 103 files |
+| v0.17 | 2026-10-18 | 落地生产 Worker 命令与有界生命周期：配置 fail-fast、信号停机、并发上限、运行时限、空闲等待和资源清理；关闭 Worker 入口阻断项 |
+| v0.18 | 2026-10-18 | 同步 Worker 入口验收后的质量证据：默认测试 `138 passed, 49 skipped`、mypy 104 files |

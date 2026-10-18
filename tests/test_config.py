@@ -109,6 +109,19 @@ def test_development_settings_do_not_require_deployment_dependencies() -> None:
     settings.validate_deployment()
 
 
+def test_settings_can_disable_dotenv_loading(tmp_path: Path) -> None:
+    dotenv = tmp_path / ".env"
+    dotenv.write_text("APP_ENV=production\n", encoding="utf-8")
+
+    settings = Settings(_env_file=dotenv)
+    explicit = Settings(app_env="test", _env_file=dotenv)
+    process_only = Settings(_env_file=None)
+
+    assert settings.app_env == "production"
+    assert explicit.app_env == "test"
+    assert process_only.app_env == "development"
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
@@ -141,6 +154,13 @@ def test_production_configuration_rejects_unsafe_or_missing_values(
     settings = _production_settings().model_copy(update={field: value})
 
     with pytest.raises(ValueError, match=message):
+        settings.validate_deployment()
+
+
+def test_production_configuration_rejects_local_llm_provider() -> None:
+    settings = _production_settings().model_copy(update={"llm_provider": "local"})
+
+    with pytest.raises(ValueError, match="LLM_PROVIDER=local"):
         settings.validate_deployment()
 
 

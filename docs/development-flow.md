@@ -2,12 +2,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v3.1 |
+| 文档版本 | v3.4 |
 | 文档状态 | 流程基线 |
 | 更新日期 | 2026-10-18 |
 | 需求依据 | `docs/requirements.md` v1.5 |
 | 产品依据 | `docs/product-design.md` v1.5 |
-| 技术依据 | `docs/technical-design.md` v0.15 |
+| 技术依据 | `docs/technical-design.md` v0.17 |
 | 审批依据 | `docs/decision-register.md` v0.8 |
 
 > 本文是项目从需求收集到上线迭代的快速入口。流程覆盖交付顺序、责任边界、阶段产物和门禁；具体业务规则以需求基线为准，页面与交互以产品方案为准。
@@ -32,10 +32,10 @@
 | --- | --- |
 | 需求基线 | `v1.5` 已确认，见[需求文档](./requirements.md) |
 | 产品方案 | `v1.5` 已确认，见[产品方案设计](./product-design.md) |
-| 技术基线 | 技术设计 v0.15，ADR-0001 至 ADR-0008 全部接受 |
+| 技术基线 | 技术设计 v0.17，ADR-0001 至 ADR-0008 全部接受 |
 | 工程骨架 | 已完成，应用、迁移、质量门禁和首次 eval 基线均已验证 |
 | 需求审批 | `DR-01` 至 `DR-07` 已批准；`DR-07` 选择方案 A |
-| 当前阶段 | 发布候选（release candidate）；G4A 行为矩阵已通过，工程、生产依赖与 WebKit 门禁通过；发布运行资产和恢复演练待关闭，之后才能待发布批准 |
+| 当前阶段 | 发布候选（release candidate）；G4A 行为矩阵已通过，工程、生产依赖、WebKit 与 Worker 入口门禁通过；部署编排、恢复和告警演练待关闭，之后才能待发布批准 |
 | 下一步 | 完成发布批准、回滚/备份检查并执行灰度上线 |
 
 ## 流程总览
@@ -139,7 +139,7 @@ flowchart TD
 
 交付物：
 
-- [技术设计](./technical-design.md) v0.15。
+- [技术设计](./technical-design.md) v0.17。
 - [数据模型](./data-model.md) v0.7。
 - [状态机与事务](./state-machine.md) v0.5。
 - [接口契约](./api-contract.md) v0.8。
@@ -609,11 +609,11 @@ flowchart TD
 
 1. Playwright Chromium 桌面与移动项目通过 `14 passed`，GitHub Actions Ubuntu 24.04 托管 runner WebKit Desktop Safari + iPhone 13 通过 `14 passed`（2.4 min）；覆盖账号、历史、简历、问答、模拟面试、受保护报告、复习入口和账号数据删除。
 2. 前端 typecheck、Vitest `12 files / 37 tests`、ESLint 和生产构建通过。
-3. 后端 ruff、格式检查、mypy（103 files）、默认测试 `121 passed, 49 skipped`、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` 通过，迁移头为 `9f4c2a7d1e30`。
+3. 后端 ruff、格式检查、mypy（104 files）、默认测试 `138 passed, 49 skipped`、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` 通过，迁移头为 `9f4c2a7d1e30`。
 4. `interview_session` 的 `HttpOnly` 边界、`interview_csrf`/`X-CSRF-Token` 写请求保护和 `csrf_token_hash` 仅保存哈希均有自动化验证。
 5. 历史接口的 `{items, next_cursor}`、问答历史重开、持久 SSE 游标和公开证据字段边界均已验证。
 
-全部业务切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。生产依赖已验证：阿里云 DirectMail TLS/登录/实际发送、阿里云 OSS 私有桶上传/读取/删除、GitHub Actions Ubuntu WebKit `14 passed`。当前处于发布候选；生产 Worker、部署资产、密码重置异步投递、备份恢复和回滚演练仍按[发布运行手册](./release-runbook.md)阻断上线。
+全部业务切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。生产依赖已验证：阿里云 DirectMail TLS/登录/实际发送、阿里云 OSS 私有桶上传/读取/删除、GitHub Actions Ubuntu WebKit `14 passed`。当前处于发布候选；生产 Worker 命令已提供，部署资产、密码重置异步投递、备份恢复、回滚和告警仍按[发布运行手册](./release-runbook.md)阻断上线。
 
 建议执行顺序：
 
@@ -649,3 +649,5 @@ flowchart TD
 | v3.0 | 2026-10-18 | 发布评审启动：隐私删除、保留清理、审计保留、ops metrics 和确定性阈值 eval 通过；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、确定性 eval `7/7`、迁移头 `9f4c2a7d1e30`；G4A 与整场成本门禁通过 |
 | v3.1 | 2026-10-18 | 阶段切换至发布候选：DirectMail 实际发送、OSS 真实私有桶和 GitHub Actions Ubuntu WebKit `14 passed` 均关闭；quality job 全绿，当前仅待项目负责人批准发布及执行回滚/备份检查、灰度上线与观测 |
 | v3.2 | 2026-10-18 | 增加生产配置启动 fail-fast 与发布运行手册；明确生产 Worker、部署资产、密码重置异步投递、备份恢复和回滚演练仍阻断上线；默认测试更新为 `121 passed, 49 skipped`、mypy 103 files |
+| v3.3 | 2026-10-18 | 新增生产 Worker 命令、信号停机和有界并发/运行时限配置；关闭 Worker 入口阻断项，剩余部署编排、密码重置异步投递、备份恢复、回滚和告警待关闭 |
+| v3.4 | 2026-10-18 | 同步 Worker 入口验收后的默认质量证据：`138 passed, 49 skipped`、mypy 104 files；保留部署编排、恢复与告警阻断项 |

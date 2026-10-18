@@ -2,25 +2,25 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v3.0 |
-| 文档状态 | 发布候选；工程门禁已通过，发布运行资产与恢复演练待补齐 |
+| 文档版本 | v3.2 |
+| 文档状态 | 发布候选；工程门禁与 Worker 入口已通过，部署编排、恢复与告警演练待补齐 |
 | 更新日期 | 2026-10-18 |
 | 当前阶段 | 发布候选（release candidate）；待发布批准与上线执行 |
 | 当前目标 | 关闭[发布运行手册](./release-runbook.md)中的上线阻断项，再完成灰度上线 |
 | 后续目标 | 灰度观测稳定后完成正式发布与复盘 |
 | 审批依据 | `docs/decision-register.md` v0.8 |
 
-> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95 和生产依赖均通过。当前处于发布候选阶段；生产 Worker、部署资产、密码重置投递、备份恢复和回滚演练仍须按[发布运行手册](./release-runbook.md)关闭。
+> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95、生产依赖和生产 Worker 入口均通过。当前处于发布候选阶段；部署资产、密码重置投递、备份恢复、回滚和告警仍须按[发布运行手册](./release-runbook.md)关闭。
 
 ## 1. 当前完成度
 
 | 事项 | 状态 | 证据 | 是否阻塞下一步 |
 | --- | --- | --- | --- |
-| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.0 | 否 |
+| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.3 | 否 |
 | 需求基线 | 已完成 | `docs/requirements.md` v1.5 | 否 |
 | 产品方案 | 已完成 | `docs/product-design.md` v1.5 | 否 |
 | 需求决策 `DR-01` 至 `DR-07` | `approved` | `docs/decision-register.md` v0.8 | 否 |
-| 技术设计 | 已完成 | `docs/technical-design.md` v0.15 | 否 |
+| 技术设计 | 已完成 | `docs/technical-design.md` v0.17 | 否 |
 | 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.7、`docs/state-machine.md` v0.5 | 否 |
 | 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.8、`docs/threat-model.md` v0.6 | 否 |
 | ADR-0001 至 ADR-0008 | 全部 `accepted` | `docs/adr/` | 否 |
@@ -46,9 +46,10 @@
 | 检索问答切片 | `passed` | owner 鉴权、幂等、任意 URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放、终态互斥和前端历史重开通过 | 否 |
 | 模拟面试与报告切片 | `passed` | 数据库硬截止、操作幂等、202 中性响应、评分阈值、两层追问、跳过/结束分支、评分失败收口、报告解锁、错题与薄弱点、双视口 E2E 通过 | 否 |
 | 隐私与可观测门禁 | `passed` | 账号删除、对象清理、保留清理、审计保留、删除状态、ops metrics、确定性阈值和双视口隐私 E2E 通过 | 否 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（103 files）、`121 passed, 49 skipped` 默认测试和 `alembic check` | 否 |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（104 files）、`138 passed, 49 skipped` 默认测试和 `alembic check` | 否 |
 | 生产配置 fail-fast | `passed` | `staging`/`production` 启动校验 LLM、SMTP、OSS、HTTPS 重置链接、Secure Cookie 和非 localhost 来源 | 否 |
-| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v0.1；生产 Worker、镜像编排、密码重置异步投递、备份恢复和回滚演练未补齐 | 是 |
+| 生产 Worker 入口 | `passed` | `technical-interview-agent worker`；配置 fail-fast、信号停机、并发上限、运行时限和网络资源清理有测试 | 否 |
+| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v0.4；镜像编排、密码重置异步投递、备份恢复和回滚演练未补齐 | 是 |
 
 隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS 和 GitHub Actions WebKit 均已关闭。当前处于发布候选阶段，发布运行资产仍阻断灰度上线。
 
@@ -284,3 +285,5 @@ flowchart TD
 | v2.8 | 2026-10-18 | GitHub Actions `ubuntu-latest` 托管 runner WebKit 实跑通过：Desktop Safari + iPhone 13 `14 passed`（2.4 min）；修复 preview 构建的 API 地址注入，增加手动 grep、默认零重试和全局超时；quality job 全绿 |
 | v2.9 | 2026-10-18 | 阶段切换至发布候选：全部业务切片、技术质量、生产 DirectMail/OSS 和 WebKit 门禁通过；下一步为发布批准、回滚/备份检查、灰度上线与观测 |
 | v3.0 | 2026-10-18 | 增加生产配置 fail-fast 与发布运行手册；记录生产 Worker、部署资产、密码重置异步投递、备份恢复和回滚演练为上线阻断项；默认质量门禁更新为 `121 passed, 49 skipped`、mypy 103 files |
+| v3.1 | 2026-10-18 | 新增生产 Worker 命令与有界生命周期，关闭 Worker 入口阻断项；剩余部署资产、密码重置异步投递、备份恢复、回滚和告警仍阻断上线 |
+| v3.2 | 2026-10-18 | 同步 Worker 入口验收后的文档状态与质量证据：默认测试 `138 passed, 49 skipped`、mypy 104 files；保留部署编排、密码重置异步投递、备份恢复、回滚和告警为上线阻断项 |

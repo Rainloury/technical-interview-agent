@@ -58,6 +58,11 @@ MAPPINGS: dict[str, ModelTierMapping] = {
         # Use peak prices so an estimate never understates provider cost.
         pricing=(("0.30", "1.20"), ("1.32", "3.96"), ("1.32", "3.96")),
     ),
+    "local": ModelTierMapping(
+        provider="local",
+        names=("local-stub", "local-stub", "local-stub"),
+        pricing=(("0", "0"), ("0", "0"), ("0", "0")),
+    ),
 }
 
 

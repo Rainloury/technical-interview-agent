@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.3 |
+| 文档版本 | v0.4 |
 | 文档状态 | 发布候选；运行手册已建立，发布批准与上线执行待完成 |
 | 更新日期 | 2026-10-18 |
 | 发布基线 | `f6fc0af` |
@@ -20,7 +20,7 @@
 | 生产对象存储 | 通过 | 阿里云 OSS 私有桶 PUT/GET/DELETE 已通过 |
 | 生产配置 fail-fast | 本次新增 | `staging` / `production` 启动时校验 LLM、SMTP、OSS、HTTPS 和 Cookie/CORS 安全项 |
 | API 启动 | 已验证开发流程 | `uv run uvicorn app.main:app` |
-| 生产 Worker 入口 | 未提供 | 当前只有 `run_worker()` 和本地确定性 E2E Worker 脚本 |
+| 生产 Worker 入口 | 已提供 | `technical-interview-agent worker`；具备配置 fail-fast、信号停机、并发上限、运行时限和资源清理 |
 | 容器镜像与生产编排 | 未提供 | 仓库只有本地 PostgreSQL/Redis `compose.yaml` |
 | 备份恢复演练 | 未执行 | 必须在上线前完成并留存结果 |
 | 密码重置投递 | 已知限制 | 请求内同步 SMTP；失败可能影响中性 `202`，技术设计要求异步任务或发件箱 |
@@ -29,13 +29,12 @@
 
 以下任一未关闭，Go/No-Go 结论必须为 `NO-GO`：
 
-1. **生产 Worker 启动入口**：提供受信号、最大运行时长和并发上限控制的生产入口，且启动时执行同一份 `Settings.validate_deployment()`。
-2. **部署资产**：提供可复现的镜像构建、API 与 Worker 进程编排、非 root 运行和健康检查。
-3. **密码重置投递**：改为可重试异步投递或 outbox，确保 SMTP 失败不改变中性 `202`；若批准为临时限制，必须写明负责人、到期日和用户影响。
-4. **备份恢复**：至少完成一次 PostgreSQL 从备份恢复到独立实例的演练，并验证迁移头和关键表。
-5. **回滚演练**：在预发布环境执行上一应用版本回滚，验证数据库兼容策略和健康检查。
-6. **监控告警**：为 `/health/ready`、`dead_letter`、`scoring_failed`、删除失败、Worker 心跳和 LLM 成本配置可通知的告警。
-7. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
+1. **部署资产**：提供可复现的镜像构建、API 与 Worker 进程编排、非 root 运行和健康检查。
+2. **密码重置投递**：改为可重试异步投递或 outbox，确保 SMTP 失败不改变中性 `202`；若批准为临时限制，必须写明负责人、到期日和用户影响。
+3. **备份恢复**：至少完成一次 PostgreSQL 从备份恢复到独立实例的演练，并验证迁移头和关键表。
+4. **回滚演练**：在预发布环境执行上一应用版本回滚，验证数据库兼容策略和健康检查。
+5. **监控告警**：为 `/health/ready`、`dead_letter`、`scoring_failed`、删除失败、Worker 心跳和 LLM 成本配置可通知的告警。
+6. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
 
 ## 3. 发布前配置
 
@@ -54,6 +53,7 @@
 | 会话 | `COOKIE_SECURE=true`、生产域名对应 Cookie 配置 |
 | 来源 | `APP_ALLOWED_ORIGINS`、`CSRF_ALLOWED_ORIGINS` 仅允许生产 HTTPS 域名 |
 | 重置链接 | `PASSWORD_RESET_BASE_URL` 使用生产 HTTPS 地址 |
+| Worker | `WORKER_CONCURRENCY`、`WORKER_MAX_RUNTIME_SECONDS`、`WORKER_IDLE_SECONDS`、`WORKER_SHUTDOWN_GRACE_SECONDS` |
 | 运维 | `OPS_METRICS_TOKEN` 使用高熵随机值 |
 
 ### 3.2 配置核验
@@ -137,7 +137,13 @@ pg_restore --clean --if-exists --no-owner --no-acl \
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
 ```
 
-上线前必须补齐并验证生产 Worker 启动命令；禁止使用 `scripts/e2e_resume_worker.py` 作为生产 Worker。
+当前 Worker 启动命令：
+
+```bash
+uv run technical-interview-agent worker
+```
+
+禁止使用 `scripts/e2e_resume_worker.py` 作为生产 Worker。部署平台应在停止时先发送 `SIGTERM`，等待 Worker 退出后再强制终止；`WORKER_CONCURRENCY` 必须与数据库连接池和任务吞吐一起评估。
 
 启动后检查：
 
@@ -178,7 +184,7 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 
 - [ ] 发布 SHA 已冻结，质量与 WebKit CI 对同一 SHA 全绿。
 - [ ] 生产配置核验通过，密钥未进入仓库或构建产物。
-- [ ] 生产 Worker 入口、镜像和编排已补齐并通过启动验证。
+- [ ] 镜像和编排已补齐并通过启动验证，API 与 Worker 使用同一发布 SHA。
 - [ ] 数据库备份完成，恢复演练通过。
 - [ ] 上一版本回滚演练通过，数据库向前兼容策略明确。
 - [ ] `/health/live` 与 `/health/ready` 通过，告警可实际送达。
@@ -210,7 +216,6 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 
 | 限制 | 影响 | 当前处理 | 负责人 | 目标日期 |
 | --- | --- | --- | --- | --- |
-| 生产 Worker 入口缺失 | 无法部署完整业务链路 | 上线阻断 | 待指定 | 上线前 |
 | 镜像与生产编排缺失 | 无法复现生产部署 | 上线阻断 | 待指定 | 上线前 |
 | 密码重置同步 SMTP | SMTP 慢或失败可能影响中性 `202` | 上线阻断或限期豁免 | 待指定 | 上线前 |
 | 备份恢复与回滚未演练 | 故障恢复证据不足 | 上线阻断 | 待指定 | 上线前 |
@@ -222,3 +227,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v0.1 | 2026-10-18 | 建立发布与回滚运行手册；记录候选基线、生产依赖事实、上线阻断项、配置核验、迁移备份恢复、灰度观察、Go/No-Go 与回滚流程 |
 | v0.2 | 2026-10-18 | 冻结发布基线 `e5e2073`；记录该 SHA 的 quality 与 WebKit CI 实跑结果 |
 | v0.3 | 2026-10-18 | 将发布基线更新为 `f6fc0af`，记录该 SHA 的 quality 与 WebKit CI 全绿结果 |
+| v0.4 | 2026-10-18 | 新增生产 Worker 命令、信号停机、并发与运行时限配置；关闭 Worker 入口阻断项，保留镜像编排、邮件异步投递、恢复回滚和告警阻断项 |

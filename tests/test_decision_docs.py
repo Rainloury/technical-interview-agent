@@ -100,7 +100,7 @@ def test_phase_docs_describe_the_release_candidate_stage() -> None:
         assert "12 files / 37 tests" in text, path
         assert "158 passed" in text, path
         assert "14 passed" in text, path
-        assert "103 files" in text, path
+        assert "104 files" in text, path
         assert "9f4c2a7d1e30" in text, path
         assert "7/7" in text, path
         assert "WebKit" in text and "14 passed" in text, path

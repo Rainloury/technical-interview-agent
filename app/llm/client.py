@@ -150,6 +150,11 @@ class OpenAiProvider:
             tool_calls=tool_calls,
         )
 
+    async def close(self) -> None:
+        close = getattr(self._client, "close", None)
+        if callable(close):
+            await close()
+
 
 class AnthropicProvider:
     """Official Anthropic SDK adapter with JSON Schema output configuration."""
@@ -200,6 +205,11 @@ class AnthropicProvider:
             finish_reason=response.stop_reason,
             tool_calls=tool_calls,
         )
+
+    async def close(self) -> None:
+        close = getattr(self._client, "close", None)
+        if callable(close):
+            await close()
 
 
 class DeepSeekProvider:
@@ -266,6 +276,24 @@ class DeepSeekProvider:
             tool_calls=tool_calls,
         )
 
+    async def close(self) -> None:
+        close = getattr(self._client, "close", None)
+        if callable(close):
+            await close()
+
+
+class LocalProvider:
+    """Explicit non-deployment LLM provider that never calls a network service."""
+
+    async def generate(
+        self, request: ProviderRequest, output_schema: type[BaseModel]
+    ) -> ProviderResult:
+        raise LlmClientError(
+            "local_provider_unavailable",
+            f"LLM_PROVIDER=local has no generated output for {output_schema.__name__}",
+            retryable=False,
+        )
+
 
 def _provider_from_settings(settings: Settings) -> LlmProvider:
     if settings.llm_provider == "openai":
@@ -274,6 +302,8 @@ def _provider_from_settings(settings: Settings) -> LlmProvider:
         return AnthropicProvider(settings)
     if settings.llm_provider == "deepseek":
         return DeepSeekProvider(settings)
+    if settings.llm_provider == "local" and settings.app_env in {"development", "test"}:
+        return LocalProvider()
     raise ValueError(f"unsupported llm provider: {settings.llm_provider}")
 
 
@@ -420,3 +450,10 @@ class LlmClient:
         )
         self._logger.warning("llm call failed", **trace.as_log_fields())
         raise last_error
+
+    async def aclose(self) -> None:
+        """Release provider-owned network resources."""
+
+        close = getattr(self._provider, "close", None)
+        if callable(close):
+            await close()

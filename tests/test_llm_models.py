@@ -11,11 +11,13 @@ def test_model_tiers_are_provider_specific_and_centrally_configured() -> None:
     openai = Settings(llm_provider="openai")
     anthropic = Settings(llm_provider="anthropic")
     deepseek = Settings(llm_provider="deepseek")
+    local = Settings(llm_provider="local")
 
     assert resolve_model_tier(ModelTier.FAST, openai).name == "gpt-5-mini"
     assert resolve_model_tier("DEFAULT", anthropic).name == "claude-sonnet-4-5"
     assert resolve_model_tier("FAST", deepseek).name == "deepseek-flash"
     assert resolve_model_tier("REASONING", deepseek).name == "deepseek-v4-pro"
+    assert resolve_model_tier("FAST", local).name == "local-stub"
 
 
 def test_environment_overrides_only_the_selected_tier() -> None:

@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator
@@ -13,6 +13,10 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 class Settings(BaseSettings):
     """Runtime settings loaded from environment variables."""
+
+    def __init__(self, **values: Any) -> None:
+        env_file = values.pop("_env_file", ".env")
+        super().__init__(_env_file=env_file, **values)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -46,7 +50,7 @@ class Settings(BaseSettings):
     password_reset_ttl_seconds: int = Field(default=1800, gt=0)
     csrf_allowed_origins: list[str] = Field(default_factory=lambda: ["http://127.0.0.1:3001"])
 
-    llm_provider: Literal["openai", "anthropic", "deepseek"] = "deepseek"
+    llm_provider: Literal["openai", "anthropic", "deepseek", "local"] = "deepseek"
     llm_api_key: SecretStr | None = None
     llm_base_url: str | None = None
     llm_fast_model: str = ""
@@ -75,6 +79,10 @@ class Settings(BaseSettings):
     worker_max_attempts: int = Field(default=3, ge=1, le=10)
     worker_retry_base_seconds: int = Field(default=5, ge=1)
     worker_retry_max_seconds: int = Field(default=300, ge=1)
+    worker_concurrency: int = Field(default=1, ge=1, le=32)
+    worker_max_runtime_seconds: int = Field(default=86_400, ge=1)
+    worker_idle_seconds: float = Field(default=1.0, gt=0)
+    worker_shutdown_grace_seconds: float = Field(default=30.0, gt=0)
     ops_metrics_token: SecretStr | None = None
 
     smtp_host: str | None = None
@@ -146,6 +154,9 @@ class Settings(BaseSettings):
         """Reject missing or development-only dependencies when starting a deployment."""
         if self.app_env not in {"staging", "production"}:
             return
+
+        if self.llm_provider == "local":
+            raise ValueError("staging/production must not use LLM_PROVIDER=local")
 
         required = {
             "LLM_API_KEY": self.llm_api_key,

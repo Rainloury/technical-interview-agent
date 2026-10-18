@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import signal
 import uuid
 from contextlib import suppress
 from dataclasses import dataclass
@@ -38,6 +39,7 @@ from app.db.models import (
     WeakPointEvidence,
     WrongQuestion,
 )
+from app.db.session import create_engine, create_session_factory
 from app.interview_contracts import (
     INTERVIEW_CHAIN_TOKEN_BUDGET,
     INTERVIEW_PROMPT_VERSION,
@@ -50,12 +52,13 @@ from app.interview_contracts import (
     scoring_payload,
 )
 from app.llm.client import (
+    LlmClient,
     LlmClientError,
     PromptMetadata,
     TraceContext,
 )
 from app.llm.models import ModelTier
-from app.logging import get_logger
+from app.logging import configure_logging, get_logger
 from app.prompts.loader import PromptError, PromptLoader
 from app.qa_contracts import QaAnswerOutput, retrieve_evidence
 from app.resume_contracts import ResumeAnalysisOutput, ResumeQuestionsOutput
@@ -66,7 +69,7 @@ from app.services.qa import (
     completion_payload,
     evidence_for_request,
 )
-from app.storage import ObjectStorage
+from app.storage import ObjectStorage, create_resume_storage
 from app.tools._base import wrap_untrusted
 
 logger = get_logger("app.worker")
@@ -1786,23 +1789,192 @@ async def run_worker(
     llm: ResumeLlm,
     prompt_loader: PromptLoader,
     max_iterations: int | None = None,
-    idle_seconds: float = 1.0,
+    idle_seconds: float | None = None,
+    concurrency: int = 1,
+    stop_event: asyncio.Event | None = None,
+    max_runtime_seconds: float | None = None,
+    worker_id_prefix: str | None = None,
+    shutdown_grace_seconds: float | None = None,
 ) -> None:
-    """Run bounded polling; production entry points must set a stop condition."""
+    """Run bounded polling until stopped or the deadline is reached."""
 
-    worker = ResumeWorker(
-        settings=settings,
-        session_factory=session_factory,
-        storage=storage,
-        llm=llm,
-        prompt_loader=prompt_loader,
+    if concurrency < 1:
+        raise ValueError("worker concurrency must be positive")
+    if max_iterations is not None and max_iterations < 1:
+        raise ValueError("worker max_iterations must be positive")
+    if max_runtime_seconds is not None and max_runtime_seconds <= 0:
+        raise ValueError("worker max_runtime_seconds must be positive")
+    grace = (
+        settings.worker_shutdown_grace_seconds
+        if shutdown_grace_seconds is None
+        else shutdown_grace_seconds
     )
-    iterations = 0
-    while max_iterations is None or iterations < max_iterations:
-        result = await worker.run_once()
-        iterations += 1
-        if result.outcome == "idle":
-            await asyncio.sleep(idle_seconds)
+    if grace <= 0:
+        raise ValueError("worker shutdown_grace_seconds must be positive")
+
+    effective_idle = settings.worker_idle_seconds if idle_seconds is None else idle_seconds
+    if effective_idle <= 0:
+        raise ValueError("worker idle_seconds must be positive")
+
+    stop = stop_event or asyncio.Event()
+    if worker_id_prefix is not None:
+        run_id = worker_id_prefix
+    else:
+        run_id = f"resume-worker-{uuid.uuid4().hex[:12]}"
+    workers = [
+        ResumeWorker(
+            settings=settings,
+            session_factory=session_factory,
+            storage=storage,
+            llm=llm,
+            prompt_loader=prompt_loader,
+            worker_id=(run_id if concurrency == 1 else f"{run_id}-{worker_index}"),
+        )
+        for worker_index in range(concurrency)
+    ]
+    deadline = (
+        asyncio.get_running_loop().time() + max_runtime_seconds
+        if max_runtime_seconds is not None
+        else None
+    )
+    remaining_iterations = max_iterations
+    iterations_lock = asyncio.Lock()
+
+    async def loop(worker: ResumeWorker) -> None:
+        nonlocal remaining_iterations
+        while True:
+            if stop.is_set():
+                return
+            if deadline is not None and asyncio.get_running_loop().time() >= deadline:
+                stop.set()
+                return
+            if remaining_iterations is not None:
+                async with iterations_lock:
+                    if remaining_iterations == 0:
+                        stop.set()
+                        return
+                    remaining_iterations -= 1
+            result = await worker.run_once()
+            if result.outcome != "idle":
+                if stop.is_set():
+                    return
+                continue
+            wait_seconds = effective_idle
+            if deadline is not None:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    stop.set()
+                    return
+                wait_seconds = min(wait_seconds, remaining)
+                if not stop.is_set():
+                    with suppress(TimeoutError):
+                        await asyncio.wait_for(stop.wait(), timeout=wait_seconds)
+            else:
+                with suppress(TimeoutError):
+                    await asyncio.wait_for(stop.wait(), timeout=wait_seconds)
+
+    tasks = [
+        asyncio.create_task(loop(worker), name=f"worker-{index}")
+        for index, worker in enumerate(workers)
+    ]
+    timeout_task: asyncio.Task[None] | None = None
+    if deadline is not None:
+
+        async def stop_at_deadline() -> None:
+            remaining = max(0.0, deadline - asyncio.get_running_loop().time())
+            with suppress(TimeoutError):
+                await asyncio.wait_for(stop.wait(), timeout=remaining)
+            stop.set()
+
+        timeout_task = asyncio.create_task(stop_at_deadline(), name="worker-deadline")
+    try:
+        stop_task = asyncio.create_task(stop.wait(), name="worker-stop")
+        _, still_running = await asyncio.wait(
+            [stop_task, *tasks],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        stop_task.cancel()
+        await asyncio.gather(stop_task, return_exceptions=True)
+        if tasks and all(task.done() for task in tasks):
+            await asyncio.gather(*tasks)
+            return
+        unfinished = [task for task in tasks if not task.done()]
+        if unfinished:
+            _, still_running = await asyncio.wait(unfinished, timeout=grace)
+        for task in still_running:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+    finally:
+        if timeout_task is not None:
+            timeout_task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        if timeout_task is not None:
+            await asyncio.gather(timeout_task, return_exceptions=True)
+
+
+class WorkerRunner:
+    """One production Worker lifecycle with bounded concurrency and signal handling."""
+
+    def __init__(
+        self,
+        *,
+        settings: Settings,
+        llm_factory: Any = LlmClient,
+    ) -> None:
+        self._settings = settings
+        self._llm_factory = llm_factory
+
+    async def run(self) -> None:
+        """Assemble dependencies, run pollers, and release all owned resources."""
+
+        self._settings.validate_deployment()
+        configure_logging(self._settings.app_log_level)
+        run_id = f"resume-worker-{self._settings.app_name[:20]}-{uuid.uuid4().hex[:12]}"
+        stop_event = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        llm: ResumeLlm | None = None
+
+        def request_stop(signum: int) -> None:
+            logger.info("worker shutdown requested", signal=signum)
+            stop_event.set()
+
+        engine = create_engine(self._settings)
+        storage = create_resume_storage(self._settings)
+        try:
+            for signum in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(signum, request_stop, signum)
+            session_factory = create_session_factory(engine)
+            llm = self._llm_factory(self._settings)
+            logger.info(
+                "worker starting",
+                environment=self._settings.app_env,
+                concurrency=self._settings.worker_concurrency,
+                max_runtime_seconds=self._settings.worker_max_runtime_seconds,
+            )
+            await run_worker(
+                settings=self._settings,
+                session_factory=session_factory,
+                storage=storage,
+                llm=llm,
+                prompt_loader=PromptLoader(self._settings.prompt_dir),
+                concurrency=self._settings.worker_concurrency,
+                stop_event=stop_event,
+                max_runtime_seconds=self._settings.worker_max_runtime_seconds,
+                worker_id_prefix=run_id,
+                shutdown_grace_seconds=self._settings.worker_shutdown_grace_seconds,
+            )
+        finally:
+            if llm is not None:
+                aclose_llm = getattr(llm, "aclose", None)
+                if callable(aclose_llm):
+                    await aclose_llm()
+            aclose = getattr(storage, "aclose", None)
+            if callable(aclose):
+                await aclose()
+            await engine.dispose()
+            for signum in (signal.SIGINT, signal.SIGTERM):
+                loop.remove_signal_handler(signum)
+            logger.info("worker stopped")
 
 
 __all__ = [
@@ -1810,5 +1982,6 @@ __all__ = [
     "ResumeWorkerError",
     "StaleLeaseError",
     "WorkerResult",
+    "WorkerRunner",
     "run_worker",
 ]
