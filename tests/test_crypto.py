@@ -37,3 +37,14 @@ def test_delivery_ciphertext_rejects_tampering_and_missing_key() -> None:
         decrypt_secret(settings, tampered)
     with pytest.raises(ValueError, match="DATA_ENCRYPTION_KEY"):
         encrypt_secret(Settings(app_env="test", _env_file=None), "value")
+
+
+def test_delivery_key_accepts_urlsafe_base64_without_padding() -> None:
+    raw = os.urandom(32)
+    settings = Settings(
+        app_env="test",
+        data_encryption_key=base64.urlsafe_b64encode(raw).decode().rstrip("="),
+        _env_file=None,
+    )
+
+    assert decrypt_secret(settings, encrypt_secret(settings, "value")) == "value"

@@ -19,7 +19,8 @@ def _keys(settings: Settings) -> tuple[bytes, bytes]:
     if configured is None:
         raise ValueError("DATA_ENCRYPTION_KEY is required for encrypted delivery")
     try:
-        master = base64.urlsafe_b64decode(configured.get_secret_value())
+        encoded = configured.get_secret_value()
+        master = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
     except (ValueError, binascii.Error) as exc:
         raise ValueError("DATA_ENCRYPTION_KEY must be base64 encoded") from exc
     if len(master) != 32:

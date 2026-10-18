@@ -98,7 +98,7 @@ def test_phase_docs_describe_the_release_candidate_stage() -> None:
         ), path
         assert "0.83908" in text, path
         assert "12 files / 37 tests" in text, path
-        assert "197 passed" in text, path
+        assert "198 passed" in text, path
         assert "14 passed" in text, path
         assert "109 files" in text, path
         assert "3b7e1c9d4a20" in text, path
@@ -166,6 +166,7 @@ def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() 
         "pg_restore",
         "3b7e1c9d4a20",
         "3b7e1c9d4a20",
+        "067f34e",
     ):
         assert fragment in runbook, f"{fragment} missing from {RELEASE_RUNBOOK}"
 

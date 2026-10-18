@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest --no-file-parallelism",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/playwright-with-servers.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 3001"
   },
   "dependencies": {

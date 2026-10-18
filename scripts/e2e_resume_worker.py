@@ -252,7 +252,7 @@ async def _seed_qa_source(
 
 
 async def _serve() -> None:
-    settings = Settings()
+    settings = Settings(_env_file=None)
     engine = create_engine(settings)
     session_factory = create_session_factory(engine)
     try:

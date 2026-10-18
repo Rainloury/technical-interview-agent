@@ -215,7 +215,7 @@ flowchart TD
 - `AgentLoop` 将完整工具参数 Schema 注入每轮 Prompt，并把工具清单与观察结果计入调用前的 token 预算。
 - `app/agent/loop.py` 实现 plan -> act -> observe，默认 8 步、200000 token、60 秒、深度不超过 2。
 - 确定性 Agent eval 验证工具选择、不可信内容隔离、2000 字符预览边界和终止行为。
-- 启用集成测试后 `197 passed`；迁移检查与前端质量门禁通过；确定性 eval `7/7`。测试包含审批边界、账号/简历/问答/面试切片资产、双 Cookie/CSRF 契约、异步 Worker 状态链、证据引用校验、SSE 重放、数据库硬截止、受保护反馈解锁、隐私删除、保留清理、运维指标、provider 矩阵、整场成本、DirectMail 和 OSS 适配器契约。
+- 启用集成测试后 `198 passed`；迁移检查与前端质量门禁通过；确定性 eval `7/7`。测试包含审批边界、账号/简历/问答/面试切片资产、双 Cookie/CSRF 契约、异步 Worker 状态链、证据引用校验、SSE 重放、数据库硬截止、受保护反馈解锁、隐私删除、保留清理、运维指标、provider 矩阵、整场成本、DirectMail 和 OSS 适配器契约。
 
 尚未完成：
 
@@ -285,7 +285,7 @@ flowchart TD
 - 异步任务、租约、重试、分析结构化输出、10 题覆盖计划和失败恢复已接通。
 - 原始简历单独删除、源文件不可访问、证据摘要脱敏和衍生数据保留已验证。
 - Playwright 桌面与移动项目覆盖上传、处理中、10 道题、删除原始简历和删除后状态。
-- 后端集成测试 `197 passed`，前端 Vitest `12 files / 37 tests`，Chromium 双视口 E2E `14 passed`。
+- 后端集成测试 `198 passed`，前端 Vitest `12 files / 37 tests`，Chromium 双视口 E2E `14 passed`。
 
 阶段结论：已满足进入检索问答的条件。
 
@@ -609,7 +609,7 @@ flowchart TD
 
 1. Playwright Chromium 桌面与移动项目通过 `14 passed`，GitHub Actions Ubuntu 24.04 托管 runner WebKit Desktop Safari + iPhone 13 通过 `14 passed`（2.4 min）；覆盖账号、历史、简历、问答、模拟面试、受保护报告、复习入口和账号数据删除。
 2. 前端 typecheck、Vitest `12 files / 37 tests`、ESLint 和生产构建通过。
-3. 后端 ruff、格式检查、mypy（109 files）、默认测试 `146 passed, 51 skipped`、`RUN_INTEGRATION=1 pytest`（`197 passed`）和 `alembic check` 通过，迁移头为 `3b7e1c9d4a20`。
+3. 后端 ruff、格式检查、mypy（109 files）、默认测试 `147 passed, 51 skipped`、`RUN_INTEGRATION=1 pytest`（`198 passed`）和 `alembic check` 通过，迁移头为 `3b7e1c9d4a20`。
 4. `interview_session` 的 `HttpOnly` 边界、`interview_csrf`/`X-CSRF-Token` 写请求保护和 `csrf_token_hash` 仅保存哈希均有自动化验证。
 5. 历史接口的 `{items, next_cursor}`、问答历史重开、持久 SSE 游标和公开证据字段边界均已验证。
 
