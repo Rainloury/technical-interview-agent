@@ -39,8 +39,11 @@ def test_interview_cost_uses_p95_and_threshold() -> None:
     payload = report.as_dict()
     assert payload["threshold_cny"] == 3.0
     assert payload["total_runs"] == 3
+    assert payload["model_cost_ready"] is False
     assert payload["release_ready"] is False
     assert payload["follow_up_coverage_complete"] is True
+    assert payload["retrieval_mode"] == "in_database_lexical"
+    assert payload["retrieval_external_cost_cny"] == 0.0
 
 
 def test_interview_cost_requires_measurements_and_reports_ready_below_threshold() -> None:
@@ -63,6 +66,7 @@ def test_interview_cost_requires_measurements_and_reports_ready_below_threshold(
     )
 
     assert empty.release_ready is False
+    assert measured.model_cost_ready is True
     assert measured.release_ready is True
 
 
@@ -94,11 +98,16 @@ def test_interview_cost_without_follow_up_coverage_is_not_release_ready() -> Non
     )
 
     assert report.follow_up_coverage_complete is False
+    assert report.model_cost_ready is False
     assert report.release_ready is False
 
 
 def test_cost_benchmark_answer_covers_concrete_recovery_mechanisms() -> None:
-    from evals.interview_cost import ANSWER_TEXT, FOLLOW_UP_ANSWER_TEXT
+    from evals.interview_cost import (
+        ANSWER_TEXT,
+        FOLLOW_UP_ANSWER_TEXT,
+        _is_first_main_turn,
+    )
 
     assert "幂等键" in ANSWER_TEXT
     assert "fencing token" in ANSWER_TEXT
@@ -106,3 +115,5 @@ def test_cost_benchmark_answer_covers_concrete_recovery_mechanisms() -> None:
     assert "trace" in ANSWER_TEXT
     assert "fencing token" in FOLLOW_UP_ANSWER_TEXT
     assert len(FOLLOW_UP_ANSWER_TEXT) >= 180
+    assert _is_first_main_turn("prefix COST_BENCHMARK_MAIN_TURN_1 suffix")
+    assert not _is_first_main_turn("ordinary interview prompt")

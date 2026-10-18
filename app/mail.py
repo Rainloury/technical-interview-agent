@@ -55,3 +55,5 @@ async def deliver_password_reset(settings: Settings, *, email: str, token: str |
             await asyncio.to_thread(_send_smtp, settings, email, reset_url)
         except Exception as exc:
             logger.warning("password reset delivery failed", error_code=type(exc).__name__)
+            if settings.app_env in {"staging", "production"}:
+                raise
