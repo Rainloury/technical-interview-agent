@@ -393,7 +393,7 @@ P0 不新增消息队列依赖，采用 PostgreSQL 任务表：
 
 - 邮件使用阿里云 DirectMail SMTP，当前采用 `smtpdm.aliyun.com:465` + SSL；本机已验证 TLS、SMTP 登录与实际发送，587/StartTLS 不可达。`staging`/`production` 投递失败会向上抛出并记录错误类型，不再静默成功。
 - 原始简历使用阿里云 OSS 私有桶；适配器使用 OSS V1 签名，对象键统一加 `OSS_PREFIX`，删除对 404 幂等。真实桶已验收简历上传、读取与删除。
-- WebKit 兼容性由 GitHub Actions `ubuntu-latest` 的 Playwright WebKit 覆盖，项目为 Desktop Safari 与 iPhone 13；相同 Ubuntu 24.04 环境的本地容器已实跑 `14 passed`，托管 runner 待推送后验收。
+- WebKit 兼容性由 GitHub Actions `ubuntu-latest` 的 Playwright WebKit 覆盖，项目为 Desktop Safari 与 iPhone 13；托管 runner 与本地 Ubuntu 24.04 容器均已实跑 `14 passed`。
 
 关键控制：
 
@@ -465,4 +465,4 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 | v0.11 | 2026-10-17 | 简历纵向切片验收通过：双视口 E2E `4 passed`、前端 `7 files / 21 tests`、后端 `107 passed`、mypy 78 files、确定性 eval `3 passed`、迁移头 `8f3d2a1c7b90`；下一阶段进入检索问答 |
 | v0.12 | 2026-10-18 | 检索问答 P0 切片验收通过：owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、持久 SSE 重放与前端 `/qa`、`/qa/:id` 已落地；双视口 E2E `8 passed`、前端 `9 files / 32 tests`、后端 `116 passed`、mypy 84 files、确定性 eval `3/3`、迁移头 `4b6e9d2c1a70`；下一阶段为模拟面试与报告 |
 | v0.13 | 2026-10-18 | 模拟面试与报告切片验收通过：数据库权威截止、操作与轮次幂等、中性提交响应、评分阈值、两层追问、分支终止原因、永久评分失败收口、终态报告和复习解锁已落地 |
-| v0.14 | 2026-10-18 | 发布评审待确认：隐私、G4A 与整场成本门禁通过；DirectMail 与 OSS 适配器已实现；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、迁移头 `9f4c2a7d1e30`；Ubuntu 24.04 WebKit 本地容器 `14 passed`，GitHub Actions 托管 runner 待推送实跑 |
+| v0.14 | 2026-10-18 | 发布评审待确认：隐私、G4A 与整场成本门禁通过；DirectMail 与 OSS 适配器已实现；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、迁移头 `9f4c2a7d1e30`；GitHub Actions 托管 runner 与本地 Ubuntu 24.04 WebKit 均 `14 passed` |

@@ -233,7 +233,7 @@ flowchart TD
 | 架构与技术 | ADR、数据、接口、安全、质量门禁 | ADR-0001 至 ADR-0008 已接受 |
 | 后端 | API、数据库、Agent、LLM、Worker | 工程骨架、核心能力基座、账号接口和简历异步 Worker 已落地 |
 | 前端 | Web UI、路由、交互、可访问性 | `web/` 已交付账号、工作台、历史分页、响应式导航和简历闭环，简历切片验收通过 |
-| 质量与发布 | 集成、安全、性能、行为评测、发布评审 | FAST provider eval、账号与简历双视口 E2E、Ubuntu WebKit 容器实跑已通过；GitHub Actions 托管 runner 待验收 |
+| 质量与发布 | 集成、安全、性能、行为评测、发布评审 | FAST provider eval、账号与简历双视口 E2E、Ubuntu WebKit 本地容器与 GitHub Actions 托管 runner 实跑均已通过 |
 
 首个用户可见切片现已形成“注册/登录 -> 工作台 -> 历史分页 -> 退出/找回密码”的可操作闭环。验收时必须同时检查浏览器流程、权限隔离、Cookie/CSRF、分页契约和响应式布局。
 

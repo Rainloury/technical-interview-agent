@@ -91,7 +91,7 @@
 | 历史分页 | `passed` | 历史接口返回 `{items, next_cursor}`；前端每页 10 条并支持继续加载 |
 | 简历纵向切片 | `passed` | 上传、PDF/DOCX 校验、异步处理、10 题、失败重试、删除原始简历和 `source_deleted` 证据摘要 |
 | 检索问答切片 | `passed` | owner 隔离、幂等、任意 URL 拒绝、allowlist/最新发布版本、证据冻结、引用校验、持久 SSE 游标重放、终态互斥和前端历史重开 |
-| 浏览器 E2E | `partial` | Chromium 桌面与移动 `14 passed`，隐私专项 `2 passed`；Ubuntu 24.04 Playwright WebKit Desktop Safari + iPhone 13 本地容器实跑 `14 passed`（4.1 min）；GitHub Actions 托管 runner 待推送后实跑 |
+| 浏览器 E2E | `passed` | Chromium 桌面与移动 `14 passed`，隐私专项 `2 passed`；GitHub Actions Ubuntu 24.04 托管 runner 的 Playwright WebKit Desktop Safari + iPhone 13 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed` |
 | DirectMail SMTP | `passed` | `smtpdm.aliyun.com:465` + SSL 的 TLS 与 SMTP 登录通过；测试邮件已由 SMTP 服务器接受且无拒收收件人；收件箱到达待人工确认 |
 | OSS 私有对象存储 | `passed` | 真实私有桶 PUT/GET/DELETE、简历业务上传内容一致性和源文件删除后不可读均已验证 |
 | 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（76 files）、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` |
@@ -136,3 +136,4 @@
 | v2.4 | 2026-10-18 | DirectMail 实际发送通过：测试邮件发往 `no-reply@rainstone.top`，SMTP 服务器接受且无拒收收件人 |
 | v2.5 | 2026-10-18 | 阿里云 OSS 真实私有桶验收通过：临时对象三步操作、简历上传内容一致性和删除源文件后对象不可读均通过 |
 | v2.6 | 2026-10-18 | Ubuntu 24.04 Playwright WebKit 本地容器实跑通过：Desktop Safari + iPhone 13 共 `14 passed`；`webkit-e2e` 增加 `workflow_dispatch` 与失败报告产物，GitHub Actions 托管 runner 实跑待推送验收 |
+| v2.7 | 2026-10-18 | GitHub Actions `ubuntu-latest` 托管 runner WebKit 实跑通过：Desktop Safari + iPhone 13 `14 passed`（2.4 min），quality job 全绿；修复 preview 构建 API 地址注入，并增加手动 grep、默认零重试和全局超时诊断 |

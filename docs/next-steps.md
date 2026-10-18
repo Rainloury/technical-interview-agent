@@ -39,7 +39,7 @@
 | 首个用户可见切片 `DR-07` | `approved` | `docs/decision-register.md` v0.8；方案 A | 否 |
 | 前端工程与账号路径 | 已完成 | `web/`；注册、登录、找回/重置密码、空工作台和响应式导航 | 否 |
 | 历史分页 | 已完成 | `web/src/pages/HistoryPage.tsx`；`{items, next_cursor}`，每页 10 条 | 否 |
-| 浏览器 E2E | `partial` | Chromium 桌面与移动 `14 passed`，隐私专项 `2 passed`；Ubuntu 24.04 Playwright WebKit Desktop Safari + iPhone 13 本地容器实跑 `14 passed`；GitHub Actions 托管 runner 待推送后实跑 | 是 |
+| 浏览器 E2E | `passed` | Chromium 桌面与移动 `14 passed`，隐私专项 `2 passed`；GitHub Actions Ubuntu 24.04 托管 runner WebKit Desktop Safari + iPhone 13 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed` | 否 |
 | DirectMail 实际投递 | `passed` | `smtpdm.aliyun.com:465` + SSL 的 TLS 握手与登录通过；测试邮件于 2026-10-18T08:37:24Z 发往 `no-reply@rainstone.top`，SMTP 服务器接受且 `refused={}`；收件箱到达仍需人工确认 | 否 |
 | OSS 简历上传与删除 | `passed` | 真实私有桶 PUT/GET/DELETE 通过；业务层 `upload_resume` 生成 `stored` 记录，读取内容与 PDF 字节一致；`delete_resume_source` 后状态为 `deleted` 且对象不可读 | 否 |
 | 简历纵向切片 | `passed` | 上传、PDF/DOCX 校验、异步处理、10 道题、失败重试、原始文件删除和 `source_deleted` 状态通过 | 否 |
@@ -48,7 +48,7 @@
 | 隐私与可观测门禁 | `passed` | 账号删除、对象清理、保留清理、审计保留、删除状态、ops metrics、确定性阈值和双视口隐私 E2E 通过 | 否 |
 | 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（76 files）、`158 passed` 集成测试和 `alembic check` | 否 |
 
-隐私与可观测门禁、G4A 行为矩阵和完整面试成本 P95 均已关闭。当前上线质量切片只剩发布评审及既有生产依赖事项。
+隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS 和 GitHub Actions WebKit 均已关闭。当前上线质量切片只剩发布评审确认。
 
 ## 2. 执行顺序
 
@@ -278,3 +278,4 @@ flowchart TD
 | v2.5 | 2026-10-18 | DirectMail 实际发送测试通过：测试邮件发往 `no-reply@rainstone.top`，SMTP 服务器接受且无拒收收件人；至此 DirectMail 连接、认证和发送均已验证 |
 | v2.6 | 2026-10-18 | 阿里云 OSS 真实私有桶验收通过：临时对象 PUT/GET/DELETE 成功；简历业务上传后对象状态 `stored` 且内容一致；删除源文件后状态 `deleted` 且对象不可读 |
 | v2.7 | 2026-10-18 | Ubuntu 24.04 Playwright WebKit 本地容器实跑 `14 passed`（4.1 min），覆盖 Desktop Safari + iPhone 13；新增 `workflow_dispatch` 与失败 Playwright 报告上传，GitHub Actions 托管 runner 实跑待推送 |
+| v2.8 | 2026-10-18 | GitHub Actions `ubuntu-latest` 托管 runner WebKit 实跑通过：Desktop Safari + iPhone 13 `14 passed`（2.4 min）；修复 preview 构建的 API 地址注入，增加手动 grep、默认零重试和全局超时；quality job 全绿 |
