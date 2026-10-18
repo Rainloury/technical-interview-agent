@@ -2,10 +2,10 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.2 |
+| 文档版本 | v0.3 |
 | 文档状态 | 发布候选；运行手册已建立，发布批准与上线执行待完成 |
 | 更新日期 | 2026-10-18 |
-| 发布基线 | `e5e2073` |
+| 发布基线 | `f6fc0af` |
 | 迁移头 | `9f4c2a7d1e30` |
 
 > 本手册区分“已验证”和“上线前必须补齐”。未关闭的阻断项不得通过口头豁免进入生产。
@@ -14,8 +14,8 @@
 
 | 项目 | 当前状态 | 证据或限制 |
 | --- | --- | --- |
-| 代码质量 | 通过 | GitHub Actions run `39123623637` 的 `quality` job 成功 |
-| WebKit 兼容 | 通过 | run `39123623637` 的 WebKit Desktop Safari + iPhone 13 `14 passed`（1.8m） |
+| 代码质量 | 通过 | GitHub Actions run `39123884804` 的 `quality` job 成功 |
+| WebKit 兼容 | 通过 | run `39123884804` 的 WebKit Desktop Safari + iPhone 13 `14 passed` |
 | 生产邮件 | 部分验证 | DirectMail `smtpdm.aliyun.com:465` + SSL 已通过 TLS、登录和 SMTP 接受 |
 | 生产对象存储 | 通过 | 阿里云 OSS 私有桶 PUT/GET/DELETE 已通过 |
 | 生产配置 fail-fast | 本次新增 | `staging` / `production` 启动时校验 LLM、SMTP、OSS、HTTPS 和 Cookie/CORS 安全项 |
@@ -221,3 +221,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | --- | --- | --- |
 | v0.1 | 2026-10-18 | 建立发布与回滚运行手册；记录候选基线、生产依赖事实、上线阻断项、配置核验、迁移备份恢复、灰度观察、Go/No-Go 与回滚流程 |
 | v0.2 | 2026-10-18 | 冻结发布基线 `e5e2073`；记录该 SHA 的 quality 与 WebKit CI 实跑结果 |
+| v0.3 | 2026-10-18 | 将发布基线更新为 `f6fc0af`，记录该 SHA 的 quality 与 WebKit CI 全绿结果 |
