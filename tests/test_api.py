@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import pytest
+from app.config import Settings
 from app.errors import AppError, install_exception_handlers
 from app.health import router
 from app.main import create_app
@@ -64,6 +65,13 @@ def test_request_id_is_generated_when_missing() -> None:
 
     assert response.status_code == 200
     assert response.headers["X-Request-ID"].startswith("req_")
+
+
+def test_application_refuses_incomplete_production_configuration() -> None:
+    settings = Settings(app_env="production")
+
+    with pytest.raises(ValueError, match="missing deployed configuration"):
+        create_app(settings)
 
 
 def test_unknown_route_envelope_has_request_id() -> None:

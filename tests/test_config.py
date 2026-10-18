@@ -71,6 +71,79 @@ def test_oss_prefix_cannot_escape_bucket_root() -> None:
         Settings(oss_prefix="../private")
 
 
+def _production_settings() -> Settings:
+    return Settings(
+        app_env="production",
+        app_allowed_origins=["https://app.example.com"],
+        csrf_allowed_origins=["https://app.example.com"],
+        cookie_secure=True,
+        llm_api_key="sk-production",
+        llm_fast_model="fast-model",
+        llm_default_model="default-model",
+        llm_reasoning_model="reasoning-model",
+        smtp_host="smtpdm.aliyun.com",
+        smtp_username="no-reply@example.com",
+        smtp_password="smtp-production",
+        smtp_from_email="no-reply@example.com",
+        resume_storage_backend="oss",
+        oss_endpoint="https://oss-cn-hangzhou.aliyuncs.com",
+        oss_bucket="interview-private",
+        oss_access_key_id="oss-key",
+        oss_access_key_secret="oss-secret",
+        password_reset_base_url="https://app.example.com/reset-password",
+    )
+
+
+def test_production_configuration_is_complete_and_safe() -> None:
+    settings = _production_settings()
+    settings.validate_deployment()
+
+    assert settings.app_env == "production"
+    assert settings.resume_storage_backend == "oss"
+    assert settings.cookie_secure is True
+
+
+def test_development_settings_do_not_require_deployment_dependencies() -> None:
+    settings = Settings(app_env="development")
+
+    settings.validate_deployment()
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("resume_storage_backend", "local", "RESUME_STORAGE_BACKEND=oss"),
+        ("cookie_secure", False, "COOKIE_SECURE=true"),
+        (
+            "password_reset_base_url",
+            "http://app.example.com/reset-password",
+            "https PASSWORD_RESET_BASE_URL",
+        ),
+        (
+            "app_allowed_origins",
+            ["https://localhost:3001"],
+            "must not allow localhost",
+        ),
+        (
+            "csrf_allowed_origins",
+            ["https://127.0.0.1:3001"],
+            "must not allow localhost",
+        ),
+        ("smtp_host", None, "missing deployed configuration: SMTP_HOST"),
+        ("llm_api_key", None, "missing deployed configuration: LLM_API_KEY"),
+    ],
+)
+def test_production_configuration_rejects_unsafe_or_missing_values(
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    settings = _production_settings().model_copy(update={field: value})
+
+    with pytest.raises(ValueError, match=message):
+        settings.validate_deployment()
+
+
 def test_relative_prompt_dir_is_independent_of_working_directory(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

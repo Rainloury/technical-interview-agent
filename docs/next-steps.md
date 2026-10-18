@@ -2,15 +2,15 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v2.9 |
-| 文档状态 | 发布候选；全部技术、生产依赖和浏览器兼容门禁已通过 |
+| 文档版本 | v3.0 |
+| 文档状态 | 发布候选；工程门禁已通过，发布运行资产与恢复演练待补齐 |
 | 更新日期 | 2026-10-18 |
 | 当前阶段 | 发布候选（release candidate）；待发布批准与上线执行 |
-| 当前目标 | 完成发布批准、回滚/备份检查和灰度上线 |
+| 当前目标 | 关闭[发布运行手册](./release-runbook.md)中的上线阻断项，再完成灰度上线 |
 | 后续目标 | 灰度观测稳定后完成正式发布与复盘 |
 | 审批依据 | `docs/decision-register.md` v0.8 |
 
-> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95 和生产依赖均通过。当前处于发布候选阶段，只剩发布批准与上线执行。
+> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95 和生产依赖均通过。当前处于发布候选阶段；生产 Worker、部署资产、密码重置投递、备份恢复和回滚演练仍须按[发布运行手册](./release-runbook.md)关闭。
 
 ## 1. 当前完成度
 
@@ -46,9 +46,11 @@
 | 检索问答切片 | `passed` | owner 鉴权、幂等、任意 URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放、终态互斥和前端历史重开通过 | 否 |
 | 模拟面试与报告切片 | `passed` | 数据库硬截止、操作幂等、202 中性响应、评分阈值、两层追问、跳过/结束分支、评分失败收口、报告解锁、错题与薄弱点、双视口 E2E 通过 | 否 |
 | 隐私与可观测门禁 | `passed` | 账号删除、对象清理、保留清理、审计保留、删除状态、ops metrics、确定性阈值和双视口隐私 E2E 通过 | 否 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（76 files）、`158 passed` 集成测试和 `alembic check` | 否 |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（103 files）、`121 passed, 49 skipped` 默认测试和 `alembic check` | 否 |
+| 生产配置 fail-fast | `passed` | `staging`/`production` 启动校验 LLM、SMTP、OSS、HTTPS 重置链接、Secure Cookie 和非 localhost 来源 | 否 |
+| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v0.1；生产 Worker、镜像编排、密码重置异步投递、备份恢复和回滚演练未补齐 | 是 |
 
-隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS 和 GitHub Actions WebKit 均已关闭。当前处于发布候选阶段，待项目负责人批准后执行灰度上线。
+隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS 和 GitHub Actions WebKit 均已关闭。当前处于发布候选阶段，发布运行资产仍阻断灰度上线。
 
 ## 2. 执行顺序
 
@@ -69,7 +71,8 @@ flowchart TD
     N11 --> N12["检索问答切片：验收通过"]
     N12 --> N13["模拟面试与报告切片：验收通过"]
     N13 --> N14["当前：发布候选"]
-    N14 --> N15["发布批准与灰度上线：待执行"]
+    N14 --> N15["关闭发布运行阻断项"]
+    N15 --> N16["发布批准与灰度上线：待执行"]
 ```
 
 原则：
@@ -280,3 +283,4 @@ flowchart TD
 | v2.7 | 2026-10-18 | Ubuntu 24.04 Playwright WebKit 本地容器实跑 `14 passed`（4.1 min），覆盖 Desktop Safari + iPhone 13；新增 `workflow_dispatch` 与失败 Playwright 报告上传，GitHub Actions 托管 runner 实跑待推送 |
 | v2.8 | 2026-10-18 | GitHub Actions `ubuntu-latest` 托管 runner WebKit 实跑通过：Desktop Safari + iPhone 13 `14 passed`（2.4 min）；修复 preview 构建的 API 地址注入，增加手动 grep、默认零重试和全局超时；quality job 全绿 |
 | v2.9 | 2026-10-18 | 阶段切换至发布候选：全部业务切片、技术质量、生产 DirectMail/OSS 和 WebKit 门禁通过；下一步为发布批准、回滚/备份检查、灰度上线与观测 |
+| v3.0 | 2026-10-18 | 增加生产配置 fail-fast 与发布运行手册；记录生产 Worker、部署资产、密码重置异步投递、备份恢复和回滚演练为上线阻断项；默认质量门禁更新为 `121 passed, 49 skipped`、mypy 103 files |

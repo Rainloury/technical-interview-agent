@@ -2,7 +2,7 @@
 
 当前阶段：**发布候选（release candidate）；隐私与可观测门禁已通过，G4A 行为矩阵已通过，全部技术与生产依赖门禁已通过，待发布批准并执行上线**。`DR-07` 已批准，`web/` 已实现账号、工作台、历史、响应式导航、简历闭环、问答、模拟面试、报告、复习中心和数据删除。后端已提供 `interview_session`（`HttpOnly`）、`interview_csrf`、`X-CSRF-Token`、`{items, next_cursor}`、owner-scoped 业务与隐私 API、持久 SSE 重放、数据库权威截止和数据保留清理，并在 `auth_sessions.csrf_token_hash` 只保存 CSRF 哈希。
 
-上线质量门禁当前覆盖 Chromium 桌面与移动 E2E `14 passed`、隐私专项 `2 passed`、前端 Vitest `12 files / 37 tests`、后端集成测试 `158 passed`、Mypy `76 files`、确定性 eval `7/7` 和迁移头 `9f4c2a7d1e30`。GitHub Actions Ubuntu 24.04 托管 runner 的 Playwright WebKit Desktop Safari + iPhone 13 实跑 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed`。真实 provider 三档单轮 eval 已通过；110 条行为矩阵为 `110/110`（完整运行 `108/110` + 定向复验 `2/2`）；10 场整场成本 P95 为 ¥0.83908，且每场均覆盖追问，检索为数据库内词法排序、外部费用 ¥0。
+上线质量门禁当前覆盖 Chromium 桌面与移动 E2E `14 passed`、隐私专项 `2 passed`、前端 Vitest `12 files / 37 tests`、默认测试 `121 passed, 49 skipped`、后端集成测试 `158 passed`、Mypy `103 files`、确定性 eval `7/7` 和迁移头 `9f4c2a7d1e30`。GitHub Actions Ubuntu 24.04 托管 runner 的 Playwright WebKit Desktop Safari + iPhone 13 实跑 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed`。真实 provider 三档单轮 eval 已通过；110 条行为矩阵为 `110/110`（完整运行 `108/110` + 定向复验 `2/2`）；10 场整场成本 P95 为 ¥0.83908，且每场均覆盖追问，检索为数据库内词法排序、外部费用 ¥0。
 
 | 文档 | 用途 | 状态 |
 | --- | --- | --- |
@@ -17,7 +17,8 @@
 | [威胁模型](./threat-model.md) | 信任边界、主要威胁、控制措施和上线阻断条件 | v0.6 首切片安全控制已验收 |
 | [架构决策记录](./adr/README.md) | ADR-0001 至 ADR-0008 及后续技术决策 | 8 项已接受 |
 | [技术方案评审清单](./technical-review-checklist.md) | 架构门禁、已批准需求、基座验收证据和后续条件 | v2.1 发布候选门禁已通过 |
-| [下一步执行计划](./next-steps.md) | 核心基座和业务纵向切片的执行顺序与退出条件 | v2.9 待发布批准 |
+| [发布与回滚运行手册](./release-runbook.md) | 生产配置、迁移备份恢复、灰度观察、Go/No-Go 和回滚流程 | v0.1 发布候选；存在上线阻断项 |
+| [下一步执行计划](./next-steps.md) | 核心基座和业务纵向切片的执行顺序与退出条件 | v3.0 发布运行资产待关闭 |
 | [项目规则](../AGENTS.md) | 技术栈、分层边界、智能体开发约束、安全底线和 DoD | 生效中 |
 
 ## 快速定位
@@ -31,6 +32,7 @@
 | MVP 如何拆成可交付切片 | [开发切片](./development-flow.md#mvp-开发切片) |
 | 每个功能怎样算完成 | [完成定义](./development-flow.md#完成定义) |
 | 上线前检查什么 | [上线前检查](./development-flow.md#上线前检查) |
+| 发布、迁移、观测和回滚怎么执行 | [发布与回滚运行手册](./release-runbook.md) |
 | 已确认的产品规则 | [需求基线第 14 节](./requirements.md#14-已确认决策基线) |
 | 哪些需求需要我审批 | [决策登记](./decision-register.md) |
 | 已接受的技术约束是什么 | [技术设计](./technical-design.md) 和 [ADR 索引](./adr/README.md) |

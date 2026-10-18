@@ -3,6 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -140,6 +141,47 @@ class Settings(BaseSettings):
         if ".." in Path(prefix).parts:
             raise ValueError("oss_prefix must not escape the bucket root")
         return prefix
+
+    def validate_deployment(self) -> None:
+        """Reject missing or development-only dependencies when starting a deployment."""
+        if self.app_env not in {"staging", "production"}:
+            return
+
+        required = {
+            "LLM_API_KEY": self.llm_api_key,
+            "LLM_FAST_MODEL": self.llm_fast_model,
+            "LLM_DEFAULT_MODEL": self.llm_default_model,
+            "LLM_REASONING_MODEL": self.llm_reasoning_model,
+            "SMTP_HOST": self.smtp_host,
+            "SMTP_USERNAME": self.smtp_username,
+            "SMTP_PASSWORD": self.smtp_password,
+            "SMTP_FROM_EMAIL": self.smtp_from_email,
+        }
+        if self.resume_storage_backend == "oss":
+            required.update(
+                {
+                    "OSS_ENDPOINT": self.oss_endpoint,
+                    "OSS_BUCKET": self.oss_bucket,
+                    "OSS_ACCESS_KEY_ID": self.oss_access_key_id,
+                    "OSS_ACCESS_KEY_SECRET": self.oss_access_key_secret,
+                }
+            )
+        missing = [name for name, value in required.items() if not value]
+        if missing:
+            raise ValueError(f"missing deployed configuration: {', '.join(missing)}")
+
+        if self.resume_storage_backend != "oss":
+            raise ValueError("staging/production require RESUME_STORAGE_BACKEND=oss")
+        if not self.cookie_secure:
+            raise ValueError("staging/production require COOKIE_SECURE=true")
+        if urlsplit(self.password_reset_base_url).scheme != "https":
+            raise ValueError("staging/production require an https PASSWORD_RESET_BASE_URL")
+        local_hosts = {"localhost", "127.0.0.1", "::1"}
+        if any(
+            (urlsplit(origin).hostname or "").lower() in local_hosts
+            for origin in (*self.app_allowed_origins, *self.csrf_allowed_origins)
+        ):
+            raise ValueError("staging/production must not allow localhost origins")
 
 
 @lru_cache

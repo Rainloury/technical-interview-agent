@@ -35,7 +35,7 @@
 | 技术基线 | 技术设计 v0.15，ADR-0001 至 ADR-0008 全部接受 |
 | 工程骨架 | 已完成，应用、迁移、质量门禁和首次 eval 基线均已验证 |
 | 需求审批 | `DR-01` 至 `DR-07` 已批准；`DR-07` 选择方案 A |
-| 当前阶段 | 发布候选（release candidate）；隐私与可观测门禁已通过，G4A 行为矩阵已通过，生产依赖与 WebKit 门禁通过，待发布批准 |
+| 当前阶段 | 发布候选（release candidate）；G4A 行为矩阵已通过，工程、生产依赖与 WebKit 门禁通过；发布运行资产和恢复演练待关闭，之后才能待发布批准 |
 | 下一步 | 完成发布批准、回滚/备份检查并执行灰度上线 |
 
 ## 流程总览
@@ -609,15 +609,15 @@ flowchart TD
 
 1. Playwright Chromium 桌面与移动项目通过 `14 passed`，GitHub Actions Ubuntu 24.04 托管 runner WebKit Desktop Safari + iPhone 13 通过 `14 passed`（2.4 min）；覆盖账号、历史、简历、问答、模拟面试、受保护报告、复习入口和账号数据删除。
 2. 前端 typecheck、Vitest `12 files / 37 tests`、ESLint 和生产构建通过。
-3. 后端 ruff、格式检查、mypy（76 files）、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` 通过，迁移头为 `9f4c2a7d1e30`。
+3. 后端 ruff、格式检查、mypy（103 files）、默认测试 `121 passed, 49 skipped`、`RUN_INTEGRATION=1 pytest`（`158 passed`）和 `alembic check` 通过，迁移头为 `9f4c2a7d1e30`。
 4. `interview_session` 的 `HttpOnly` 边界、`interview_csrf`/`X-CSRF-Token` 写请求保护和 `csrf_token_hash` 仅保存哈希均有自动化验证。
 5. 历史接口的 `{items, next_cursor}`、问答历史重开、持久 SSE 游标和公开证据字段边界均已验证。
 
-全部业务切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。生产依赖已验证：阿里云 DirectMail TLS/登录/实际发送、阿里云 OSS 私有桶上传/读取/删除、GitHub Actions Ubuntu WebKit `14 passed`。当前进入发布候选，等待项目负责人批准上线。
+全部业务切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。生产依赖已验证：阿里云 DirectMail TLS/登录/实际发送、阿里云 OSS 私有桶上传/读取/删除、GitHub Actions Ubuntu WebKit `14 passed`。当前处于发布候选；生产 Worker、部署资产、密码重置异步投递、备份恢复和回滚演练仍按[发布运行手册](./release-runbook.md)阻断上线。
 
 建议执行顺序：
 
-1. 按[下一步执行计划](./next-steps.md)完成发布批准与上线清单。
+1. 按[发布运行手册](./release-runbook.md)和[下一步执行计划](./next-steps.md)关闭上线阻断项。
 2. 确认生产环境变量、密钥轮换、数据库迁移和对象存储保留策略。
 3. 确认回滚方案、备份恢复、监控告警和灰度范围。
 4. 执行灰度上线并观察任务成功率、延迟、失败率、成本与删除任务。
@@ -648,3 +648,4 @@ flowchart TD
 | v2.9 | 2026-10-18 | 模拟面试与报告切片验收通过：双视口 E2E `12 passed`、面试专项 `4 passed`、前端 `11 files / 36 tests`、后端 `126 passed`、mypy 58 files、确定性 eval `3/3`、迁移头 `7d1a3e5b9c42`；当前阶段切换为上线质量切片 |
 | v3.0 | 2026-10-18 | 发布评审启动：隐私删除、保留清理、审计保留、ops metrics 和确定性阈值 eval 通过；Chromium 双视口 E2E `14 passed`、前端 `12 files / 37 tests`、后端 `158 passed`、mypy 76 files、确定性 eval `7/7`、迁移头 `9f4c2a7d1e30`；G4A 与整场成本门禁通过 |
 | v3.1 | 2026-10-18 | 阶段切换至发布候选：DirectMail 实际发送、OSS 真实私有桶和 GitHub Actions Ubuntu WebKit `14 passed` 均关闭；quality job 全绿，当前仅待项目负责人批准发布及执行回滚/备份检查、灰度上线与观测 |
+| v3.2 | 2026-10-18 | 增加生产配置启动 fail-fast 与发布运行手册；明确生产 Worker、部署资产、密码重置异步投递、备份恢复和回滚演练仍阻断上线；默认测试更新为 `121 passed, 49 skipped`、mypy 103 files |

@@ -21,6 +21,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Build and configure the application."""
 
     resolved = settings or get_settings()
+    resolved.validate_deployment()
     configure_logging(resolved.app_log_level)
     logger = get_logger("app.lifecycle")
 

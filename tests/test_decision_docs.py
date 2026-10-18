@@ -14,6 +14,7 @@ API_CONTRACT = ROOT / "docs" / "api-contract.md"
 TECHNICAL_DESIGN = ROOT / "docs" / "technical-design.md"
 THREAT_MODEL = ROOT / "docs" / "threat-model.md"
 DATA_MODEL = ROOT / "docs" / "data-model.md"
+RELEASE_RUNBOOK = ROOT / "docs" / "release-runbook.md"
 README = ROOT / "README.md"
 DOCS_README = ROOT / "docs" / "README.md"
 
@@ -99,7 +100,7 @@ def test_phase_docs_describe_the_release_candidate_stage() -> None:
         assert "12 files / 37 tests" in text, path
         assert "158 passed" in text, path
         assert "14 passed" in text, path
-        assert "76 files" in text, path
+        assert "103 files" in text, path
         assert "9f4c2a7d1e30" in text, path
         assert "7/7" in text, path
         assert "WebKit" in text and "14 passed" in text, path
@@ -144,6 +145,31 @@ def test_release_candidate_docs_do_not_reopen_closed_launch_gates() -> None:
         assert "模拟面试（待开发）" not in text, path
         current_text = text.rsplit("版本记录", 1)[0]
         assert "发布评审待确认" not in current_text, path
+
+
+def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() -> None:
+    assert RELEASE_RUNBOOK.is_file()
+    runbook = _read(RELEASE_RUNBOOK)
+
+    for fragment in (
+        "生产 Worker 入口",
+        "部署资产",
+        "密码重置投递",
+        "备份恢复",
+        "回滚演练",
+        "监控告警",
+        "Go/No-Go",
+        "/health/ready",
+        "dead_letter",
+        "scoring_failed",
+        "pg_dump",
+        "pg_restore",
+        "9f4c2a7d1e30",
+    ):
+        assert fragment in runbook, f"{fragment} missing from {RELEASE_RUNBOOK}"
+
+    next_steps = _read(NEXT_STEPS)
+    assert "release-runbook.md" in next_steps
 
 
 def test_retrieval_qa_assets_and_boundaries_are_present() -> None:
