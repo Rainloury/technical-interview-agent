@@ -166,7 +166,7 @@ def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() 
         "pg_restore",
         "3b7e1c9d4a20",
         "3b7e1c9d4a20",
-        "067f34e",
+        "7b9ed7a",
     ):
         assert fragment in runbook, f"{fragment} missing from {RELEASE_RUNBOOK}"
 
