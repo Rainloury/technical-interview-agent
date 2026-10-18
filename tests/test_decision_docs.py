@@ -15,6 +15,7 @@ TECHNICAL_DESIGN = ROOT / "docs" / "technical-design.md"
 THREAT_MODEL = ROOT / "docs" / "threat-model.md"
 DATA_MODEL = ROOT / "docs" / "data-model.md"
 RELEASE_RUNBOOK = ROOT / "docs" / "release-runbook.md"
+RESTORE_DRILL = ROOT / "docs" / "database-restore-drill-2026-10-18.md"
 README = ROOT / "README.md"
 DOCS_README = ROOT / "docs" / "README.md"
 
@@ -172,6 +173,24 @@ def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() 
 
     next_steps = _read(NEXT_STEPS)
     assert "release-runbook.md" in next_steps
+
+
+def test_database_restore_drill_keeps_auditable_evidence() -> None:
+    assert RESTORE_DRILL.is_file()
+    drill = _read(RESTORE_DRILL)
+
+    for fragment in (
+        "`passed`",
+        "PostgreSQL 16.15",
+        "technical-interview-agent-restore-20261018T145010Z",
+        "9f75d1d84204386a19f8ba887a6917976823dcf2b7c9e1dd0a0a4946a306d39e",
+        "3b7e1c9d4a20",
+        "`public`：27 张表",
+        "`pg_restore` 退出码为 `0`",
+        "孤立记录数",
+        "生产灾备验收",
+    ):
+        assert fragment in drill, f"{fragment} missing from {RESTORE_DRILL}"
 
 
 def test_retrieval_qa_assets_and_boundaries_are_present() -> None:
