@@ -17,6 +17,7 @@ DATA_MODEL = ROOT / "docs" / "data-model.md"
 RELEASE_RUNBOOK = ROOT / "docs" / "release-runbook.md"
 RESTORE_DRILL = ROOT / "docs" / "database-restore-drill-2026-10-18.md"
 ROLLBACK_DRILL = ROOT / "docs" / "application-rollback-drill-2026-10-18.md"
+ALERT_DRILL = ROOT / "docs" / "alert-delivery-drill-2026-10-19.md"
 README = ROOT / "README.md"
 DOCS_README = ROOT / "docs" / "README.md"
 
@@ -100,10 +101,10 @@ def test_phase_docs_describe_the_release_candidate_stage() -> None:
         ), path
         assert "0.83908" in text, path
         assert "12 files / 37 tests" in text, path
-        assert "198 passed" in text, path
+        assert "198 passed" in text or "206 passed" in text, path
         assert "14 passed" in text, path
-        assert "109 files" in text, path
-        assert "3b7e1c9d4a20" in text, path
+        assert "109 files" in text or "112 files" in text, path
+        assert "7e2b4c6d8f10" in text, path
         assert "7/7" in text, path
         assert "WebKit" in text and "14 passed" in text, path
 
@@ -166,8 +167,8 @@ def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() 
         "scoring_failed",
         "pg_dump",
         "pg_restore",
-        "3b7e1c9d4a20",
-        "3b7e1c9d4a20",
+        "7e2b4c6d8f10",
+        "7e2b4c6d8f10",
         "7b9ed7a",
     ):
         assert fragment in runbook, f"{fragment} missing from {RELEASE_RUNBOOK}"
@@ -209,6 +210,26 @@ def test_application_rollback_drill_keeps_auditable_evidence() -> None:
         "生产网络",
     ):
         assert fragment in drill, f"{fragment} missing from {ROLLBACK_DRILL}"
+
+
+def test_alert_delivery_drill_keeps_auditable_evidence() -> None:
+    assert ALERT_DRILL.is_file()
+    drill = _read(ALERT_DRILL)
+
+    for fragment in (
+        "`passed`",
+        "7e2b4c6d8f10",
+        "technical-interview-agent alerts",
+        "ready_failed",
+        "dead_letter",
+        "scoring_failed",
+        "deletion_failed",
+        "worker_heartbeat_stale",
+        "status=delivered: 5",
+        "total: 5",
+        "生产 Slack、飞书、钉钉或企业告警网关",
+    ):
+        assert fragment in drill, f"{fragment} missing from {ALERT_DRILL}"
 
 
 def test_retrieval_qa_assets_and_boundaries_are_present() -> None:

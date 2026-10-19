@@ -2,11 +2,11 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.0 |
+| 文档版本 | v1.1 |
 | 文档状态 | 发布候选；运行手册已建立，发布批准与上线执行待完成 |
 | 更新日期 | 2026-10-18 |
 | 发布基线 | `7b9ed7a` |
-| 迁移头 | `3b7e1c9d4a20` |
+| 迁移头 | `7e2b4c6d8f10` |
 
 > 本手册区分“已验证”和“上线前必须补齐”。未关闭的阻断项不得通过口头豁免进入生产。
 
@@ -24,14 +24,14 @@
 | 容器镜像与生产编排 | 已提供 | 非 root 生产镜像、独立 migrate/API/Worker Compose、健康检查、只读根文件系统和 CI 镜像构建门禁 |
 | 备份恢复演练 | 通过（本地隔离实例） | PostgreSQL 16.15 custom dump 恢复成功；迁移头 `3b7e1c9d4a20`、27 张 `public` 表行数和关键外键一致；详见[演练记录](./database-restore-drill-2026-10-18.md) |
 | 回滚演练 | 通过（本地隔离预发布编排） | API + Worker 从 `55a1053` 切到 `7b9ed7a`，健康检查通过；保留 `3b7e1c9d4a20` schema，Worker 租约测试任务完成；详见[演练记录](./application-rollback-drill-2026-10-18.md) |
+| 监控告警 | 通过（本地真实 webhook） | 五类告警 `alert_deliveries` 记录 5/5 delivered，接收器收到 5/5；详见[演练记录](./alert-delivery-drill-2026-10-19.md) |
 | 密码重置投递 | 已提供 | 请求事务只保存加密投递密文和 `password_reset_delivery` 任务；Worker 异步发送、有限重试，终态失败清除密文 |
 
 ## 2. 上线阻断项
 
 以下任一未关闭，Go/No-Go 结论必须为 `NO-GO`：
 
-1. **监控告警**：为 `/health/ready`、`dead_letter`、`scoring_failed`、删除失败、Worker 心跳和 LLM 成本配置可通知的告警。
-2. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
+1. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
 
 ## 3. 发布前配置
 
@@ -113,7 +113,7 @@ uv run alembic upgrade head
 uv run alembic current
 ```
 
-预期迁移头为 `3b7e1c9d4a20`。迁移完成后再启动新应用版本和 Worker。
+预期迁移头为 `7e2b4c6d8f10`。迁移完成后再启动新应用版本和 Worker。
 
 ### 4.3 恢复
 
@@ -195,7 +195,7 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 - [ ] 镜像和编排已补齐，CI 构建门禁通过，API 与 Worker 使用同一发布 SHA。
 - [x] 数据库备份完成，恢复演练通过（本地隔离实例；生产灾备存储仍需复核）。
 - [x] 上一版本回滚演练通过，数据库向前兼容策略明确（本地隔离环境；生产镜像与网络仍需复核）。
-- [ ] `/health/live` 与 `/health/ready` 通过，告警可实际送达。
+- [x] `/health/live` 与 `/health/ready` 通过，五类告警可实际送达本地真实 webhook；生产通知渠道仍需复核。
 - [ ] DirectMail DNS 验证和真实投递人工确认通过。
 - [ ] OSS 私有、加密、权限与生命周期复核通过。
 - [ ] 密码重置投递由持久 Worker 任务完成，SMTP 失败不影响中性响应；待发布演练复核。
@@ -240,3 +240,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v0.8 | 2026-10-18 | 发布基线推进至 `7b9ed7a`；修复 E2E 进程组清理与超时退出，最终验证 run `39136496514` 的 quality、container 与 WebKit 实跑 `14 passed` 全绿 |
 | v0.9 | 2026-10-18 | 完成本地独立 PostgreSQL 恢复演练：迁移头、27 张业务表行数、关键外键与可写性全部核对通过；保留生产灾备存储复核、回滚和告警阻断项 |
 | v1.0 | 2026-10-18 | 完成本地隔离 API + Worker 回滚演练：`55a1053` 切到 `7b9ed7a`，保留 `3b7e1c9d4a20` schema，健康检查与租约接管通过；保留生产灾备、生产镜像/网络复核、告警和发布审批阻断项 |
+| v1.1 | 2026-10-19 | 新增告警巡检、webhook 通知和 `alert_deliveries` 送达记录；五类告警真实送达演练 5/5，迁移头推进至 `7e2b4c6d8f10`；保留生产通知渠道、生产环境和发布审批阻断项 |

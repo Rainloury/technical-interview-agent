@@ -94,6 +94,7 @@ def _production_settings() -> Settings:
         oss_access_key_id="oss-key",
         oss_access_key_secret="oss-secret",
         password_reset_base_url="https://app.example.com/reset-password",
+        alert_webhook_url="https://alerts.example.com/hooks/technical-interview-agent",
     )
 
 
@@ -147,6 +148,7 @@ def test_settings_can_disable_dotenv_loading(tmp_path: Path) -> None:
         ),
         ("smtp_host", None, "missing deployed configuration: SMTP_HOST"),
         ("llm_api_key", None, "missing deployed configuration: LLM_API_KEY"),
+        ("alert_webhook_url", None, "missing deployed configuration: ALERT_WEBHOOK_URL"),
     ],
 )
 def test_production_configuration_rejects_unsafe_or_missing_values(

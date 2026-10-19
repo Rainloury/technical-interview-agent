@@ -84,7 +84,7 @@
 | 确定性 Agent 行为 eval | `passed` | `evals/run.py`、`evals/baseline.json` |
 | 阶段与审批文档契约 | `passed` | `tests/test_decision_docs.py` 验证 `DR-07` 已批准、`web/` 资产和当前阶段证据 |
 | 默认与集成质量门禁 | `passed` | 默认测试 `147 passed, 51 skipped`；`RUN_INTEGRATION=1 pytest` 为 `198 passed`；集成结果包含文档契约、provider 矩阵、整场成本、DirectMail 和 OSS 适配器契约测试 |
-| 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `3b7e1c9d4a20` |
+| 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `7e2b4c6d8f10` |
 | 确定性行为评测 | `passed` | `pytest -q evals` 与 eval CLI 为 `7/7`，通过率 1.0 |
 | 前端工程与账号路径 | `passed` | `web/`；注册、登录、退出、找回/重置密码、空工作台和响应式导航 |
 | 会话与 CSRF | `passed` | `interview_session` 为 `HttpOnly`；`interview_csrf` 配合 `X-CSRF-Token`；`auth_sessions.csrf_token_hash` 只保存哈希 |

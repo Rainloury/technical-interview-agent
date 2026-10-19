@@ -39,6 +39,11 @@ def test_production_compose_separates_migration_api_and_worker() -> None:
         'command: ["technical-interview-agent", "api"]',
         "worker:",
         'command: ["technical-interview-agent", "worker"]',
+        "alerts:",
+        'command: ["technical-interview-agent", "alerts"]',
+        'network_mode: "service:api"',
+        "worker-health:/var/run/technical-interview-agent",
+        "worker-health:",
         "condition: service_healthy",
         'restart: "no"',
         "stop_grace_period: 35s",
@@ -64,6 +69,16 @@ def test_production_compose_requires_explicit_image_and_secret_env() -> None:
         "POSTGRES_PASSWORD",
     ):
         assert f"${{{variable}:?set {variable}}}" in compose
+
+
+def test_alert_service_uses_api_localhost_and_shared_worker_health_volume() -> None:
+    compose = _read("deploy/production.compose.yaml")
+
+    assert 'network_mode: "service:api"' in compose
+    assert "worker-health:/var/run/technical-interview-agent" in compose
+    assert "worker-health:/var/run/technical-interview-agent:ro" in compose
+    assert "POSTGRES_DB" in compose
+    assert "worker-health:" in compose.split("volumes:", 1)[-1]
 
 
 def test_docker_context_excludes_secrets_and_nonproduction_assets() -> None:

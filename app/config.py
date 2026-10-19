@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     worker_shutdown_grace_seconds: float = Field(default=30.0, gt=0)
     worker_health_file: str = "/var/run/technical-interview-agent/worker-health.json"
     ops_metrics_token: SecretStr | None = None
+    alert_webhook_url: str | None = None
+    alert_webhook_token: SecretStr | None = None
+    alert_worker_heartbeat_max_age_seconds: int = Field(default=90, ge=30)
+    alert_http_timeout_seconds: float = Field(default=5, gt=0)
 
     smtp_host: str | None = None
     smtp_port: int = Field(default=465, ge=1, le=65535)
@@ -152,6 +156,16 @@ class Settings(BaseSettings):
             raise ValueError("oss_prefix must not escape the bucket root")
         return prefix
 
+    @field_validator("alert_webhook_url")
+    @classmethod
+    def validate_alert_webhook_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        endpoint = value.strip()
+        if not endpoint.startswith(("https://", "http://")):
+            raise ValueError("alert_webhook_url must use http or https")
+        return endpoint
+
     def validate_deployment(self) -> None:
         """Reject missing or development-only dependencies when starting a deployment."""
         if self.app_env not in {"staging", "production"}:
@@ -170,6 +184,7 @@ class Settings(BaseSettings):
             "SMTP_USERNAME": self.smtp_username,
             "SMTP_PASSWORD": self.smtp_password,
             "SMTP_FROM_EMAIL": self.smtp_from_email,
+            "ALERT_WEBHOOK_URL": self.alert_webhook_url,
         }
         if self.resume_storage_backend == "oss":
             required.update(

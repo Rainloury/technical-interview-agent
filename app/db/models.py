@@ -851,3 +851,26 @@ class DataDeletionRequest(Base):
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
     completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class AlertDelivery(Base):
+    __tablename__ = "alert_deliveries"
+    __table_args__ = (
+        CheckConstraint(
+            "alert_code IN ('ready_failed','dead_letter','scoring_failed',"
+            "'deletion_failed','worker_heartbeat_stale')",
+            name="alert_code",
+        ),
+        CheckConstraint("status IN ('delivered','failed')", name="status"),
+        Index("ix_alert_deliveries_code_created", "alert_code", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    alert_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False, server_default="critical")
+    observed_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    http_status: Mapped[int | None] = mapped_column(Integer)
+    error_detail: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = _created_at()

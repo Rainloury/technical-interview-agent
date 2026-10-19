@@ -4,7 +4,7 @@
 | --- | --- |
 | 文档版本 | v3.6 |
 | 文档状态 | 流程基线 |
-| 更新日期 | 2026-10-18 |
+| 更新日期 | 2026-10-19 |
 | 需求依据 | `docs/requirements.md` v1.5 |
 | 产品依据 | `docs/product-design.md` v1.5 |
 | 技术依据 | `docs/technical-design.md` v0.20 |
@@ -609,11 +609,11 @@ flowchart TD
 
 1. Playwright Chromium 桌面与移动项目通过 `14 passed`，GitHub Actions Ubuntu 24.04 托管 runner WebKit Desktop Safari + iPhone 13 通过 `14 passed`（2.4 min）；覆盖账号、历史、简历、问答、模拟面试、受保护报告、复习入口和账号数据删除。
 2. 前端 typecheck、Vitest `12 files / 37 tests`、ESLint 和生产构建通过。
-3. 后端 ruff、格式检查、mypy（109 files）、默认测试 `147 passed, 51 skipped`、`RUN_INTEGRATION=1 pytest`（`198 passed`）和 `alembic check` 通过，迁移头为 `3b7e1c9d4a20`。
+3. 后端 ruff、格式检查、mypy（112 files）、默认测试 `156 passed, 51 skipped`、`RUN_INTEGRATION=1 pytest`（`206 passed`）和 `alembic check` 通过；新增告警测试后迁移头为 `7e2b4c6d8f10`。
 4. `interview_session` 的 `HttpOnly` 边界、`interview_csrf`/`X-CSRF-Token` 写请求保护和 `csrf_token_hash` 仅保存哈希均有自动化验证。
 5. 历史接口的 `{items, next_cursor}`、问答历史重开、持久 SSE 游标和公开证据字段边界均已验证。
 
-全部业务切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。生产依赖已验证：阿里云 DirectMail TLS/登录/实际发送、阿里云 OSS 私有桶上传/读取/删除、GitHub Actions Ubuntu WebKit `14 passed`。当前处于发布候选；生产 Worker、部署资产和密码重置异步投递已提供，备份恢复、回滚和告警仍按[发布运行手册](./release-runbook.md)阻断上线。
+全部业务切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。生产依赖已验证：阿里云 DirectMail TLS/登录/实际发送、阿里云 OSS 私有桶上传/读取/删除、GitHub Actions Ubuntu WebKit `14 passed`。当前处于发布候选；生产 Worker、部署资产和密码重置异步投递已提供，本地备份恢复、回滚和五类告警送达演练已通过，生产环境与通知渠道复核仍按[发布运行手册](./release-runbook.md)阻断上线。
 
 建议执行顺序：
 

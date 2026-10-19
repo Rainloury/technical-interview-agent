@@ -88,6 +88,10 @@ services:
   worker:
     <<: *application
     command: ["technical-interview-agent", "worker"]
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - worker-health:/var/run/technical-interview-agent
     stop_grace_period: 35s
     healthcheck:
       test:
@@ -102,5 +106,18 @@ services:
       start_period: 20s
       retries: 3
 
+  alerts:
+    <<: *application
+    command: ["technical-interview-agent", "alerts"]
+    restart: "no"
+    network_mode: "service:api"
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - worker-health:/var/run/technical-interview-agent:ro
+    healthcheck:
+      disable: true
+
 volumes:
   postgres-data:
+  worker-health:
