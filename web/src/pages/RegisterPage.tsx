@@ -60,7 +60,7 @@ export function RegisterPage() {
     >
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         {register.isSuccess && (
-          <SuccessNotice message="注册请求已受理。请前往登录；该结果不会透露账号是否已存在。" />
+          <SuccessNotice message="注册请求已受理。请使用原密码登录；已有账号的密码不会被本次注册修改。" />
         )}
         {register.isError && <ErrorNotice message={userError(register.error)} />}
         <FormField

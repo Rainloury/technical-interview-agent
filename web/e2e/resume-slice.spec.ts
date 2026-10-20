@@ -28,7 +28,7 @@ async function registerAndLogin(page: Page, email: string): Promise<void> {
   await page.getByRole("textbox", { name: "确认密码", exact: true }).fill(password);
   await page.getByRole("button", { name: "创建账号" }).click();
   await expect(
-    page.getByText("注册请求已受理。请前往登录；该结果不会透露账号是否已存在。"),
+    page.getByText("注册请求已受理。请使用原密码登录；已有账号的密码不会被本次注册修改。"),
   ).toBeVisible();
   await page.getByRole("link", { name: "前往登录" }).click();
   await page.getByLabel("邮箱").fill(email);
@@ -106,6 +106,11 @@ async function stopWorker(worker: WorkerProcess | null): Promise<void> {
   }
 }
 
+async function clearBrowserSession(page: Page): Promise<void> {
+  await page.context().clearCookies();
+  await page.goto("/login");
+}
+
 test("uploads a resume, renders 10 grounded questions, and deletes its source", async ({
   page,
 }, testInfo) => {
@@ -115,6 +120,7 @@ test("uploads a resume, renders 10 grounded questions, and deletes its source", 
 
   try {
     worker = await startDeterministicWorker(`${testInfo.config.rootDir}/..`);
+    await clearBrowserSession(page);
     await registerAndLogin(page, email);
 
     await page.goto("/resumes/new");

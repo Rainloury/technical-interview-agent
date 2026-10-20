@@ -17,32 +17,43 @@ export function AuthLayout({ title, subtitle, footer, children }: AuthLayoutProp
           <span>技术面试工作台</span>
         </Link>
         <div className="auth-intro-copy">
-          <p className="eyebrow">TECHNICAL INTERVIEW AGENT</p>
-          <h1>把每一次准备，变成可追踪的进展。</h1>
+          <p className="eyebrow">TECHNICAL INTERVIEW AGENT / v1</p>
+          <h1>把每次练习，留成可复盘的记录。</h1>
           <p>
-            从工作台进入你的面试任务，查看历史记录，并持续沉淀技术面试准备过程。
+            简历分析、检索问答和模拟面试都进入同一条工作流。登录后从工作台继续。
           </p>
+          <div className="auth-terminal" aria-hidden="true">
+            <p>
+              <span>$</span> interview-agent workspace --session=active
+            </p>
+            <p>
+              <span>→</span> retrieve / answer / practice / review
+            </p>
+            <p>
+              <span>✓</span> ready
+            </p>
+          </div>
         </div>
         <ol className="auth-steps" aria-label="使用流程">
           <li>
             <span>01</span>
             <div>
-              <strong>进入账号</strong>
-              <p>注册或登录，只保留必要的会话信息。</p>
+              <strong>建立会话</strong>
+              <p>使用邮箱登录，会话凭据由安全 Cookie 管理。</p>
             </div>
           </li>
           <li>
             <span>02</span>
             <div>
-              <strong>查看工作台</strong>
-              <p>集中查看最近任务与模拟面试记录。</p>
+              <strong>选择训练路径</strong>
+              <p>从简历、问答或模拟面试进入具体任务。</p>
             </div>
           </li>
           <li>
             <span>03</span>
             <div>
-              <strong>持续回看</strong>
-              <p>按类型分页浏览自己的历史记录。</p>
+              <strong>回到证据</strong>
+              <p>在历史和复习中心检查结果与薄弱点。</p>
             </div>
           </li>
         </ol>
@@ -50,6 +61,10 @@ export function AuthLayout({ title, subtitle, footer, children }: AuthLayoutProp
 
       <section className="auth-panel">
         <div className="auth-form-wrap">
+          <div className="auth-panel-meta">
+            <span>SECURE SESSION</span>
+            <span>INTERVIEW_AGENT / AUTH</span>
+          </div>
           <p className="eyebrow mobile-only">TECHNICAL INTERVIEW AGENT</p>
           <h2>{title}</h2>
           <p className="auth-subtitle">{subtitle}</p>

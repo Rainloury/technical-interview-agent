@@ -265,7 +265,7 @@ Reset password -> consume hashed token -> revoke all user sessions
 当前实现已提供：
 
 - `FAST`、`DEFAULT`、`REASONING` 三档集中解析和价格元数据，支持环境变量覆盖。
-- OpenAI Responses structured outputs 与 Anthropic JSON Schema 统一适配，不绕过官方 SDK。
+- OpenAI Responses structured outputs、完整 Chat Completions 端点的流式 JSON 输出与 Anthropic JSON Schema 统一适配，不绕过官方 SDK。
 - 统一超时、有限重试、Schema 二次校验、token/费用统计和 trace 日志。
 - 可从测试注入 provider，确定性评测不需要网络或真实密钥。
 

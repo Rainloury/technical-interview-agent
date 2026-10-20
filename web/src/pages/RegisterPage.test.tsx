@@ -16,6 +16,9 @@ describe("RegisterPage", () => {
     expect(
       await screen.findByText(/注册请求已受理/),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/已有账号的密码不会被本次注册修改/),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "前往登录" })).toHaveAttribute(
       "href",
       "/login",

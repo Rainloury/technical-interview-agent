@@ -40,13 +40,14 @@ export function WorkspacePage() {
   const hasActivity = recentTasks.length > 0 || recentInterviews.length > 0;
 
   return (
-    <div className="page">
+    <div className="page workspace-page">
       <header className="page-header">
         <div>
           <p className="eyebrow">WORKSPACE / OVERVIEW</p>
+          <p className="hero-prefix">你好，</p>
           <h1>{displayName}</h1>
           <p className="page-lede">
-            这里汇总你的最近任务和模拟面试。先从下方记录继续，或查看完整历史。
+            从最近记录继续，或启动一条新的训练路径。
           </p>
         </div>
         <div className="page-header-actions">
@@ -84,7 +85,26 @@ export function WorkspacePage() {
 
       {dashboard.isSuccess && (
         <>
-          <section className="summary-strip" aria-label="工作台摘要">
+          <section className="workspace-hero" aria-label="工作台摘要">
+            <div className="workspace-hero-main">
+              <span className="workspace-index" aria-hidden="true" />
+              <span className="workspace-rule-mark" aria-hidden="true" />
+              <div className="workspace-start">
+                <p>下一步</p>
+                <h2>选择一条训练路径</h2>
+                <div className="workspace-start-actions">
+                  <Link className="primary-button primary-button--link" to="/interviews">
+                    <MessageSquareText size={17} aria-hidden="true" />
+                    <span>选择面试方向</span>
+                  </Link>
+                  <Link className="secondary-button secondary-button--link" to="/qa">
+                    <Search size={17} aria-hidden="true" />
+                    <span>向知识库提问</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+            <div className="summary-strip" aria-label="工作台摘要">
             <div className="summary-item">
               <span className="summary-icon" aria-hidden="true">
                 <FileText size={19} />
@@ -114,6 +134,7 @@ export function WorkspacePage() {
                 </strong>
               </div>
             </div>
+            </div>
           </section>
 
           {!hasActivity && (
@@ -132,10 +153,10 @@ export function WorkspacePage() {
           )}
 
           {hasActivity && (
-            <div className="dashboard-grid">
+            <div className="dashboard-grid dashboard-ledger">
               <section className="content-section" aria-labelledby="recent-tasks-title">
                 <div className="section-heading">
-                  <div>
+                  <div className="section-heading-copy">
                     <p className="section-kicker">TASKS</p>
                     <h2 id="recent-tasks-title">最近任务</h2>
                   </div>
@@ -178,7 +199,7 @@ export function WorkspacePage() {
 
               <section className="content-section" aria-labelledby="recent-interviews-title">
                 <div className="section-heading">
-                  <div>
+                  <div className="section-heading-copy">
                     <p className="section-kicker">INTERVIEWS</p>
                     <h2 id="recent-interviews-title">最近面试</h2>
                   </div>

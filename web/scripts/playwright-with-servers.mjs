@@ -11,8 +11,9 @@ const parseTimeout = (value, fallback) => {
   const timeout = Number(value ?? fallback);
   return Number.isFinite(timeout) && timeout > 0 ? timeout : fallback;
 };
-const dataEncryptionKey =
-  process.env.DATA_ENCRYPTION_KEY ?? randomBytes(32).toString("base64url");
+// E2E owns its ephemeral key so an invalid developer .env value cannot break
+// password-reset flows, and the shared API/worker keep the same key.
+const dataEncryptionKey = randomBytes(32).toString("base64url");
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
 const workerHealthFile =
   process.env.WORKER_HEALTH_FILE ??

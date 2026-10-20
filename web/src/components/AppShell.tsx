@@ -1,4 +1,5 @@
 import {
+  Command,
   History,
   LayoutDashboard,
   LogOut,
@@ -17,11 +18,11 @@ import { api } from "../api/client";
 import { useAuth } from "../auth/context";
 
 const navigation = [
-  { to: "/workspace", label: "工作台", icon: LayoutDashboard },
-  { to: "/qa", label: "技术问答", icon: Search },
-  { to: "/interviews", label: "模拟面试", icon: MessageSquareText },
-  { to: "/reviews", label: "复习中心", icon: Target },
-  { to: "/history", label: "历史记录", icon: History },
+  { to: "/workspace", label: "工作台", code: "01", icon: LayoutDashboard },
+  { to: "/qa", label: "技术问答", code: "02", icon: Search },
+  { to: "/interviews", label: "模拟面试", code: "03", icon: MessageSquareText },
+  { to: "/reviews", label: "复习中心", code: "04", icon: Target },
+  { to: "/history", label: "历史记录", code: "05", icon: History },
 ];
 
 export function AppShell() {
@@ -51,7 +52,7 @@ export function AppShell() {
       <header className="mobile-header">
         <NavLink className="brand brand--mobile" to="/workspace">
           <span className="brand-mark" aria-hidden="true">
-            T
+            T/
           </span>
           <span>技术面试工作台</span>
         </NavLink>
@@ -67,24 +68,40 @@ export function AppShell() {
       </header>
 
       <aside className={`sidebar ${mobileOpen ? "sidebar--open" : ""}`}>
-        <div>
-          <NavLink
-            className="brand"
-            to="/workspace"
-            onClick={() => setMobileOpen(false)}
-          >
-            <span className="brand-mark" aria-hidden="true">
-              T
-            </span>
-            <span>
-              技术面试
-              <small>AGENT WORKSPACE</small>
-            </span>
-          </NavLink>
+        <div className="sidebar-body">
+          <div className="sidebar-topline">
+            <NavLink
+              className="brand"
+              to="/workspace"
+              onClick={() => setMobileOpen(false)}
+            >
+              <span className="brand-mark" aria-hidden="true">
+                T/
+              </span>
+              <span className="brand-copy">
+                技术面试工作台
+                <small>INTERVIEW AGENT · TERMINAL</small>
+              </span>
+            </NavLink>
+            <button
+              type="button"
+              className="icon-button sidebar-close"
+              aria-label="关闭导航"
+              onClick={() => setMobileOpen(false)}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="sidebar-status" aria-label="工作区状态">
+            <span className="status-light" aria-hidden="true" />
+            <span>WORKSPACE ONLINE</span>
+            <Command size={14} aria-hidden="true" />
+          </div>
 
           <nav className="primary-nav" aria-label="主导航">
-            <p className="nav-label">工作区</p>
-            {navigation.map(({ to, label, icon: Icon }) => (
+            <p className="nav-label">工作区 / 索引</p>
+            {navigation.map(({ to, label, code, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -93,6 +110,7 @@ export function AppShell() {
                 }
                 onClick={() => setMobileOpen(false)}
               >
+                <span className="nav-code" data-index={code} aria-hidden="true" />
                 <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
                 <span>{label}</span>
               </NavLink>
@@ -100,7 +118,7 @@ export function AppShell() {
           </nav>
 
           <div className="next-work">
-            <p className="nav-label">简历</p>
+            <p className="nav-label">快捷入口</p>
             <NavLink
               className={({ isActive }) =>
                 `nav-item ${isActive ? "nav-item--active" : ""}`
@@ -108,6 +126,7 @@ export function AppShell() {
               to="/resumes/new"
               onClick={() => setMobileOpen(false)}
             >
+              <span className="nav-code" data-index="++" aria-hidden="true" />
               <Plus size={18} strokeWidth={1.8} aria-hidden="true" />
               <span>上传简历</span>
             </NavLink>
@@ -121,7 +140,7 @@ export function AppShell() {
             </span>
             <div>
               <strong>{displayName}</strong>
-              <span>已登录</span>
+              <span>已登录 · session</span>
             </div>
           </div>
           <button
@@ -146,6 +165,10 @@ export function AppShell() {
       )}
 
       <main className="main-content">
+        <div className="workspace-rail" aria-hidden="true">
+          <span>TECHNICAL INTERVIEW AGENT</span>
+          <span>BUILD · PRACTICE · REVIEW</span>
+        </div>
         <Outlet />
       </main>
     </div>

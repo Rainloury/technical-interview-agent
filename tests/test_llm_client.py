@@ -10,22 +10,48 @@ from typing import Any, cast
 import anthropic
 import httpx
 import pytest
+import respx
 from app.config import Settings
 from app.llm.client import (
     DeepSeekProvider,
     LlmClient,
     LlmClientError,
     LlmResult,
+    OpenAiProvider,
     PromptMetadata,
     ProviderRequest,
     ProviderResult,
     TraceContext,
+    _chat_completions_root,
 )
+from openai.types.chat import ChatCompletionChunk
 from pydantic import BaseModel
 
 
 class Output(BaseModel):
     answer: str
+
+
+@pytest.mark.parametrize(
+    ("base_url", "expected"),
+    [
+        (
+            "https://copilot.tencent.com/v2/chat/completions",
+            "https://copilot.tencent.com/v2",
+        ),
+        (
+            "https://copilot.tencent.com/v2/chat/completions/",
+            "https://copilot.tencent.com/v2",
+        ),
+        ("https://api.openai.com/v1", None),
+        (None, None),
+    ],
+)
+def test_chat_completions_root_only_normalizes_full_endpoints(
+    base_url: str | None,
+    expected: str | None,
+) -> None:
+    assert _chat_completions_root(base_url) == expected
 
 
 class FakeProvider:
@@ -44,6 +70,19 @@ class FakeProvider:
         if isinstance(outcome, Exception):
             raise outcome
         return outcome
+
+
+class FakeStream:
+    def __init__(self, chunks: list[ChatCompletionChunk]) -> None:
+        self._chunks = chunks
+
+    def __aiter__(self) -> FakeStream:
+        return self
+
+    async def __anext__(self) -> ChatCompletionChunk:
+        if not self._chunks:
+            raise StopAsyncIteration
+        return self._chunks.pop(0)
 
 
 class BlockingProvider:
@@ -294,3 +333,137 @@ async def test_deepseek_adapter_uses_json_mode_and_maps_usage() -> None:
     assert result.output_tokens == 5
     assert result.tool_calls == ("search",)
     assert calls[0]["response_format"] == {"type": "json_object"}
+
+
+@respx.mock
+async def test_openai_adapter_uses_full_chat_endpoint_once() -> None:
+    sse = (
+        'data: {"id":"chunk-1","object":"chat.completion.chunk","created":1,'
+        '"model":"deepseek-v4.1-flash","choices":[{"index":0,"delta":'
+        '{"role":"assistant","content":"{\\"answer\\":\\"ok\\"}"},"finish_reason":"stop"}],'
+        '"usage":null}\n\n'
+        'data: {"id":"chunk-2","object":"chat.completion.chunk","created":1,'
+        '"model":"deepseek-v4.1-flash","choices":[],"usage":'
+        '{"prompt_tokens":12,"completion_tokens":5,"total_tokens":17}}\n\n'
+        "data: [DONE]\n\n"
+    )
+    route = respx.post("https://copilot.tencent.com/v2/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            headers={"Content-Type": "text/event-stream"},
+            text=sse,
+        )
+    )
+    provider = OpenAiProvider(
+        Settings(
+            llm_provider="openai",
+            llm_api_key="test-key",
+            llm_base_url="https://copilot.tencent.com/v2/chat/completions",
+        )
+    )
+
+    try:
+        result = await provider.generate(
+            ProviderRequest(
+                model="deepseek-v4.1-flash",
+                system_prompt="system",
+                user_prompt="user",
+                max_output_tokens=128,
+            ),
+            Output,
+        )
+    finally:
+        await provider.close()
+
+    assert route.call_count == 1
+    assert result.data == Output(answer="ok")
+    assert result.input_tokens == 12
+    assert result.output_tokens == 5
+    assert result.finish_reason == "stop"
+
+
+async def test_openai_chat_provider_accumulates_streamed_content_and_usage() -> None:
+    calls: list[dict[str, object]] = []
+    chunks = [
+        ChatCompletionChunk.model_validate(
+            {
+                "id": "chunk-1",
+                "object": "chat.completion.chunk",
+                "created": 1,
+                "model": "deepseek-v4.1-flash",
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {"role": "assistant", "content": '{"answer":'},
+                        "finish_reason": None,
+                    }
+                ],
+                "usage": None,
+            }
+        ),
+        ChatCompletionChunk.model_validate(
+            {
+                "id": "chunk-2",
+                "object": "chat.completion.chunk",
+                "created": 1,
+                "model": "deepseek-v4.1-flash",
+                "choices": [
+                    {
+                        "index": 0,
+                        "delta": {"content": '"streamed"}'},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": None,
+            }
+        ),
+        ChatCompletionChunk.model_validate(
+            {
+                "id": "chunk-3",
+                "object": "chat.completion.chunk",
+                "created": 1,
+                "model": "deepseek-v4.1-flash",
+                "choices": [],
+                "usage": {
+                    "prompt_tokens": 21,
+                    "completion_tokens": 7,
+                    "total_tokens": 28,
+                },
+            }
+        ),
+    ]
+
+    class FakeCompletions:
+        async def create(self, **kwargs: object) -> FakeStream:
+            calls.append(kwargs)
+            return FakeStream(chunks)
+
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(completions=FakeCompletions()),
+    )
+    provider = OpenAiProvider(
+        Settings(
+            llm_provider="openai",
+            llm_api_key="test-key",
+            llm_base_url="https://copilot.tencent.com/v2/chat/completions",
+            _env_file=None,
+        ),
+        client=fake_client,
+    )
+
+    result = await provider.generate(
+        ProviderRequest(
+            model="deepseek-v4.1-flash",
+            system_prompt="system",
+            user_prompt="user",
+            max_output_tokens=128,
+        ),
+        Output,
+    )
+
+    assert result.data == Output(answer="streamed")
+    assert result.input_tokens == 21
+    assert result.output_tokens == 7
+    assert result.finish_reason == "stop"
+    assert calls[0]["stream"] is True
+    assert calls[0]["stream_options"] == {"include_usage": True}

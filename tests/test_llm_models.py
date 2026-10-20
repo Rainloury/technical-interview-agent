@@ -7,11 +7,11 @@ from app.llm.models import ModelTier, estimate_cost_usd, resolve_model_tier
 
 
 def test_model_tiers_are_provider_specific_and_centrally_configured() -> None:
-    assert Settings().llm_provider == "deepseek"
-    openai = Settings(llm_provider="openai")
-    anthropic = Settings(llm_provider="anthropic")
-    deepseek = Settings(llm_provider="deepseek")
-    local = Settings(llm_provider="local")
+    assert Settings(_env_file=None).llm_provider == "deepseek"
+    openai = Settings(llm_provider="openai", _env_file=None)
+    anthropic = Settings(llm_provider="anthropic", _env_file=None)
+    deepseek = Settings(llm_provider="deepseek", _env_file=None)
+    local = Settings(llm_provider="local", _env_file=None)
 
     assert resolve_model_tier(ModelTier.FAST, openai).name == "gpt-5-mini"
     assert resolve_model_tier("DEFAULT", anthropic).name == "claude-sonnet-4-5"

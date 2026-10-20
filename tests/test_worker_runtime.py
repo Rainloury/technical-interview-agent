@@ -467,9 +467,19 @@ async def test_worker_runner_writes_live_health_while_running(
     assert not health_file.exists()
 
 
-def test_cli_dispatches_worker_without_reload(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_dispatches_worker_without_reload(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     seen: list[Settings] = []
     executed: list[bool] = []
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(
+        "LLM_PROVIDER=openai\n"
+        'APP_ALLOWED_ORIGINS=["http://127.0.0.1:3001"]\n'
+        'CSRF_ALLOWED_ORIGINS=["http://127.0.0.1:3001"]\n',
+        encoding="utf-8",
+    )
 
     class FakeParser:
         def __init__(self, *args: object, **kwargs: object) -> None:
@@ -498,12 +508,15 @@ def test_cli_dispatches_worker_without_reload(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr("app.cli.argparse.ArgumentParser", FakeParser)
     monkeypatch.setattr("app.cli.asyncio.run", fake_run)
     monkeypatch.setattr("app.worker.WorkerRunner", FakeRunner)
+    monkeypatch.setattr("app.cli.get_settings", lambda: Settings(_env_file=dotenv))
 
     cli.main()
 
     assert executed == [True]
     assert len(seen) == 1
     assert seen[0].app_env == "development"
+    assert seen[0].llm_provider == "openai"
+    assert seen[0].app_allowed_origins == ["http://127.0.0.1:3001"]
 
 
 def test_cli_dispatches_migration(monkeypatch: pytest.MonkeyPatch) -> None:

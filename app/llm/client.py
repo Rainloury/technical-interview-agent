@@ -7,6 +7,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from typing import Any, Generic, Protocol, TypeVar
+from urllib.parse import urlsplit, urlunsplit
 
 import anthropic
 import httpx
@@ -105,10 +106,102 @@ def _parse_json_object(text: str) -> str:
     return stripped
 
 
-class OpenAiProvider:
-    """Official OpenAI SDK adapter using Responses structured outputs."""
+def _chat_completions_root(base_url: str | None) -> str | None:
+    """Return the SDK base URL when configured with a full Chat Completions endpoint."""
 
-    def __init__(self, settings: Settings) -> None:
+    if not base_url:
+        return None
+    parsed = urlsplit(base_url.strip())
+    path = parsed.path.rstrip("/")
+    suffix = "/chat/completions"
+    if not path.endswith(suffix):
+        return None
+    return urlunsplit((parsed.scheme, parsed.netloc, path[: -len(suffix)], "", ""))
+
+
+async def _generate_chat_completion(
+    client: Any,
+    request: ProviderRequest,
+    output_schema: type[BaseModel],
+    *,
+    stream: bool = False,
+) -> ProviderResult:
+    """Call one OpenAI-compatible Chat Completions endpoint with JSON output."""
+
+    schema_text = json.dumps(
+        output_schema.model_json_schema(),
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    response = await client.chat.completions.create(
+        model=request.model,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    f"{request.system_prompt}\n"
+                    "Return one JSON object only. It must satisfy this JSON Schema:\n"
+                    f"{schema_text}"
+                ),
+            },
+            {"role": "user", "content": request.user_prompt},
+        ],
+        max_tokens=request.max_output_tokens,
+        response_format={"type": "json_object"},
+        stream=stream,
+        stream_options={"include_usage": True} if stream else None,
+    )
+    if stream:
+        text_parts: list[str] = []
+        usage = None
+        finish_reason = None
+        tool_calls: list[str] = []
+        async for chunk in response:
+            if chunk.usage is not None:
+                usage = chunk.usage
+            if not chunk.choices:
+                continue
+            choice = chunk.choices[0]
+            text_parts.append(choice.delta.content or "")
+            finish_reason = choice.finish_reason or finish_reason
+            tool_calls.extend(
+                call.function.name
+                for call in (choice.delta.tool_calls or [])
+                if call.function and call.function.name
+            )
+        text = "".join(text_parts)
+    else:
+        choice = response.choices[0]
+        text = choice.message.content or ""
+        usage = response.usage
+        finish_reason = choice.finish_reason
+        tool_calls = [
+            call.function.name for call in (choice.message.tool_calls or []) if call.function.name
+        ]
+    try:
+        parsed = output_schema.model_validate_json(_parse_json_object(text))
+    except Exception as exc:
+        raise LlmClientError(
+            "schema_error", "model output did not match the requested schema", retryable=True
+        ) from exc
+    return ProviderResult(
+        data=parsed,
+        input_tokens=getattr(usage, "prompt_tokens", 0) if usage else 0,
+        output_tokens=getattr(usage, "completion_tokens", 0) if usage else 0,
+        finish_reason=finish_reason,
+        tool_calls=tuple(tool_calls),
+    )
+
+
+class OpenAiProvider:
+    """OpenAI SDK adapter for Responses or a full Chat Completions endpoint."""
+
+    def __init__(self, settings: Settings, *, client: Any | None = None) -> None:
+        if client is not None:
+            self._client = client
+            self._uses_chat_completions = _chat_completions_root(settings.llm_base_url) is not None
+            return
         kwargs: dict[str, Any] = {
             "api_key": settings.llm_api_key.get_secret_value() if settings.llm_api_key else None,
             "timeout": httpx.Timeout(
@@ -117,13 +210,24 @@ class OpenAiProvider:
             ),
             "max_retries": 0,
         }
-        if settings.llm_base_url:
+        chat_root = _chat_completions_root(settings.llm_base_url)
+        self._uses_chat_completions = chat_root is not None
+        if chat_root is not None:
+            kwargs["base_url"] = chat_root
+        elif settings.llm_base_url:
             kwargs["base_url"] = settings.llm_base_url
         self._client = AsyncOpenAI(**kwargs)
 
     async def generate(
         self, request: ProviderRequest, output_schema: type[BaseModel]
     ) -> ProviderResult:
+        if self._uses_chat_completions:
+            return await _generate_chat_completion(
+                self._client,
+                request,
+                output_schema,
+                stream=True,
+            )
         response = await self._client.responses.parse(
             model=request.model,
             instructions=request.system_prompt,
@@ -234,47 +338,7 @@ class DeepSeekProvider:
     async def generate(
         self, request: ProviderRequest, output_schema: type[BaseModel]
     ) -> ProviderResult:
-        schema_text = json.dumps(
-            output_schema.model_json_schema(),
-            ensure_ascii=True,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        response = await self._client.chat.completions.create(
-            model=request.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        f"{request.system_prompt}\n"
-                        "Return one JSON object only. It must satisfy this JSON Schema:\n"
-                        f"{schema_text}"
-                    ),
-                },
-                {"role": "user", "content": request.user_prompt},
-            ],
-            max_tokens=request.max_output_tokens,
-            response_format={"type": "json_object"},
-        )
-        choice = response.choices[0]
-        text = choice.message.content or ""
-        try:
-            parsed = output_schema.model_validate_json(_parse_json_object(text))
-        except Exception as exc:
-            raise LlmClientError(
-                "schema_error", "model output did not match the requested schema", retryable=True
-            ) from exc
-        usage = response.usage
-        tool_calls = tuple(
-            call.function.name for call in (choice.message.tool_calls or []) if call.function.name
-        )
-        return ProviderResult(
-            data=parsed,
-            input_tokens=getattr(usage, "prompt_tokens", 0) if usage else 0,
-            output_tokens=getattr(usage, "completion_tokens", 0) if usage else 0,
-            finish_reason=choice.finish_reason,
-            tool_calls=tool_calls,
-        )
+        return await _generate_chat_completion(self._client, request, output_schema)
 
     async def close(self) -> None:
         close = getattr(self._client, "close", None)

@@ -185,6 +185,7 @@ async def test_preflight_rejects_unsupported_deepseek_model_before_batch(
         llm_provider="deepseek",
         llm_api_key="test-key",
         llm_reasoning_model="deepseek-v4.1-flash",
+        _env_file=None,
     )
 
     class FakeAsyncClient:
@@ -216,3 +217,24 @@ async def test_preflight_rejects_unsupported_deepseek_model_before_batch(
 
     with pytest.raises(ValueError, match=r"deepseek-v4\.1-flash"):
         await _preflight_model(settings)
+
+
+@pytest.mark.asyncio
+async def test_preflight_skips_models_probe_for_full_openai_chat_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = Settings(
+        llm_provider="openai",
+        llm_api_key="test-key",
+        llm_base_url="https://copilot.tencent.com/v2/chat/completions",
+        llm_reasoning_model="deepseek-v4-pro",
+        _env_file=None,
+    )
+
+    class UnexpectedAsyncClient:
+        def __init__(self, **_: object) -> None:
+            raise AssertionError("full Chat Completions endpoint must not probe /models")
+
+    monkeypatch.setattr(httpx, "AsyncClient", UnexpectedAsyncClient)
+
+    await _preflight_model(settings)

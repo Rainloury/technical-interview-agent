@@ -75,7 +75,7 @@ npm run test:e2e
 uv run python -m evals.run --save-baseline
 ```
 
-模型档位默认来自 `app/llm/models.py`；当前 DeepSeek 账号可用的模型是 `deepseek-flash` 与 `deepseek-v4-pro`，`.env.example` 已按这两项配置三档映射。如需切换账号已开通的具体模型，在 `.env` 中覆盖 `LLM_FAST_MODEL`、`LLM_DEFAULT_MODEL`、`LLM_REASONING_MODEL`。`deepseek-v4.1-flash` 不在供应商 `/models` 列表中，批量评测会在调用前通过 preflight 拒绝。Prompt 目录和工具结果限制也可通过 `.env.example` 中的对应配置调整。
+模型档位默认来自 `app/llm/models.py`；DeepSeek 模式默认使用 `deepseek-flash` 与 `deepseek-v4-pro`，`.env.example` 已按这两项配置三档映射。如需切换账号已开通的具体模型，在 `.env` 中覆盖 `LLM_FAST_MODEL`、`LLM_DEFAULT_MODEL`、`LLM_REASONING_MODEL`。OpenAI 兼容服务可设置 `LLM_PROVIDER=openai`，并把 `LLM_BASE_URL` 填成完整端点（以 `/chat/completions` 结尾）；客户端会自动推导 SDK 根地址并走流式 Chat Completions，累计 SSE 内容后执行同一套 Schema 校验。该模式不依赖 `/models` 预检。Prompt 目录和工具结果限制也可通过 `.env.example` 中的对应配置调整。
 
 生产依赖：
 

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 import uvicorn
 
-from app.config import Settings, get_settings
+from app.config import get_settings
 from app.db.session import create_engine, create_session_factory
 
 
@@ -24,14 +24,14 @@ def _run_api(*, reload: bool) -> None:
 async def _run_worker() -> None:
     from app.worker import WorkerRunner
 
-    settings = Settings(_env_file=None)
+    settings = get_settings()
     await WorkerRunner(settings=settings).run()
 
 
 async def _run_alerts() -> None:
     from app.alerts import evaluate_alerts
 
-    settings = Settings(_env_file=None)
+    settings = get_settings()
     if settings.alert_webhook_url is None:
         raise ValueError("ALERT_WEBHOOK_URL is required for alert checks")
     engine = create_engine(settings)

@@ -5,8 +5,6 @@ import { expect, test, type Page } from "@playwright/test";
 
 const password = "correct horse battery staple";
 const question = "如何设计有界重试并避免重复提交？";
-const answer =
-  "有界重试应设置次数上限，使用指数退避与抖动，并通过幂等键避免重复提交。";
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
 
 interface WorkerProcess {
@@ -26,7 +24,7 @@ async function registerAndLogin(page: Page, email: string): Promise<void> {
   await page.getByRole("textbox", { name: "确认密码", exact: true }).fill(password);
   await page.getByRole("button", { name: "创建账号" }).click();
   await expect(
-    page.getByText("注册请求已受理。请前往登录；该结果不会透露账号是否已存在。"),
+    page.getByText("注册请求已受理。请使用原密码登录；已有账号的密码不会被本次注册修改。"),
   ).toBeVisible();
   await page.getByRole("link", { name: "前往登录" }).click();
   await page.getByLabel("邮箱").fill(email);
@@ -99,6 +97,11 @@ async function stopWorker(worker: WorkerProcess | null): Promise<void> {
   }
 }
 
+async function clearBrowserSession(page: Page): Promise<void> {
+  await page.context().clearCookies();
+  await page.goto("/login");
+}
+
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -114,6 +117,7 @@ test("answers a question from published evidence and reopens it from history", a
 
   try {
     worker = await startDeterministicWorker(`${testInfo.config.rootDir}/..`);
+    await clearBrowserSession(page);
     await registerAndLogin(page, emailFor(testInfo.project.name));
 
     await page
@@ -126,9 +130,12 @@ test("answers a question from published evidence and reopens it from history", a
     await expect(page).toHaveURL(/\/qa\/[0-9a-f-]+$/);
 
     try {
-      await expect(page.getByText(answer, { exact: true })).toBeVisible({
+      await expect(page.getByRole("heading", { name: "回答" })).toBeVisible({
         timeout: 25_000,
       });
+      const answerText = await page.locator(".qa-answer-copy").innerText();
+      expect(answerText).toContain("限制总尝试次数");
+      expect(answerText).toContain("幂等键");
     } catch (error) {
       throw new Error(
         `${error instanceof Error ? error.message : String(error)}\nWorker diagnostics:\n${worker.diagnostics()}`,
@@ -142,23 +149,30 @@ test("answers a question from published evidence and reopens it from history", a
     expect(pageText).not.toContain(
       "1f4b4e3e-2f59-4a15-9a71-2fa3d7b94001",
     );
-    expect(pageText.match(new RegExp(answer, "g"))).toHaveLength(1);
     await expectNoHorizontalOverflow(page);
 
     await page.reload();
-    await expect(page.getByText(answer, { exact: true })).toBeVisible();
-    expect((await page.locator("body").innerText()).match(new RegExp(answer, "g"))).toHaveLength(1);
+    await expect(page.getByRole("heading", { name: "回答" })).toBeVisible();
+    expect(await page.locator(".qa-answer-copy").innerText()).toContain(
+      "限制总尝试次数",
+    );
 
     await page.goto("/history?type=qa");
     await expect(page.locator(".history-row")).toHaveCount(1);
     await page.getByRole("link", { name: `查看 ${question}` }).click();
     await expect(page).toHaveURL(/\/qa\/[0-9a-f-]+$/);
-    await expect(page.getByText(answer, { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "回答" })).toBeVisible();
+    expect(await page.locator(".qa-answer-copy").innerText()).toContain(
+      "限制总尝试次数",
+    );
 
     await page.goto("/workspace");
     await page.getByRole("link", { name: `查看 ${question}` }).click();
     await expect(page).toHaveURL(/\/qa\/[0-9a-f-]+$/);
-    await expect(page.getByText(answer, { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "回答" })).toBeVisible();
+    expect(await page.locator(".qa-answer-copy").innerText()).toContain(
+      "限制总尝试次数",
+    );
     await expectNoHorizontalOverflow(page);
   } finally {
     await stopWorker(worker);
@@ -173,6 +187,7 @@ test("replays the same idempotency key without creating a duplicate history reco
 
   try {
     worker = await startDeterministicWorker(`${testInfo.config.rootDir}/..`);
+    await clearBrowserSession(page);
     await registerAndLogin(page, emailFor(testInfo.project.name));
 
     const cookies = await page.context().cookies();

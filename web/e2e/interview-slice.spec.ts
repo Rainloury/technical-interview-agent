@@ -81,6 +81,11 @@ async function stopWorker(worker: WorkerProcess | null): Promise<void> {
   ]);
 }
 
+async function clearBrowserSession(page: Page): Promise<void> {
+  await page.context().clearCookies();
+  await page.goto("/login");
+}
+
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(
     await page.evaluate(
@@ -94,6 +99,7 @@ test("completes a bounded interview and unlocks the report", async ({ page }, te
   let worker: WorkerProcess | null = null;
   try {
     worker = await startDeterministicWorker(`${testInfo.config.rootDir}/..`);
+    await clearBrowserSession(page);
     await registerAndLogin(page, emailFor(testInfo.project.name));
 
     await page
@@ -182,6 +188,7 @@ test("shows neutral progress without scores while an interview is live", async (
   let worker: WorkerProcess | null = null;
   try {
     worker = await startDeterministicWorker(`${testInfo.config.rootDir}/..`);
+    await clearBrowserSession(page);
     await registerAndLogin(page, emailFor(testInfo.project.name));
     await page.goto("/interviews");
     await page.getByRole("button", { name: "创建并开始" }).click();

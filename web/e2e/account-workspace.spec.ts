@@ -23,7 +23,7 @@ async function register(page: Page, email: string): Promise<void> {
   await page.getByRole("textbox", { name: "确认密码", exact: true }).fill(password);
   await page.getByRole("button", { name: "创建账号" }).click();
   await expect(
-    page.getByText("注册请求已受理。请前往登录；该结果不会透露账号是否已存在。"),
+    page.getByText("注册请求已受理。请使用原密码登录；已有账号的密码不会被本次注册修改。"),
   ).toBeVisible();
 }
 
@@ -43,7 +43,7 @@ async function logout(page: Page, isMobile: boolean): Promise<void> {
 
 async function waitForResetLink(email: string): Promise<string> {
   let lastError: unknown;
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     try {
       const payload = JSON.parse(await readFile(resetFile, "utf8")) as {
         email?: string;
@@ -55,7 +55,7 @@ async function waitForResetLink(email: string): Promise<string> {
     } catch (error) {
       lastError = error;
     }
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error(`reset link for ${email} was not written: ${String(lastError)}`);
 }

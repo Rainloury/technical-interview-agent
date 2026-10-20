@@ -23,7 +23,12 @@ from app.interview_contracts import (
     score_band,
     weighted_total,
 )
-from app.llm.client import LlmClient, PromptMetadata, TraceContext
+from app.llm.client import (
+    LlmClient,
+    PromptMetadata,
+    TraceContext,
+    _chat_completions_root,
+)
 from app.llm.models import ModelTier, resolve_model_tier
 from app.prompts.loader import PromptLoader
 from app.tools._base import wrap_untrusted
@@ -890,6 +895,8 @@ async def _preflight_model(settings: Settings) -> None:
     if not settings.llm_api_key:
         raise ValueError("LLM_API_KEY is required for the provider matrix")
     profile = resolve_model_tier(ModelTier.REASONING, settings)
+    if _chat_completions_root(settings.llm_base_url) is not None:
+        return
     base = (settings.llm_base_url or "https://api.deepseek.com").rstrip("/")
     headers = {"Authorization": f"Bearer {settings.llm_api_key.get_secret_value()}"}
     async with httpx.AsyncClient(timeout=settings.llm_connect_timeout_seconds) as client:
