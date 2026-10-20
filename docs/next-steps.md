@@ -2,11 +2,11 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v3.8 |
+| 文档版本 | v3.9 |
 | 文档状态 | 发布候选；工程门禁、Worker、部署资产、密码重置异步投递、本地恢复/回滚和告警送达演练已通过，生产复核待补齐 |
-| 更新日期 | 2026-10-19 |
-| 当前阶段 | 发布候选（release candidate）；待发布批准与上线执行 |
-| 当前目标 | 补齐[发布运行手册](./release-runbook.md)中的生产环境与通知渠道复核，再完成灰度上线 |
+| 更新日期 | 2026-10-20 |
+| 当前阶段 | 发布候选（release candidate）；生产复核与发布批准待完成，尚未上线 |
+| 当前目标 | 冻结生产发布 SHA，并补齐[发布运行手册](./release-runbook.md)中的生产复核，再取得发布批准 |
 | 后续目标 | 灰度观测稳定后完成正式发布与复盘 |
 | 审批依据 | `docs/decision-register.md` v0.8 |
 
@@ -16,11 +16,11 @@
 
 | 事项 | 状态 | 证据 | 是否阻塞下一步 |
 | --- | --- | --- | --- |
-| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.6 | 否 |
+| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.7 | 否 |
 | 需求基线 | 已完成 | `docs/requirements.md` v1.5 | 否 |
 | 产品方案 | 已完成 | `docs/product-design.md` v1.5 | 否 |
 | 需求决策 `DR-01` 至 `DR-07` | `approved` | `docs/decision-register.md` v0.8 | 否 |
-| 技术设计 | 已完成 | `docs/technical-design.md` v0.20 | 否 |
+| 技术设计 | 已完成 | `docs/technical-design.md` v0.21 | 否 |
 | 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.7、`docs/state-machine.md` v0.5 | 否 |
 | 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.8、`docs/threat-model.md` v0.6 | 否 |
 | ADR-0001 至 ADR-0008 | 全部 `accepted` | `docs/adr/` | 否 |
@@ -46,13 +46,13 @@
 | 检索问答切片 | `passed` | owner 鉴权、幂等、任意 URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放、终态互斥和前端历史重开通过 | 否 |
 | 模拟面试与报告切片 | `passed` | 数据库硬截止、操作幂等、202 中性响应、评分阈值、两层追问、跳过/结束分支、评分失败收口、报告解锁、错题与薄弱点、双视口 E2E 通过 | 否 |
 | 隐私与可观测门禁 | `passed` | 账号删除、对象清理、保留清理、审计保留、删除状态、ops metrics、确定性阈值和双视口隐私 E2E 通过 | 否 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（112 files）、`156 passed, 51 skipped` 默认测试和 `alembic check` | 否 |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（112 files）、`166 passed, 51 skipped` 默认测试和 `alembic check` | 否 |
 | 生产配置 fail-fast | `passed` | `staging`/`production` 启动校验 LLM、SMTP、OSS、HTTPS 重置链接、Secure Cookie 和非 localhost 来源 | 否 |
 | 生产 Worker 入口 | `passed` | `technical-interview-agent worker`；配置 fail-fast、信号停机、并发上限、运行时限和网络资源清理有测试 | 否 |
 | 部署资产 | `passed` | `Dockerfile`、`deploy/production.compose.yaml`、非 root 运行、只读根文件系统、迁移/API/Worker 分离、健康检查和 CI 镜像构建门禁 | 否 |
 | 密码重置异步投递 | `passed` | 请求事务只写入加密投递密文和持久任务；Worker 有限重试、死信和密文清理通过 | 否 |
 | 告警送达演练 | `passed` | 五类告警真实 webhook 送达 5/5；`alert_deliveries` 记录 5/5 delivered；详见[演练记录](./alert-delivery-drill-2026-10-19.md) | 否 |
-| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v1.1；本地恢复、回滚和告警演练通过，生产环境与通知渠道复核未补齐 | 是 |
+| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v1.2；本地恢复、回滚和告警演练通过，生产 SHA、环境、灾备、邮件、OSS、异步重置与通知渠道复核未补齐 | 是 |
 
 隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS、部署资产、密码重置异步投递和 GitHub Actions WebKit 均已关闭。当前处于发布候选阶段，本地恢复、回滚和告警送达演练已通过；生产环境与通知渠道复核仍阻断灰度上线。
 
@@ -292,3 +292,4 @@ flowchart TD
 | v3.2 | 2026-10-18 | 同步 Worker 入口验收后的文档状态与质量证据：默认测试 `138 passed, 49 skipped`、mypy 104 files；保留部署编排、密码重置异步投递、备份恢复、回滚和告警为上线阻断项 |
 | v3.3 | 2026-10-18 | 补齐生产 Dockerfile、非 root 运行、migrate/API/Worker Compose、Worker 心跳和 CI 镜像构建门禁；关闭部署资产阻断项 |
 | v3.4 | 2026-10-18 | 密码重置改为加密密文 + 持久任务异步投递，新增重试、死信和密文清理；关闭同步 SMTP 阻断项 |
+| v3.9 | 2026-10-20 | 同步发布运行手册 v1.2：明确生产 SHA、配置、灾备、邮件、OSS、异步重置、通知渠道和发布批准八类未关闭门禁 |

@@ -88,7 +88,12 @@ def test_phase_docs_describe_the_release_candidate_stage() -> None:
     for path in documents:
         text = _read(path)
         assert "发布候选" in text, path
-        assert "待发布批准" in text or "发布批准与上线执行" in text, path
+        assert (
+            "待发布批准" in text
+            or "发布批准与上线执行" in text
+            or "发布批准待完成" in text
+            or "发布批准与上线执行待完成" in text
+        ), path
         assert "隐私与可观测门禁" in text and "已通过" in text, path
         assert (
             "真实 provider 三档单轮 eval 已通过" in text or "真实 provider FAST eval 已通过" in text
@@ -102,6 +107,7 @@ def test_phase_docs_describe_the_release_candidate_stage() -> None:
         assert "0.83908" in text, path
         assert "12 files / 37 tests" in text, path
         assert "198 passed" in text or "206 passed" in text, path
+        assert "166 passed, 51 skipped" in text, path
         assert "14 passed" in text, path
         assert "109 files" in text or "112 files" in text, path
         assert "7e2b4c6d8f10" in text, path
@@ -155,6 +161,14 @@ def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() 
     runbook = _read(RELEASE_RUNBOOK)
 
     for fragment in (
+        "生产 SHA 冻结",
+        "生产配置与密钥复核",
+        "生产灾备与回滚复核",
+        "DirectMail DNS 验证和真实投递人工确认",
+        "OSS 私有、加密、权限与生命周期复核",
+        "密码重置投递由持久 Worker 任务完成",
+        "生产通知渠道复核",
+        "发布审批",
         "生产 Worker 入口",
         "部署资产",
         "密码重置投递",
@@ -168,13 +182,49 @@ def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() 
         "pg_dump",
         "pg_restore",
         "7e2b4c6d8f10",
-        "7e2b4c6d8f10",
         "7b9ed7a",
     ):
         assert fragment in runbook, f"{fragment} missing from {RELEASE_RUNBOOK}"
 
     next_steps = _read(NEXT_STEPS)
     assert "release-runbook.md" in next_steps
+
+
+def test_phase_docs_do_not_claim_only_release_approval_remains() -> None:
+    documents = (
+        README,
+        DOCS_README,
+        NEXT_STEPS,
+        DEVELOPMENT_FLOW,
+        TECHNICAL_REVIEW,
+        TECHNICAL_DESIGN,
+    )
+    for path in documents:
+        text = _read(path)
+        current_text = text.rsplit("版本记录", 1)[0]
+        assert "只剩发布批准" not in current_text, path
+        assert "恢复和告警待关闭" not in current_text, path
+
+
+def test_docs_readme_references_current_document_versions() -> None:
+    docs_index = _read(DOCS_README)
+
+    def version(text: str) -> str:
+        match = re.search(r"^\| 文档版本 \| ([^|]+?) \|$", text, re.MULTILINE)
+        assert match, "document version is missing"
+        return match.group(1).strip()
+
+    assert f"| {version(_read(DEVELOPMENT_FLOW))} 当前流程基线 |" in docs_index
+    assert f"| {version(_read(TECHNICAL_DESIGN))} 当前基线 |" in docs_index
+    assert f"| {version(_read(RELEASE_RUNBOOK))} 发布候选；存在上线阻断项 |" in docs_index
+    assert f"| {version(_read(NEXT_STEPS))} " in docs_index
+    assert version(_read(DEVELOPMENT_FLOW)) in _read(NEXT_STEPS)
+    assert version(_read(TECHNICAL_DESIGN)) in _read(NEXT_STEPS)
+    assert version(_read(TECHNICAL_DESIGN)) in _read(TECHNICAL_REVIEW)
+    assert "模拟面试（下一项）" not in _read(DEVELOPMENT_FLOW)
+    assert "### 10. 模拟面试（已完成）" in _read(DEVELOPMENT_FLOW)
+    assert "### 11. 报告与复习（已完成）" in _read(DEVELOPMENT_FLOW)
+    assert "### 13. 全量验收与发布评审（已完成）" in _read(DEVELOPMENT_FLOW)
 
 
 def test_database_restore_drill_keeps_auditable_evidence() -> None:
