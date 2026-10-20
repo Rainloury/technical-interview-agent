@@ -2,10 +2,10 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.2 |
-| 文档状态 | 发布候选；生产复核、发布批准与上线执行待完成 |
+| 文档版本 | v1.3 |
+| 文档状态 | 发布候选；候选 SHA 已冻结，生产复核、发布批准与上线执行待完成 |
 | 更新日期 | 2026-10-20 |
-| 已验证基线 | `7b9ed7a` |
+| 候选发布基线 | `19cd750` |
 | 迁移头 | `7e2b4c6d8f10` |
 
 > 本手册区分“已验证”和“上线前必须补齐”。未关闭的阻断项不得通过口头豁免进入生产。
@@ -14,8 +14,8 @@
 
 | 项目 | 当前状态 | 证据或限制 |
 | --- | --- | --- |
-| 代码质量 | 通过 | 最终验证 run `39136496514` 的 `quality` 与 `container` job 成功 |
-| WebKit 兼容 | 通过 | 最终验证 run `39136496514` 的 WebKit Desktop Safari + iPhone 13 实跑 `14 passed`（1.7 min） |
+| 代码质量 | 通过 | 候选 SHA CI run `39398687660` 的 `quality` 与 `container` job 成功 |
+| WebKit 兼容 | 通过 | 同一候选 SHA CI run `39398687660` 的 WebKit Desktop Safari + iPhone 13 job 成功（3m13s） |
 | 生产邮件 | 部分验证 | DirectMail `smtpdm.aliyun.com:465` + SSL 已通过 TLS、登录和 SMTP 接受 |
 | 生产对象存储 | 通过 | 阿里云 OSS 私有桶 PUT/GET/DELETE 已通过 |
 | 生产配置 fail-fast | 本次新增 | `staging` / `production` 启动时校验 LLM、SMTP、OSS、HTTPS 和 Cookie/CORS 安全项 |
@@ -31,7 +31,7 @@
 
 以下任一未关闭，Go/No-Go 结论必须为 `NO-GO`：
 
-1. **生产 SHA 冻结**：候选 SHA 尚未冻结；冻结后 quality、container 与 WebKit CI 必须对该 SHA 全绿。
+1. **生产 SHA 冻结**：候选 SHA `19cd750` 的三个 CI job 已全绿；创建并推送 `v0.1.0-rc.1` annotated tag 后完成冻结。
 2. **生产配置与密钥复核**：生产环境变量、密钥管理、HTTPS 来源、Secure Cookie 和 Worker 参数尚未逐项签字。
 3. **生产灾备与回滚复核**：本地恢复与回滚演练已通过，但生产备份存储、镜像、网络和负责人尚未确认。
 4. **DirectMail DNS 验证和真实投递人工确认**：SPF、DKIM、DMARC 与生产环境密码重置邮件到达尚未闭环。
@@ -197,7 +197,7 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 
 进入发布前逐项签字：
 
-- [ ] 发布 SHA 已冻结，质量与 WebKit CI 对同一 SHA 全绿。
+- [ ] 发布 SHA `19cd750` 已创建 `v0.1.0-rc.1` annotated tag；质量、容器与 WebKit CI 对同一 SHA 全绿。
 - [ ] 生产配置核验通过，密钥未进入仓库或构建产物。
 - [ ] 镜像和编排已补齐，CI 构建门禁通过，API 与 Worker 使用同一发布 SHA。
 - [x] 数据库备份完成，恢复演练通过（本地隔离实例；生产灾备存储仍需复核）。
@@ -249,3 +249,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v1.0 | 2026-10-18 | 完成本地隔离 API + Worker 回滚演练：`55a1053` 切到 `7b9ed7a`，保留 `3b7e1c9d4a20` schema，健康检查与租约接管通过；保留生产灾备、生产镜像/网络复核、告警和发布审批阻断项 |
 | v1.1 | 2026-10-19 | 新增告警巡检、webhook 通知和 `alert_deliveries` 送达记录；五类告警真实送达演练 5/5，迁移头推进至 `7e2b4c6d8f10`；保留生产通知渠道、生产环境和发布审批阻断项 |
 | v1.2 | 2026-10-20 | 将容易误读的“唯一阻断项”展开为八类未关闭发布门禁；区分已验证基线 `7b9ed7a` 与尚待冻结的生产发布 SHA |
+| v1.3 | 2026-10-20 | 将候选发布基线更新为 `19cd750`，记录 CI run `39398687660` 的 quality、container 与 WebKit 三 job 全绿；待打 annotated tag 完成冻结 |

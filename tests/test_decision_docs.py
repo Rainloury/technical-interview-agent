@@ -190,6 +190,21 @@ def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() 
     assert "release-runbook.md" in next_steps
 
 
+def test_release_baseline_is_bound_to_the_recorded_ci_sha() -> None:
+    runbook = _read(RELEASE_RUNBOOK)
+    match = re.search(
+        r"^\| (?:已验证基线|候选发布基线) \| `([0-9a-f]{7,40})` \|$",
+        runbook,
+        re.MULTILINE,
+    )
+    assert match, "release baseline SHA is missing"
+    baseline = match.group(1)
+    current_facts = runbook.partition("## 2. 上线阻断项")[0]
+    assert "39136496514" not in current_facts
+    assert "19cd750" in runbook
+    assert f"`{baseline}`" in runbook
+
+
 def test_phase_docs_do_not_claim_only_release_approval_remains() -> None:
     documents = (
         README,
