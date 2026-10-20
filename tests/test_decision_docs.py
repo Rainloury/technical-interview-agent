@@ -213,6 +213,22 @@ def test_frozen_release_candidate_is_recorded_in_the_go_no_go_checklist() -> Non
     ) in runbook
 
 
+def test_release_runbook_documents_redacted_production_config_evidence() -> None:
+    runbook = _read(RELEASE_RUNBOOK)
+
+    for fragment in (
+        "scripts.check_production_config",
+        "production-config-check.json",
+        "不得包含密码、Token、Access Key、完整数据库 URL 或密钥值",
+        "生产 env 文件 SHA-256",
+        "OPS_METRICS_TOKEN` 至少 32 字符",
+        "不存在 localhost 或 `http://`",
+        "镜像、迁移、API 与 Worker 使用同一个 `v0.1.0-rc.1` 标签",
+        "Worker 心跳在 30 秒内",
+    ):
+        assert fragment in runbook, f"{fragment} missing from {RELEASE_RUNBOOK}"
+
+
 def test_phase_docs_do_not_claim_only_release_approval_remains() -> None:
     documents = (
         README,

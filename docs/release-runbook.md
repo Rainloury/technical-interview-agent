@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.3 |
+| 文档版本 | v1.4 |
 | 文档状态 | 发布候选；候选 SHA 已冻结，生产复核、发布批准与上线执行待完成 |
 | 更新日期 | 2026-10-20 |
 | 候选发布基线 | `19cd750` |
@@ -63,26 +63,37 @@
 
 ### 3.2 配置核验
 
-```bash
-uv run python - <<'PY'
-from app.config import get_settings
+生产 env 文件由部署平台或密钥管理生成，不得提交仓库。先对渲染后的文件执行脱敏配置核对，并将 JSON 报告保存到发布记录：
 
-settings = get_settings()
-settings.validate_deployment()
-print(
-    {
-        "environment": settings.app_env,
-        "storage": settings.resume_storage_backend,
-        "smtp_host": settings.smtp_host,
-        "smtp_port": settings.smtp_port,
-        "secure_cookie": settings.cookie_secure,
-        "origins": settings.app_allowed_origins,
-    }
-)
-PY
+```bash
+uv run python -m scripts.check_production_config \
+  --env-file /secure/path/production.env \
+  > /secure/path/production-config-check.json
 ```
 
-预期结果：进程正常退出；缺失或危险配置会以非零状态退出。不要输出密钥或完整数据库 URL。
+预期 `status` 为 `PASS`，且报告只包含环境、协议、域名、非敏感连接参数和密钥存在性；不得包含密码、Token、Access Key、完整数据库 URL 或密钥值。随后使用候选镜像以同一 env 文件启动 API 和 Worker，确认应用内 fail-fast 也通过：
+
+```bash
+IMAGE_REPOSITORY=<registry>/technical-interview-agent \
+IMAGE_TAG=v0.1.0-rc.1 \
+PRODUCTION_ENV_FILE=/secure/path/production.env \
+docker compose -f deploy/production.compose.yaml config --quiet
+
+IMAGE_REPOSITORY=<registry>/technical-interview-agent \
+IMAGE_TAG=v0.1.0-rc.1 \
+PRODUCTION_ENV_FILE=/secure/path/production.env \
+docker compose -f deploy/production.compose.yaml up -d migrate api worker
+```
+
+签名记录还必须包含：
+
+- 生产 env 文件 SHA-256、生成人、复核人和 UTC 时间；哈希只用于确认部署的是同一份配置。
+- `DATA_ENCRYPTION_KEY` 由 32 字节随机值生成，并能解密当前在途重置投递；轮换前已保留旧密钥。
+- `OPS_METRICS_TOKEN` 至少 32 字符，未出现在仓库、镜像、日志、工单或截图中。
+- `APP_ALLOWED_ORIGINS`、`CSRF_ALLOWED_ORIGINS` 与生产 HTTPS 域名完全一致；不存在 localhost 或 `http://`。
+- `DATABASE_URL` 不指向开发库或共享测试库，数据库连接池与 `WORKER_CONCURRENCY` 匹配。
+- 镜像、迁移、API 与 Worker 使用同一个 `v0.1.0-rc.1` 标签和同一生产 env 文件。
+- `/health/ready` 返回 PostgreSQL 与 Redis 均为 `ok`，Worker 心跳在 30 秒内。
 
 ### 3.3 OSS 复核
 
@@ -250,3 +261,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v1.1 | 2026-10-19 | 新增告警巡检、webhook 通知和 `alert_deliveries` 送达记录；五类告警真实送达演练 5/5，迁移头推进至 `7e2b4c6d8f10`；保留生产通知渠道、生产环境和发布审批阻断项 |
 | v1.2 | 2026-10-20 | 将容易误读的“唯一阻断项”展开为八类未关闭发布门禁；区分已验证基线 `7b9ed7a` 与尚待冻结的生产发布 SHA |
 | v1.3 | 2026-10-20 | 将候选发布基线更新为 `19cd750`，记录 CI run `39398687660` 的 quality、container 与 WebKit 三 job 全绿；待打 annotated tag 完成冻结 |
+| v1.4 | 2026-10-20 | 增加脱敏生产配置核对脚本；校验加密密钥长度、运维令牌强度、告警令牌和 HTTPS Origin；补齐镜像启动与签字证据 |

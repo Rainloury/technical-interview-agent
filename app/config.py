@@ -1,5 +1,7 @@
 """Validated application configuration."""
 
+import base64
+import binascii
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
@@ -184,6 +186,7 @@ class Settings(BaseSettings):
             "SMTP_USERNAME": self.smtp_username,
             "SMTP_PASSWORD": self.smtp_password,
             "SMTP_FROM_EMAIL": self.smtp_from_email,
+            "OPS_METRICS_TOKEN": self.ops_metrics_token,
             "ALERT_WEBHOOK_URL": self.alert_webhook_url,
         }
         if self.resume_storage_backend == "oss":
@@ -205,6 +208,27 @@ class Settings(BaseSettings):
             raise ValueError("staging/production require COOKIE_SECURE=true")
         if urlsplit(self.password_reset_base_url).scheme != "https":
             raise ValueError("staging/production require an https PASSWORD_RESET_BASE_URL")
+        if any(
+            urlsplit(origin).scheme != "https"
+            for origin in (*self.app_allowed_origins, *self.csrf_allowed_origins)
+        ):
+            raise ValueError(
+                "APP_ALLOWED_ORIGINS and CSRF_ALLOWED_ORIGINS must use https in staging/production"
+            )
+        if self.ops_metrics_token is None or len(self.ops_metrics_token.get_secret_value()) < 32:
+            raise ValueError("OPS_METRICS_TOKEN must be at least 32 characters")
+        assert self.data_encryption_key is not None
+        encoded_key = self.data_encryption_key.get_secret_value()
+        try:
+            decoded_key = base64.urlsafe_b64decode(encoded_key + "=" * (-len(encoded_key) % 4))
+        except (ValueError, binascii.Error) as exc:
+            raise ValueError("DATA_ENCRYPTION_KEY must be a 32-byte URL-safe Base64 key") from exc
+        if len(decoded_key) != 32:
+            raise ValueError("DATA_ENCRYPTION_KEY must be a 32-byte URL-safe Base64 key")
+        if self.alert_webhook_token is not None and not (
+            self.alert_webhook_token.get_secret_value().strip()
+        ):
+            raise ValueError("ALERT_WEBHOOK_TOKEN must not be blank when configured")
         local_hosts = {"localhost", "127.0.0.1", "::1"}
         if any(
             (urlsplit(origin).hostname or "").lower() in local_hosts

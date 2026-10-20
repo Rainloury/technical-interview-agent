@@ -94,7 +94,9 @@ def _production_settings() -> Settings:
         oss_access_key_id="oss-key",
         oss_access_key_secret="oss-secret",
         password_reset_base_url="https://app.example.com/reset-password",
+        ops_metrics_token="ops-production-token-32-characters-min",
         alert_webhook_url="https://alerts.example.com/hooks/technical-interview-agent",
+        alert_webhook_token="alert-production-token",
     )
 
 
@@ -166,6 +168,59 @@ def test_production_configuration_rejects_local_llm_provider() -> None:
     settings = _production_settings().model_copy(update={"llm_provider": "local"})
 
     with pytest.raises(ValueError, match="LLM_PROVIDER=local"):
+        settings.validate_deployment()
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        (
+            "data_encryption_key",
+            "not-base64",
+            "DATA_ENCRYPTION_KEY must be a 32-byte URL-safe Base64 key",
+        ),
+        (
+            "data_encryption_key",
+            base64.urlsafe_b64encode(b"short").decode(),
+            "DATA_ENCRYPTION_KEY must be a 32-byte URL-safe Base64 key",
+        ),
+        (
+            "ops_metrics_token",
+            None,
+            "missing deployed configuration: OPS_METRICS_TOKEN",
+        ),
+        (
+            "ops_metrics_token",
+            "too-short",
+            "OPS_METRICS_TOKEN must be at least 32 characters",
+        ),
+        (
+            "alert_webhook_token",
+            "",
+            "ALERT_WEBHOOK_TOKEN must not be blank when configured",
+        ),
+        (
+            "app_allowed_origins",
+            ["http://app.example.com"],
+            "APP_ALLOWED_ORIGINS and CSRF_ALLOWED_ORIGINS must use https in staging/production",
+        ),
+        (
+            "csrf_allowed_origins",
+            ["http://app.example.com"],
+            "APP_ALLOWED_ORIGINS and CSRF_ALLOWED_ORIGINS must use https in staging/production",
+        ),
+    ],
+)
+def test_production_configuration_rejects_weak_secrets_and_insecure_origins(
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    values = _production_settings().model_dump()
+    values[field] = value
+    settings = Settings(**values, _env_file=None)
+
+    with pytest.raises(ValueError, match=message):
         settings.validate_deployment()
 
 
