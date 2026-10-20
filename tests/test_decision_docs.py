@@ -205,6 +205,14 @@ def test_release_baseline_is_bound_to_the_recorded_ci_sha() -> None:
     assert f"`{baseline}`" in runbook
 
 
+def test_frozen_release_candidate_is_recorded_in_the_go_no_go_checklist() -> None:
+    runbook = _read(RELEASE_RUNBOOK)
+    assert (
+        "- [x] 发布 SHA `19cd750` 已创建 `v0.1.0-rc.1` annotated tag；"
+        "质量、容器与 WebKit CI 对同一 SHA 全绿。"
+    ) in runbook
+
+
 def test_phase_docs_do_not_claim_only_release_approval_remains() -> None:
     documents = (
         README,

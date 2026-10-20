@@ -31,7 +31,7 @@
 
 以下任一未关闭，Go/No-Go 结论必须为 `NO-GO`：
 
-1. **生产 SHA 冻结**：候选 SHA `19cd750` 的三个 CI job 已全绿；创建并推送 `v0.1.0-rc.1` annotated tag 后完成冻结。
+1. **生产 SHA 冻结**：候选 SHA `19cd750` 的三个 CI job 已全绿，`v0.1.0-rc.1` annotated tag 已创建并推送，冻结完成。
 2. **生产配置与密钥复核**：生产环境变量、密钥管理、HTTPS 来源、Secure Cookie 和 Worker 参数尚未逐项签字。
 3. **生产灾备与回滚复核**：本地恢复与回滚演练已通过，但生产备份存储、镜像、网络和负责人尚未确认。
 4. **DirectMail DNS 验证和真实投递人工确认**：SPF、DKIM、DMARC 与生产环境密码重置邮件到达尚未闭环。
@@ -197,7 +197,7 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 
 进入发布前逐项签字：
 
-- [ ] 发布 SHA `19cd750` 已创建 `v0.1.0-rc.1` annotated tag；质量、容器与 WebKit CI 对同一 SHA 全绿。
+- [x] 发布 SHA `19cd750` 已创建 `v0.1.0-rc.1` annotated tag；质量、容器与 WebKit CI 对同一 SHA 全绿。
 - [ ] 生产配置核验通过，密钥未进入仓库或构建产物。
 - [ ] 镜像和编排已补齐，CI 构建门禁通过，API 与 Worker 使用同一发布 SHA。
 - [x] 数据库备份完成，恢复演练通过（本地隔离实例；生产灾备存储仍需复核）。
