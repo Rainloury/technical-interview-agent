@@ -1,5 +1,8 @@
 .DS_Store
 .env
+.env.compose
+deploy/.env.compose
+deploy/production.env
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/

@@ -2,7 +2,7 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.4 |
+| 文档版本 | v1.5 |
 | 文档状态 | 发布候选；候选 SHA 已冻结，生产复核、发布批准与上线执行待完成 |
 | 更新日期 | 2026-10-20 |
 | 候选发布基线 | `19cd750` |
@@ -147,18 +147,42 @@ pg_restore --clean --if-exists --no-owner --no-acl \
 
 ## 5. 启动与健康检查
 
-当前 API 启动命令：
+生产使用 Docker Compose 部署完整栈。生产 project name 固定为 `technical-interview-agent-production`，与本地开发 `technical-interview-agent` 隔离。Compose 变量文件由部署平台渲染并保存在仓库外，模板为 `deploy/production.compose.env.example`；业务环境文件通过 `PRODUCTION_ENV_FILE` 注入。两者都必须来自密钥管理或受控发布主机，且不得提交仓库：
 
 ```bash
-docker compose -f deploy/production.compose.yaml --env-file <deployment.env> up -d migrate
-docker compose -f deploy/production.compose.yaml --env-file <deployment.env> up -d api
+cp deploy/production.compose.env.example /secure/path/production.compose.env
+chmod 600 /secure/path/production.compose.env
+# 在受控环境中填写 IMAGE_*、PRODUCTION_ENV_FILE 和 POSTGRES_*，不要回填仓库模板。
 ```
 
-当前 Worker 启动命令：
+先执行迁移并确认成功，再启动 API 和 Worker。Compose 已声明 `migrate -> api/worker` 的完成依赖，`alerts` 依赖 API 和 Worker 健康：
 
 ```bash
-docker compose -f deploy/production.compose.yaml --env-file <deployment.env> up -d worker
+docker compose -f deploy/production.compose.yaml --env-file /secure/path/production.compose.env up -d migrate
+docker compose -f deploy/production.compose.yaml --env-file /secure/path/production.compose.env up -d api worker
+docker compose -f deploy/production.compose.yaml --env-file /secure/path/production.compose.env ps
 ```
+
+如果部署平台直接执行整栈，使用：
+
+```bash
+docker compose -f deploy/production.compose.yaml --env-file /secure/path/production.compose.env up -d
+```
+
+Compose 变量文件至少包含 `IMAGE_REPOSITORY`、`IMAGE_TAG`、`PRODUCTION_ENV_FILE`；使用内置 Postgres 时还必须提供与 `DATABASE_URL` 一致的 `POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`。不要把完整生产 env 放进镜像，也不要把任何密钥文件提交仓库。
+
+外部反向代理或负载均衡器必须在 API 容器前终止 TLS，并将请求转发到 `127.0.0.1:8000` 或受控内网地址；生产域名、`APP_ALLOWED_ORIGINS`、`CSRF_ALLOWED_ORIGINS` 和 `PASSWORD_RESET_BASE_URL` 必须一致。不要把 `API_BIND_ADDRESS` 默认值直接暴露到公网。
+
+观察启动结果：
+
+```bash
+docker compose -f deploy/production.compose.yaml --env-file /secure/path/production.compose.env ps
+docker compose -f deploy/production.compose.yaml --env-file /secure/path/production.compose.env logs --tail=100 api worker alerts
+curl --fail --silent --show-error https://<prod-domain>/health/live
+curl --fail --silent --show-error https://<prod-domain>/health/ready
+```
+
+`migrate` 必须是退出码 0；`api` 和 `worker` 必须为 `healthy`；`/health/ready` 的 PostgreSQL 与 Redis 必须均为 `ok`；Worker 心跳必须在 30 秒内更新。`alerts` 是一次性任务，不应使用长期 `restart` 策略。
 
 禁止使用 `scripts/e2e_resume_worker.py` 作为生产 Worker。部署平台应在停止时先发送 `SIGTERM`，等待 Worker 退出后再强制终止；`WORKER_CONCURRENCY` 必须与数据库连接池和任务吞吐一起评估。
 
@@ -262,3 +286,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v1.2 | 2026-10-20 | 将容易误读的“唯一阻断项”展开为八类未关闭发布门禁；区分已验证基线 `7b9ed7a` 与尚待冻结的生产发布 SHA |
 | v1.3 | 2026-10-20 | 将候选发布基线更新为 `19cd750`，记录 CI run `39398687660` 的 quality、container 与 WebKit 三 job 全绿；待打 annotated tag 完成冻结 |
 | v1.4 | 2026-10-20 | 增加脱敏生产配置核对脚本；校验加密密钥长度、运维令牌强度、告警令牌和 HTTPS Origin；补齐镜像启动与签字证据 |
+| v1.5 | 2026-10-20 | 补齐 Docker Compose 完整栈部署：迁移/API/Worker/告警依赖顺序、Compose 变量模板、外部 TLS 边界和健康观察命令 |
