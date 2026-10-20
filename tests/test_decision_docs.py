@@ -229,6 +229,13 @@ def test_release_runbook_documents_redacted_production_config_evidence() -> None
         assert fragment in runbook, f"{fragment} missing from {RELEASE_RUNBOOK}"
 
 
+def test_production_config_signoff_requires_platform_evidence() -> None:
+    runbook = _read(RELEASE_RUNBOOK)
+    assert "- [ ] 生产配置核验通过，密钥未进入仓库或构建产物。" in runbook
+    assert "生产 env 文件 SHA-256、生成人、复核人和 UTC 时间" in runbook
+    assert "生产 env 文件由部署平台或密钥管理生成" in runbook
+
+
 def test_phase_docs_do_not_claim_only_release_approval_remains() -> None:
     documents = (
         README,
