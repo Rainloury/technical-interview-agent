@@ -67,10 +67,11 @@ from app.llm.models import ModelTier
 from app.logging import configure_logging, get_logger
 from app.mail import deliver_password_reset
 from app.prompts.loader import PromptError, PromptLoader
-from app.qa_contracts import QaAnswerOutput, retrieve_evidence
+from app.qa_contracts import QaAnswerOutput
 from app.rag.chunking import split_document
 from app.rag.extraction import extract_document
 from app.rag.ollama import EmbeddingClient, OllamaEmbeddingClient
+from app.rag.retrieval import hybrid_retrieve
 from app.resume_contracts import ResumeAnalysisOutput, ResumeQuestionsOutput
 from app.services.qa import (
     QA_PROMPT_VERSION,
@@ -1067,7 +1068,13 @@ class ResumeWorker:
 
         if state == "retrieving":
             async with self._sessions() as session:
-                retrieved = await retrieve_evidence(session, question=question)
+                retrieval = await hybrid_retrieve(
+                    session,
+                    owner_user_id=owner_user_id,
+                    question=question,
+                    embedding_client=self._embedding_client,
+                )
+                retrieved = retrieval.evidence
             async with self._sessions() as session:
                 await self._current_job(session, job_id, fencing_token)
                 qa_request = await session.get(
@@ -1082,7 +1089,9 @@ class ResumeWorker:
                         QaEvidence(
                             qa_request_id=qa_request.id,
                             knowledge_source_version_id=item.knowledge_source_version_id,
-                            source_title=item.source_title,
+                            user_document_chunk_id=item.user_document_chunk_id,
+                            source_kind=item.source_kind,
+                            source_title=item.title,
                             section_path=item.section_path,
                             snippet=item.snippet,
                             relevance_score=item.relevance_score,
@@ -1096,17 +1105,20 @@ class ResumeWorker:
                         qa_request,
                         event_type="evidence",
                         payload={
+                            "vector_status": retrieval.vector_status,
+                            "vector_error_code": retrieval.vector_error_code,
                             "items": [
                                 {
                                     "citation_id": item.position["citation_id"],
-                                    "title": item.source_title,
+                                    "title": item.title,
                                     "section_path": item.section_path,
                                     "snippet": item.snippet,
                                     "relevance_score": item.relevance_score,
                                     "source_state": "available",
+                                    "source_kind": item.source_kind,
                                 }
                                 for item in retrieved
-                            ]
+                            ],
                         },
                     )
                 await session.commit()

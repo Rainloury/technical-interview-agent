@@ -23,7 +23,7 @@ from app.interview_contracts import (
 from app.llm.client import PromptMetadata, TraceContext
 from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
-from app.qa_contracts import QaAnswerOutput
+from app.qa_contracts import QaAnswerOutput, tokenize
 from app.resume_contracts import (
     GeneratedQuestionOutput,
     ResumeAnalysisOutput,
@@ -249,6 +249,7 @@ async def _seed_qa_source(
                     section_index=0,
                     section_path="重试策略 / 有界重试",
                     content=QA_CONTENT,
+                    search_text=" ".join(tokenize(QA_CONTENT)),
                     token_count=len(QA_CONTENT),
                 )
             )

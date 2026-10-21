@@ -17,11 +17,14 @@ from app.db.models import (
     QaRequest,
     QaStreamEvent,
     User,
+    UserDocument,
+    UserDocumentChunk,
 )
 from app.llm.client import LlmClientError, LlmResult, PromptMetadata, TraceContext
 from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
-from app.qa_contracts import QaAnswerOutput
+from app.qa_contracts import QaAnswerOutput, tokenize
+from app.rag.ollama import OllamaEmbeddingError
 from app.services.qa import append_event, public_evidence
 from app.storage import LocalPrivateStorage
 from app.worker import ResumeWorker
@@ -97,6 +100,7 @@ async def _source(
                     section_index=index,
                     section_path=path,
                     content=content,
+                    search_text=" ".join(tokenize(content)),
                     token_count=max(1, len(content)),
                 )
             )
@@ -152,6 +156,11 @@ class QaStaticLlm:
         return LlmResult(output=self.output, trace=_trace(), cost_usd=0.0)
 
 
+class FailingEmbedding:
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        raise OllamaEmbeddingError("embedding_timeout", retryable=True)
+
+
 def _trace() -> Any:
     from app.trace import LlmTrace
 
@@ -175,6 +184,7 @@ def _worker(
     llm: Any,
     *,
     worker_id: str = "qa-worker-test",
+    embedding_client: Any = None,
 ) -> ResumeWorker:
     return ResumeWorker(
         settings=settings.model_copy(update={"worker_lease_seconds": 60}),
@@ -182,6 +192,7 @@ def _worker(
         storage=LocalPrivateStorage(settings.resume_storage_dir),
         llm=llm,
         prompt_loader=PromptLoader("app/prompts"),
+        embedding_client=embedding_client,
         worker_id=worker_id,
     )
 
@@ -567,6 +578,157 @@ async def test_public_evidence_never_exposes_internal_uuid(app_client: AppHarnes
     assert public.citation_id == "evidence-1"
     assert str(row.id) not in public.model_dump_json()
     assert user_id != request_id
+
+
+async def _seed_user_document(
+    app_client: AppHarness,
+    create_user: Any,
+    email: str,
+    *,
+    content: str = "私有资料说明：Redis 使用 LRU 淘汰和过期策略。",
+) -> tuple[User, UserDocument]:
+    owner: User = create_user(email)
+    async with app_client.session_factory() as session:
+        session.add(owner)
+        await session.flush()
+        now = datetime.now(UTC)
+        document = UserDocument(
+            owner_user_id=owner.id,
+            title="个人 Redis 资料",
+            original_filename="redis.md",
+            detected_mime="text/markdown",
+            size_bytes=len(content.encode()),
+            sha256=uuid.uuid4().hex,
+            object_key=f"{owner.id.hex}/redis.md",
+            state="ready",
+            chunk_count=1,
+            retention_expires_at=now + timedelta(days=90),
+        )
+        session.add(document)
+        await session.flush()
+        session.add(
+            UserDocumentChunk(
+                document_id=document.id,
+                owner_user_id=owner.id,
+                chunk_index=0,
+                section_path="正文 / 1",
+                content=content,
+                content_hash=uuid.uuid4().hex,
+                search_text=" ".join(tokenize(content)),
+                token_count=5,
+                embedding=[0.0] * 1024,
+            )
+        )
+        await session.commit()
+        await session.refresh(document)
+        return owner, document
+
+
+async def test_qa_falls_back_to_bm25_when_ollama_unavailable(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    _owner, _document = await _seed_user_document(
+        app_client,
+        create_user,
+        "qa-fallback@example.com",
+    )
+    client = app_client.client
+    _login(client, "qa-fallback@example.com")
+    accepted = _ask(client, "Redis 如何淘汰缓存？")
+    assert accepted.status_code == 202
+    request_id = uuid.UUID(accepted.json()["qa_request_id"])
+
+    result = await _worker(
+        app_client,
+        settings,
+        QaStaticLlm(),
+        embedding_client=FailingEmbedding(),
+    ).run_once()
+    assert result.outcome == "succeeded"
+    detail = client.get(f"/api/v1/qa/{request_id}")
+    assert detail.status_code == 200
+    assert detail.json()["state"] == "completed"
+    assert detail.json()["evidence_status"] == "supported"
+    assert detail.json()["evidence"]
+    stream = client.get(f"/api/v1/qa/{request_id}/stream", params={"after_seq": 0})
+    assert stream.status_code == 200
+    assert '"vector_status":"degraded"' in stream.text
+
+
+async def test_qa_keeps_user_document_evidence_owner_scoped(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    owner, document = await _seed_user_document(
+        app_client,
+        create_user,
+        "qa-private@example.com",
+    )
+    client = app_client.client
+    _login(client, "qa-private@example.com")
+    accepted = _ask(client, "Redis 的淘汰策略是什么？")
+    request_id = uuid.UUID(accepted.json()["qa_request_id"])
+    result = await _worker(app_client, settings, QaStaticLlm()).run_once()
+    assert result.outcome == "succeeded"
+    detail = client.get(f"/api/v1/qa/{request_id}").json()
+    assert detail["evidence"][0]["source_kind"] == "user_document"
+    assert detail["evidence"][0]["title"] == "个人 Redis 资料"
+    assert str(document.id) not in client.get(f"/api/v1/qa/{request_id}").text
+    assert owner.id is not None
+
+
+async def test_qa_marks_deleted_user_document_evidence_source_deleted(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    _owner, document = await _seed_user_document(
+        app_client,
+        create_user,
+        "qa-deleted-source@example.com",
+    )
+    client = app_client.client
+    _login(client, "qa-deleted-source@example.com")
+    accepted = _ask(client, "Redis 的淘汰策略是什么？")
+    request_id = uuid.UUID(accepted.json()["qa_request_id"])
+    assert (await _worker(app_client, settings, QaStaticLlm()).run_once()).outcome == "succeeded"
+    response = client.delete(
+        f"/api/v1/documents/{document.id}",
+        headers={
+            **_write_headers(client),
+            "Idempotency-Key": str(uuid.uuid4()),
+        },
+    )
+    assert response.status_code == 204
+    detail = client.get(f"/api/v1/qa/{request_id}").json()
+    assert detail["evidence"][0]["source_state"] == "source_deleted"
+
+
+async def test_qa_rejects_invented_evidence_after_hybrid_merge(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    _owner, _document = await _seed_user_document(
+        app_client,
+        create_user,
+        "qa-invented@example.com",
+    )
+    client = app_client.client
+    _login(client, "qa-invented@example.com")
+    accepted = _ask(client, "Redis 的淘汰策略是什么？")
+    request_id = uuid.UUID(accepted.json()["qa_request_id"])
+    result = await _worker(
+        app_client,
+        settings,
+        QaStaticLlm(output=_answer(evidence_ids=["evidence-99"])),
+    ).run_once()
+    assert result.outcome == "dead_letter"
+    detail = client.get(f"/api/v1/qa/{request_id}").json()
+    assert detail["state"] == "failed"
 
 
 async def test_terminal_state_event_mutual_exclusion_and_dirty_answer_shape(

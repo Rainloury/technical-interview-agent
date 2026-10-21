@@ -30,7 +30,7 @@ from app.schemas.qa import (
 )
 
 QA_MODEL_NAME = "DEFAULT"
-QA_PROMPT_VERSION = "1.0.0"
+QA_PROMPT_VERSION = "1.1.0"
 
 
 def _idempotency_key(owner_user_id: uuid.UUID, client_key: str) -> str:
@@ -267,6 +267,7 @@ def public_evidence(rows: list[QaEvidence]) -> list[QaEvidenceView]:
             snippet=row.snippet[:200],
             relevance_score=float(row.relevance_score),
             source_state=cast(Any, row.source_state),
+            source_kind=cast(Any, row.source_kind or "system"),
         )
         for index, row in enumerate(rows, start=1)
     ]

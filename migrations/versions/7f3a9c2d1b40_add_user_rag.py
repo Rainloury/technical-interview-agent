@@ -184,10 +184,14 @@ def upgrade() -> None:
     op.add_column("knowledge_source_sections", sa.Column("embedding_index_version", sa.Text()))
     op.add_column(
         "knowledge_source_sections",
+        sa.Column("search_text", sa.Text(), server_default="", nullable=False),
+    )
+    op.add_column(
+        "knowledge_source_sections",
         sa.Column(
             "search_vector",
             postgresql.TSVECTOR(),
-            sa.Computed("to_tsvector('simple', content)", persisted=True),
+            sa.Computed("to_tsvector('simple', search_text)", persisted=True),
             nullable=False,
         ),
     )
@@ -265,6 +269,7 @@ def downgrade() -> None:
         table_name="knowledge_source_sections",
     )
     op.drop_column("knowledge_source_sections", "search_vector")
+    op.drop_column("knowledge_source_sections", "search_text")
     op.drop_column("knowledge_source_sections", "embedding_index_version")
     op.drop_column("knowledge_source_sections", "embedding_dimensions")
     op.drop_column("knowledge_source_sections", "embedding_model")

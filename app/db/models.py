@@ -326,10 +326,11 @@ class KnowledgeSourceSection(Base):
     section_index: Mapped[int] = mapped_column(Integer, nullable=False)
     section_path: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    search_text: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     token_count: Mapped[int] = mapped_column(Integer, nullable=False)
     search_vector: Mapped[str] = mapped_column(
         TSVECTOR,
-        Computed("to_tsvector('simple', content)", persisted=True),
+        Computed("to_tsvector('simple', search_text)", persisted=True),
         nullable=False,
     )
     embedding: Mapped[list[float] | None] = mapped_column(Vector(1024))

@@ -25,10 +25,9 @@ def _docx_bytes(text: str) -> bytes:
     return buffer.getvalue()
 
 
-def _pdf_bytes(text: str) -> bytes:
+def _pdf_bytes() -> bytes:
     writer = PdfWriter()
-    page = writer.add_blank_page(width=612, height=792)
-    page.extract_text = lambda: text  # type: ignore[method-assign]
+    writer.add_blank_page(width=612, height=792)
     buffer = io.BytesIO()
     writer.write(buffer)
     return buffer.getvalue()
@@ -62,7 +61,7 @@ def test_extract_document_supports_expected_formats(
 def test_empty_pdf_text_is_rejected() -> None:
     with pytest.raises(AppError) as raised:
         extract_document(
-            _pdf_bytes("Redis 使用 LRU 淘汰。"),
+            _pdf_bytes(),
             filename="notes.pdf",
             declared_mime=None,
             settings=_settings(),

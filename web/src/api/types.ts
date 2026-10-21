@@ -52,6 +52,7 @@ export interface HistoryPage {
 export type QaState = "created" | "retrieving" | "answering" | "completed" | "failed";
 export type QaAnswerPreference = "concise" | "detailed";
 export type QaEvidenceStatus = "supported" | "model_knowledge" | "insufficient";
+export type QaEvidenceSourceKind = "system" | "user_document";
 
 export interface QaAccepted {
   qa_request_id: string;
@@ -74,6 +75,7 @@ export interface QaEvidence {
   snippet: string;
   relevance_score: number;
   source_state: "available" | "source_deleted";
+  source_kind: QaEvidenceSourceKind;
 }
 
 export interface QaRequest {
@@ -101,6 +103,8 @@ export interface QaStreamEvent {
     text?: string;
     answer?: QaAnswer;
     evidence?: QaEvidence[];
+    source_kind?: QaEvidenceSourceKind;
+    vector_status?: "ok" | "degraded" | "disabled";
     extended_questions?: string[];
     code?: string;
     message?: string;

@@ -11,12 +11,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import filetype
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
 from app.db.jobs import enqueue_job
-from app.db.models import AsyncJob, User, UserDocument
+from app.db.models import AsyncJob, QaEvidence, User, UserDocument, UserDocumentChunk
 from app.errors import AppError
 from app.schemas.documents import DocumentAccepted, DocumentItem, DocumentPage
 from app.storage import ObjectStorage
@@ -388,6 +388,12 @@ async def delete_document(
     document.deletion_state = "pending"
     document.deleted_at = now
     document.updated_at = now
+    chunk_ids = select(UserDocumentChunk.id).where(UserDocumentChunk.document_id == document.id)
+    await session.execute(
+        update(QaEvidence)
+        .where(QaEvidence.user_document_chunk_id.in_(chunk_ids))
+        .values(source_state="source_deleted")
+    )
     await enqueue_job(
         session,
         owner_user_id=user.id,
