@@ -19,6 +19,7 @@ def test_rag_defaults_are_explicit() -> None:
     assert settings.document_max_characters == 200_000
     assert settings.document_chunk_size == 800
     assert settings.document_chunk_overlap == 100
+    assert settings.rag_embedding_batch_size == 16
 
 
 @pytest.mark.parametrize(
@@ -27,6 +28,7 @@ def test_rag_defaults_are_explicit() -> None:
         ("ollama_base_url", "ftp://ollama:11434"),
         ("ollama_embedding_dimensions", 0),
         ("document_chunk_overlap", 800),
+        ("rag_embedding_batch_size", 0),
     ],
 )
 def test_rag_settings_reject_invalid_values(field: str, value: object) -> None:

@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     document_max_characters: int = Field(default=200_000, ge=1)
     document_chunk_size: int = Field(default=800, ge=100)
     document_chunk_overlap: int = Field(default=100, ge=0)
+    rag_embedding_batch_size: int = Field(default=16, ge=1, le=128)
 
     resume_storage_dir: str = "/private/tmp/technical-interview-agent-resume-files"
     resume_storage_backend: Literal["local", "oss"] = "local"
