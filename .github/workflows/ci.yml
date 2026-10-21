@@ -65,7 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - name: Build production image
+      - name: Build production API image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -73,12 +73,44 @@ jobs:
           tags: technical-interview-agent:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Verify image runtime contract
+      - name: Build production Nginx web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          file: ./web/Dockerfile
+          load: true
+          tags: technical-interview-agent-web:ci
+          build-args: |
+            VITE_API_BASE_URL=
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify API image runtime contract
         run: |
           test "$(docker image inspect technical-interview-agent:ci --format '{{.Config.User}}')" = "app"
           docker run --rm technical-interview-agent:ci technical-interview-agent --help
           docker run --rm technical-interview-agent:ci technical-interview-agent worker --reload 2>&1 | grep -- "--reload is only supported"
           docker run --rm -e APP_ENV=test technical-interview-agent:ci python -c "import app.main, app.worker"
+      - name: Verify Nginx image contract
+        run: |
+          set -euo pipefail
+          test "$(docker image inspect technical-interview-agent-web:ci --format '{{.Config.User}}')" = "nginx"
+          docker run --rm technical-interview-agent-web:ci nginx -t
+          docker run --detach --name web-ci -p 18080:80 technical-interview-agent-web:ci
+          ready=0
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:18080/healthz >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            docker logs web-ci
+            exit 1
+          fi
+          curl --fail --silent http://127.0.0.1:18080/healthz
+          docker logs web-ci
+          docker rm --force web-ci
 
   webkit-e2e:
     runs-on: ubuntu-latest

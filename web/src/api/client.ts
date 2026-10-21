@@ -29,7 +29,8 @@ import type {
 } from "./types";
 
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
-const API_BASE_URL = (configuredBaseUrl || "http://127.0.0.1:8000").replace(/\/$/, "");
+const defaultBaseUrl = import.meta.env.DEV ? "http://127.0.0.1:8000" : "";
+const API_BASE_URL = (configuredBaseUrl || defaultBaseUrl).replace(/\/$/, "");
 
 export class ApiError extends Error {
   readonly status: number;

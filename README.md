@@ -38,7 +38,27 @@ npm ci
 npm run dev -- --port 3001
 ```
 
-默认请求 `http://127.0.0.1:8000`，可通过 `VITE_API_BASE_URL` 覆盖。
+开发模式默认请求 `http://127.0.0.1:8000`，可通过 `VITE_API_BASE_URL` 覆盖；生产构建默认使用同源 API，由 Nginx 代理。
+
+Docker 生产编排使用三个应用容器：
+
+- `web`：Nginx 托管 React 静态文件，并同源代理 `/api/*` 和 `/health/*` 到 API。
+- `api`：FastAPI 容器，仅在 Compose 网络内暴露 `8000`。
+- `worker`：异步任务 Worker，不暴露端口，通过 Compose DNS 访问 PostgreSQL、Redis 和 OSS。
+
+生产入口说明与构建命令见 [发布与回滚运行手册](docs/release-runbook.md)。生产只暴露 Nginx Web 入口；API 的 `8000` 仅在 Compose 网络内可见，Worker 没有 HTTP 端口。前端镜像构建：
+
+```bash
+docker build --pull -t technical-interview-agent-web:v0.1.0-rc.1 web/
+```
+
+本地全栈 Docker 部署：
+
+```bash
+docker compose -f deploy/local.compose.yaml up --build --detach
+```
+
+启动后访问 `http://127.0.0.1:8080`。本地编排使用独立的 Compose project、PostgreSQL 和 Redis，不占用宿主机数据库端口；应用镜像只由 `api` 服务构建，`migrate` 和 `worker` 复用同一镜像。
 
 ## 质量命令
 

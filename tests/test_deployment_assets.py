@@ -19,6 +19,9 @@ def test_production_image_is_locked_non_root_and_uses_uv() -> None:
         "COPY requirements.txt",
         "COPY pyproject.toml",
         "COPY README.md",
+        "PIP_DEFAULT_TIMEOUT=120",
+        "PIP_RETRIES=8",
+        "PIP_INDEX_URL",
         "pip install --no-cache-dir --requirement requirements.txt",
         "USER app",
         'technical-interview-agent", "api',
@@ -33,6 +36,7 @@ def test_production_compose_separates_migration_api_and_worker() -> None:
     compose = _read("deploy/production.compose.yaml")
 
     for fragment in (
+        "web:",
         "migrate:",
         'command: ["technical-interview-agent", "migrate"]',
         "api:",
@@ -57,11 +61,55 @@ def test_production_compose_separates_migration_api_and_worker() -> None:
         assert fragment in compose
 
 
+def test_production_nginx_is_the_public_entry_and_serves_spa() -> None:
+    compose = _read("deploy/production.compose.yaml")
+    nginx = _read("web/nginx.conf")
+
+    for fragment in (
+        "location /api/",
+        "proxy_pass $api_upstream$request_uri;",
+        "resolver 127.0.0.11 valid=10s ipv6=off;",
+        "proxy_buffering off;",
+        "try_files $uri $uri/ /index.html;",
+        "location = /healthz",
+    ):
+        assert fragment in nginx
+
+    for fragment in (
+        "web:",
+        "${WEB_IMAGE_REPOSITORY:?set WEB_IMAGE_REPOSITORY}",
+        "${WEB_BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-8080}:80",
+    ):
+        assert fragment in compose
+
+    assert "ports:" in compose.split("  web:", 1)[1].split("  postgres:", 1)[0]
+    assert "api:\n    <<: *application" in compose
+    assert 'expose:\n      - "8000"' in compose
+    assert "API_BIND_ADDRESS" not in compose
+
+
+def test_web_image_builds_static_assets_and_ships_nginx_healthcheck() -> None:
+    dockerfile = _read("web/Dockerfile")
+
+    for fragment in (
+        "FROM node:22-alpine AS build",
+        "npm ci",
+        "npm run build",
+        "COPY index.html tokens.css tsconfig.json vite.config.ts ./",
+        "FROM nginx:1.27-alpine",
+        "COPY nginx.conf /etc/nginx/conf.d/default.conf",
+        "COPY --from=build /workspace/dist /usr/share/nginx/html",
+        "http://127.0.0.1/healthz",
+    ):
+        assert fragment in dockerfile
+
+
 def test_production_compose_requires_explicit_image_and_secret_env() -> None:
     compose = _read("deploy/production.compose.yaml")
 
     for variable in (
         "IMAGE_REPOSITORY",
+        "WEB_IMAGE_REPOSITORY",
         "IMAGE_TAG",
         "PRODUCTION_ENV_FILE",
         "POSTGRES_DB",
@@ -81,8 +129,8 @@ def test_production_compose_variables_template_is_explicit_and_safe() -> None:
         "POSTGRES_DB",
         "POSTGRES_USER",
         "POSTGRES_PASSWORD",
-        "API_BIND_ADDRESS",
-        "API_PORT",
+        "WEB_BIND_ADDRESS",
+        "WEB_PORT",
     ):
         assert f"{variable}=" in template
     assert "APP_ENV=" not in template
@@ -129,7 +177,19 @@ def test_production_compose_separates_application_and_compose_env_files() -> Non
 def test_docker_context_excludes_secrets_and_nonproduction_assets() -> None:
     dockerignore = _read(".dockerignore")
 
-    for ignored in (".git", ".env", ".venv", "tests", "docs", "scripts"):
+    for ignored in (".git", ".env", ".venv", "tests", "docs", "scripts", "deploy"):
         assert ignored in dockerignore.splitlines()
     assert "app" not in dockerignore.splitlines()
     assert "migrations" not in dockerignore.splitlines()
+
+
+def test_local_compose_builds_application_image_once_for_all_backend_roles() -> None:
+    compose = _read("deploy/local.compose.yaml")
+    backend_services = compose.split("  postgres:", 1)[1].split("  web:", 1)[0]
+
+    assert backend_services.count("dockerfile: Dockerfile") == 1
+    assert backend_services.count("image: technical-interview-agent-api:local") == 3
+    assert "args:\n        PIP_INDEX_URL:" in backend_services
+    assert backend_services.count("args:") == 1
+    assert 'name: technical-interview-agent-local' in compose
+    assert '127.0.0.1:8080:80' in compose

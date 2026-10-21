@@ -7,7 +7,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { api, ApiError } from "../api/client";
 import { newIdempotencyKey } from "../api/idempotency";
@@ -37,8 +37,16 @@ export function validateQuestion(value: string): string | null {
 
 export function QaPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const [question, setQuestion] = useState("");
+  const prefilledQuestion =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "question" in location.state &&
+    typeof location.state.question === "string"
+      ? location.state.question.slice(0, MAX_QUESTION_LENGTH)
+      : "";
+  const [question, setQuestion] = useState(prefilledQuestion);
   const [preference, setPreference] =
     useState<QaAnswerPreference>("concise");
   const [questionError, setQuestionError] = useState<string | null>(null);
@@ -60,7 +68,10 @@ export function QaPage() {
     onSuccess: (accepted) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
       void queryClient.invalidateQueries({ queryKey: queryKeys.history("qa") });
-      navigate(`/qa/${accepted.qa_request_id}`, { replace: true });
+      navigate(`/qa/${accepted.qa_request_id}`, {
+        replace: true,
+        state: { question: null },
+      });
     },
   });
 
