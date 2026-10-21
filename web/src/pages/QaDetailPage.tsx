@@ -99,6 +99,9 @@ function EvidenceCard({ item }: { item: QaEvidence }) {
         >
           {item.source_state === "available" ? "可访问" : "来源已删除"}
         </span>
+        <span className="source-kind">
+          {item.source_kind === "user_document" ? "个人资料" : "系统资料"}
+        </span>
       </header>
       <h3>{item.title}</h3>
       {item.section_path && <p className="evidence-path">{item.section_path}</p>}

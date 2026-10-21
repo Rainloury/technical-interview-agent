@@ -4,6 +4,7 @@ import {
   CalendarClock,
   FileText,
   History,
+  Library,
   MessageSquareText,
   Plus,
   RefreshCw,
@@ -58,6 +59,10 @@ export function WorkspacePage() {
           <Link className="primary-button primary-button--link" to="/resumes/new">
             <Plus size={17} aria-hidden="true" />
             <span>上传简历</span>
+          </Link>
+          <Link className="secondary-button secondary-button--link" to="/documents">
+            <Library size={17} aria-hidden="true" />
+            <span>内部资料</span>
           </Link>
           <Link className="primary-button primary-button--link" to="/interviews">
             <MessageSquareText size={17} aria-hidden="true" />

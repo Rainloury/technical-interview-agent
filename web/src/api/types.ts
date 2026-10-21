@@ -49,6 +49,34 @@ export interface HistoryPage {
   next_cursor: string | null;
 }
 
+export type DocumentState = "uploaded" | "processing" | "ready" | "failed" | "deleted";
+
+export interface DocumentAccepted {
+  document_id: string;
+  state: DocumentState;
+  created_at: string;
+}
+
+export interface DocumentItem {
+  id: string;
+  title: string;
+  original_filename: string;
+  state: DocumentState;
+  chunk_count: number;
+  failure_code: string | null;
+  error_message: string | null;
+  index_version: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  retention_expires_at: string;
+}
+
+export interface DocumentPage {
+  items: DocumentItem[];
+  next_cursor: string | null;
+}
+
 export type QaState = "created" | "retrieving" | "answering" | "completed" | "failed";
 export type QaAnswerPreference = "concise" | "detailed";
 export type QaEvidenceStatus = "supported" | "model_knowledge" | "insufficient";

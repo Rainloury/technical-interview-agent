@@ -19,6 +19,7 @@ const evidence: QaEvidence = {
   snippet: "使用有界退避、抖动与幂等键，避免重复提交。",
   relevance_score: 0.91,
   source_state: "available",
+  source_kind: "system",
 };
 
 const answer: QaAnswer = {
@@ -96,12 +97,40 @@ describe("QaDetailPage", () => {
 
     expect(await screen.findByText(answer.direct_answer)).toBeInTheDocument();
     expect(screen.getByText("有界重试指南")).toBeInTheDocument();
+    expect(screen.getByText("系统资料")).toBeInTheDocument();
     expect(container.querySelectorAll(".qa-evidence-card")).toHaveLength(1);
     expect(afterSeq).toBe(2);
     expect(stream).toHaveBeenCalledWith("qa-1", expect.any(Object));
     await waitFor(() => expect(snapshotReads).toBeGreaterThan(1));
     expect(container.textContent).not.toContain("qa-evidence-uuid");
     expect(container.textContent).not.toContain("https://source.example");
+  });
+
+  it("labels private document evidence", async () => {
+    const privateEvidence: QaEvidence = {
+      ...evidence,
+      source_kind: "user_document",
+      title: "个人 Redis 笔记",
+    };
+    server.use(
+      authenticatedSessionHandler(),
+      http.get("*/api/v1/qa/qa-1", () =>
+        HttpResponse.json(
+          qaRequest({
+            state: "completed",
+            answer: { ...answer, evidence_ids: ["evidence-1"] },
+            evidence: [privateEvidence],
+            evidence_status: "supported",
+            completed_at: "2026-10-17T08:00:05Z",
+            last_event_seq: 3,
+          }),
+        ),
+      ),
+    );
+    renderApp("/qa/qa-1");
+
+    expect(await screen.findByText("个人 Redis 笔记")).toBeInTheDocument();
+    expect(screen.getByText("个人资料")).toBeInTheDocument();
   });
 
   it("does not let an answering snapshot overwrite a completed stream event", async () => {
