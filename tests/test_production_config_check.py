@@ -26,6 +26,7 @@ def _env_text(*, include_ops_token: bool = True) -> str:
         "LLM_FAST_MODEL=fast-model",
         "LLM_DEFAULT_MODEL=default-model",
         "LLM_REASONING_MODEL=reasoning-model",
+        "OLLAMA_BASE_URL=http://ollama.internal:11434",
         "RESUME_STORAGE_BACKEND=oss",
         "OSS_ENDPOINT=https://oss-cn-hangzhou.aliyuncs.com",
         "OSS_BUCKET=interview-private",

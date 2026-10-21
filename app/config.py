@@ -1,5 +1,7 @@
 """Validated application configuration."""
 
+from __future__ import annotations
+
 import base64
 import binascii
 from functools import lru_cache
@@ -7,7 +9,7 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -68,6 +70,17 @@ class Settings(BaseSettings):
     tool_result_dir: str = "/private/tmp/technical-interview-agent-tool-results"
     tool_result_ttl_seconds: int = Field(default=3600, ge=1)
 
+    ollama_base_url: str | None = None
+    ollama_embedding_model: str = "bge-m3"
+    ollama_embedding_dimensions: int = Field(default=1024, gt=0)
+    ollama_connect_timeout_seconds: float = Field(default=5, gt=0)
+    ollama_request_timeout_seconds: float = Field(default=30, gt=0)
+    ollama_max_retries: int = Field(default=2, ge=0, le=5)
+    document_max_bytes: int = Field(default=10_485_760, ge=1)
+    document_max_characters: int = Field(default=200_000, ge=1)
+    document_chunk_size: int = Field(default=800, ge=100)
+    document_chunk_overlap: int = Field(default=100, ge=0)
+
     resume_storage_dir: str = "/private/tmp/technical-interview-agent-resume-files"
     resume_storage_backend: Literal["local", "oss"] = "local"
     oss_endpoint: str | None = None
@@ -110,6 +123,30 @@ class Settings(BaseSettings):
         if any(not origin.startswith(("http://", "https://")) for origin in origins):
             raise ValueError("origins must use http or https")
         return origins
+
+    @field_validator("ollama_base_url")
+    @classmethod
+    def validate_ollama_base_url(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        base_url = value.strip().rstrip("/")
+        if not base_url.startswith(("http://", "https://")):
+            raise ValueError("ollama_base_url must use http or https")
+        return base_url
+
+    @field_validator("ollama_embedding_model")
+    @classmethod
+    def validate_ollama_embedding_model(cls, value: str) -> str:
+        model = value.strip()
+        if not model:
+            raise ValueError("ollama_embedding_model must not be blank")
+        return model
+
+    @model_validator(mode="after")
+    def validate_document_chunk_limits(self) -> Settings:
+        if self.document_chunk_overlap >= self.document_chunk_size:
+            raise ValueError("document_chunk_overlap must be smaller than document_chunk_size")
+        return self
 
     @field_validator("database_url")
     @classmethod
@@ -182,6 +219,7 @@ class Settings(BaseSettings):
             "LLM_FAST_MODEL": self.llm_fast_model,
             "LLM_DEFAULT_MODEL": self.llm_default_model,
             "LLM_REASONING_MODEL": self.llm_reasoning_model,
+            "OLLAMA_BASE_URL": self.ollama_base_url,
             "SMTP_HOST": self.smtp_host,
             "SMTP_USERNAME": self.smtp_username,
             "SMTP_PASSWORD": self.smtp_password,

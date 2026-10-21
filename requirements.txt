@@ -76,6 +76,8 @@ openai==2.54.0
     # via technical-interview-agent
 opentelemetry-api==1.45.1
     # via fastapi
+pgvector==0.5.1
+    # via technical-interview-agent
 pycparser==3.11 ; implementation_name != 'PyPy'
     # via cffi
 pydantic==2.14.1
