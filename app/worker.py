@@ -39,6 +39,8 @@ from app.db.models import (
     ResumeText,
     ScoringAttempt,
     User,
+    UserDocument,
+    UserDocumentChunk,
     WeakPoint,
     WeakPointEvidence,
     WrongQuestion,
@@ -66,6 +68,9 @@ from app.logging import configure_logging, get_logger
 from app.mail import deliver_password_reset
 from app.prompts.loader import PromptError, PromptLoader
 from app.qa_contracts import QaAnswerOutput, retrieve_evidence
+from app.rag.chunking import split_document
+from app.rag.extraction import extract_document
+from app.rag.ollama import EmbeddingClient, OllamaEmbeddingClient
 from app.resume_contracts import ResumeAnalysisOutput, ResumeQuestionsOutput
 from app.services.qa import (
     QA_PROMPT_VERSION,
@@ -169,6 +174,7 @@ class ResumeWorker:
         storage: ObjectStorage,
         llm: ResumeLlm,
         prompt_loader: PromptLoader,
+        embedding_client: EmbeddingClient | None = None,
         worker_id: str | None = None,
     ) -> None:
         self._settings = settings
@@ -176,6 +182,7 @@ class ResumeWorker:
         self._storage = storage
         self._llm = llm
         self._prompts = prompt_loader
+        self._embedding_client = embedding_client
         self._worker_id = worker_id or f"resume-worker-{uuid.uuid4().hex[:12]}"
 
     async def run_once(self) -> WorkerResult:
@@ -226,6 +233,19 @@ class ResumeWorker:
                     fencing_token=fencing_token,
                     resource_id=resource_id,
                     owner_user_id=owner_user_id,
+                )
+            elif job_type == "process_document":
+                await self._process_document(
+                    job_id=job_id,
+                    fencing_token=fencing_token,
+                    resource_id=resource_id,
+                    owner_user_id=owner_user_id,
+                )
+            elif job_type == "delete_document":
+                await self._process_document_delete(
+                    job_id=job_id,
+                    fencing_token=fencing_token,
+                    resource_id=resource_id,
                 )
             elif job_type == "score_open_interview_turn":
                 await self._process_interview_open(
@@ -448,6 +468,18 @@ class ResumeWorker:
                     resource_id=resource_id,
                     code=code,
                 )
+            elif job_type == "process_document":
+                document = await session.get(
+                    UserDocument,
+                    resource_id,
+                    with_for_update=True,
+                )
+                if document is not None and document.state != "deleted":
+                    document.state = "failed"
+                    document.failure_code = code
+                    document.error_message = "资料索引未完成，请重新上传"
+                    document.chunk_count = 0
+                    document.updated_at = datetime.now(UTC)
             else:
                 task = await session.get(ResumeTask, resource_id)
                 if task is not None and task.state not in {"completed", "source_deleted"}:
@@ -713,7 +745,17 @@ class ResumeWorker:
                     )
                 ).scalars()
             )
+            documents = list(
+                (
+                    await session.execute(
+                        select(UserDocument)
+                        .where(UserDocument.owner_user_id == owner_user_id)
+                        .with_for_update()
+                    )
+                ).scalars()
+            )
             object_keys = [source.object_key for source in sources]
+            object_keys.extend(document.object_key for document in documents)
         try:
             for object_key in object_keys:
                 with suppress(FileNotFoundError):
@@ -747,6 +789,12 @@ class ResumeWorker:
             )
             await session.execute(
                 delete(ResumeTask).where(ResumeTask.owner_user_id == owner_user_id)
+            )
+            await session.execute(
+                delete(UserDocumentChunk).where(UserDocumentChunk.owner_user_id == owner_user_id)
+            )
+            await session.execute(
+                delete(UserDocument).where(UserDocument.owner_user_id == owner_user_id)
             )
             await session.execute(delete(QaRequest).where(QaRequest.owner_user_id == owner_user_id))
             await session.execute(
@@ -1107,6 +1155,111 @@ class ResumeWorker:
                 payload=completion_payload(qa_request, frozen),
             )
             await session.commit()
+
+    async def _process_document(
+        self,
+        *,
+        job_id: uuid.UUID,
+        fencing_token: int,
+        resource_id: uuid.UUID,
+        owner_user_id: uuid.UUID | None,
+    ) -> None:
+        """Index one private document with bounded extraction and embeddings."""
+
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            document = await session.get(UserDocument, resource_id, with_for_update=True)
+            if document is None or document.state in {"ready", "deleted"}:
+                return
+            if owner_user_id is None or document.owner_user_id != owner_user_id:
+                raise ResumeWorkerError("resource_not_found", retryable=False)
+            if document.state == "failed":
+                return
+            document.state = "processing"
+            document.failure_code = None
+            document.error_message = None
+            object_key = document.object_key
+            filename = document.original_filename
+            declared_mime = document.detected_mime
+            expected_hash = document.sha256
+            await session.commit()
+
+        content = await self._storage.get(object_key)
+        if hashlib.sha256(content).hexdigest() != expected_hash:
+            raise ResumeWorkerError("document_hash_mismatch", retryable=False)
+        extracted = extract_document(
+            content,
+            filename=filename,
+            declared_mime=declared_mime,
+            settings=self._settings,
+        )
+        chunks = split_document(extracted.text, settings=self._settings)
+        if not chunks:
+            raise ResumeWorkerError("text_extraction_unsupported", retryable=False)
+        if self._embedding_client is None:
+            raise ResumeWorkerError("embedding_unavailable", retryable=True)
+        vectors = await self._embedding_client.embed([chunk.content for chunk in chunks])
+        if len(vectors) != len(chunks):
+            raise ResumeWorkerError("embedding_count_mismatch", retryable=False)
+
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            document = await session.get(UserDocument, resource_id, with_for_update=True)
+            if document is None or document.state != "processing":
+                raise ResumeWorkerError("invalid_state_transition", retryable=False)
+            await session.execute(
+                delete(UserDocumentChunk).where(UserDocumentChunk.document_id == document.id)
+            )
+            for chunk, vector in zip(chunks, vectors, strict=True):
+                session.add(
+                    UserDocumentChunk(
+                        document_id=document.id,
+                        owner_user_id=document.owner_user_id,
+                        chunk_index=chunk.index,
+                        section_path=chunk.section_path,
+                        content=chunk.content,
+                        content_hash=hashlib.sha256(chunk.content.encode()).hexdigest(),
+                        search_text=chunk.search_text,
+                        token_count=chunk.token_count,
+                        embedding=vector,
+                    )
+                )
+            document.state = "ready"
+            document.chunk_count = len(chunks)
+            document.index_version = "rag-v1"
+            document.embedding_model = self._settings.ollama_embedding_model
+            document.embedding_dimensions = self._settings.ollama_embedding_dimensions
+            document.completed_at = datetime.now(UTC)
+            document.updated_at = datetime.now(UTC)
+            await session.commit()
+
+    async def _process_document_delete(
+        self,
+        *,
+        job_id: uuid.UUID,
+        fencing_token: int,
+        resource_id: uuid.UUID,
+    ) -> None:
+        """Delete chunks and the private object after the visible tombstone."""
+
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            document = await session.get(UserDocument, resource_id, with_for_update=True)
+            if document is None:
+                return
+            object_key = document.object_key
+            await session.execute(
+                delete(UserDocumentChunk).where(UserDocumentChunk.document_id == document.id)
+            )
+            await session.commit()
+        await self._storage.delete(object_key)
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            document = await session.get(UserDocument, resource_id, with_for_update=True)
+            if document is not None:
+                document.deletion_state = "deleted"
+                document.updated_at = datetime.now(UTC)
+                await session.commit()
 
     async def _answer_qa(
         self,
@@ -1866,6 +2019,7 @@ async def run_worker(
     storage: ObjectStorage,
     llm: ResumeLlm,
     prompt_loader: PromptLoader,
+    embedding_client: EmbeddingClient | None = None,
     max_iterations: int | None = None,
     idle_seconds: float | None = None,
     concurrency: int = 1,
@@ -1906,6 +2060,7 @@ async def run_worker(
             storage=storage,
             llm=llm,
             prompt_loader=prompt_loader,
+            embedding_client=embedding_client,
             worker_id=(run_id if concurrency == 1 else f"{run_id}-{worker_index}"),
         )
         for worker_index in range(concurrency)
@@ -2011,6 +2166,7 @@ class WorkerRunner:
         stop_event = asyncio.Event()
         loop = asyncio.get_running_loop()
         llm: ResumeLlm | None = None
+        embedding_client: OllamaEmbeddingClient | None = None
         engine: Any | None = None
         storage: Any | None = None
         health_file = Path(self._settings.worker_health_file)
@@ -2041,6 +2197,8 @@ class WorkerRunner:
             storage = create_resume_storage(self._settings)
             session_factory = create_session_factory(engine)
             llm = self._llm_factory(self._settings)
+            if self._settings.ollama_base_url is not None:
+                embedding_client = OllamaEmbeddingClient(self._settings)
             write_health("running")
             logger.info(
                 "worker starting",
@@ -2054,6 +2212,7 @@ class WorkerRunner:
                 storage=storage,
                 llm=llm,
                 prompt_loader=PromptLoader(self._settings.prompt_dir),
+                embedding_client=embedding_client,
                 concurrency=self._settings.worker_concurrency,
                 stop_event=stop_event,
                 max_runtime_seconds=self._settings.worker_max_runtime_seconds,
@@ -2065,6 +2224,8 @@ class WorkerRunner:
                 aclose_llm = getattr(llm, "aclose", None)
                 if callable(aclose_llm):
                     await aclose_llm()
+            if embedding_client is not None:
+                await embedding_client.aclose()
             if storage is not None:
                 aclose = getattr(storage, "aclose", None)
                 if callable(aclose):

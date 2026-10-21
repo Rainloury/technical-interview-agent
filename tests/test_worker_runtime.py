@@ -43,9 +43,10 @@ class FakeWorker:
         storage: object,
         llm: object,
         prompt_loader: object,
+        embedding_client: object | None = None,
         worker_id: str | None = None,
     ) -> None:
-        del settings, session_factory, storage, llm, prompt_loader
+        del settings, session_factory, storage, llm, prompt_loader, embedding_client
         self.worker_id = worker_id
         self.stop_event: asyncio.Event | None = None
         self.calls = 0

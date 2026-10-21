@@ -17,6 +17,8 @@ from app.db.models import (
     ResumeFile,
     ResumeTask,
     User,
+    UserDocument,
+    UserDocumentChunk,
 )
 from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
@@ -128,6 +130,39 @@ async def test_delete_account_data_tombstones_immediately_and_worker_cleans_priv
     owner = await _owner(app_client, create_user, "privacy-owner@example.com")
     await _owner(app_client, create_user, "privacy-other@example.com")
     task, qa, interview = await _seed_business_data(app_client, settings, owner)
+    storage = LocalPrivateStorage(settings.resume_storage_dir)
+    document_key = f"{owner.id.hex}/private-notes.md"
+    await storage.put(document_key, b"private document bytes")
+    async with app_client.session_factory() as session:
+        document = UserDocument(
+            owner_user_id=owner.id,
+            title="Private notes",
+            original_filename="private-notes.md",
+            detected_mime="text/markdown",
+            size_bytes=21,
+            sha256="d" * 64,
+            object_key=document_key,
+            state="ready",
+            chunk_count=1,
+            retention_expires_at=datetime.now(UTC) + timedelta(days=90),
+        )
+        session.add(document)
+        await session.flush()
+        session.add(
+            UserDocumentChunk(
+                document_id=document.id,
+                owner_user_id=owner.id,
+                chunk_index=0,
+                section_path="正文 / 1",
+                content="private document bytes",
+                content_hash="c" * 64,
+                search_text="private document bytes",
+                token_count=3,
+                embedding=[0.0] * 1024,
+            )
+        )
+        await session.commit()
+        document_id = document.id
     client = app_client.client
     _login(client, "privacy-owner@example.com")
 
@@ -145,12 +180,14 @@ async def test_delete_account_data_tombstones_immediately_and_worker_cleans_priv
         persisted_task = await session.get(ResumeTask, task.id)
         persisted_qa = await session.get(QaRequest, qa.id)
         persisted_interview = await session.get(Interview, interview.id)
+        persisted_document = await session.get(UserDocument, document_id)
         source = (
             await session.execute(select(ResumeFile).where(ResumeFile.resume_task_id == task.id))
         ).scalar_one()
         assert persisted_task is not None and persisted_task.deleted_at is not None
         assert persisted_qa is not None and persisted_qa.deleted_at is not None
         assert persisted_interview is not None and persisted_interview.deleted_at is not None
+        assert persisted_document is not None and persisted_document.deleted_at is not None
         assert source.storage_state == "delete_pending"
 
     assert client.get("/api/v1/history?type=resume").json()["items"] == []
@@ -173,11 +210,13 @@ async def test_delete_account_data_tombstones_immediately_and_worker_cleans_priv
         )
     storage_root = LocalPrivateStorage(settings.resume_storage_dir)._root
     assert not (storage_root / f"{owner.id.hex}/private-resume.pdf").exists()
+    assert not (storage_root / document_key).exists()
     async with app_client.session_factory() as session:
         request = await session.get(DataDeletionRequest, uuid.UUID(request_id))
         persisted_task = await session.get(ResumeTask, task.id)
         persisted_qa = await session.get(QaRequest, qa.id)
         persisted_interview = await session.get(Interview, interview.id)
+        persisted_document = await session.get(UserDocument, document_id)
         persisted_user = await session.get(User, owner.id)
         assert request is not None and request.state == "completed"
         assert request.result is not None
@@ -185,6 +224,7 @@ async def test_delete_account_data_tombstones_immediately_and_worker_cleans_priv
         assert persisted_task is None
         assert persisted_qa is None
         assert persisted_interview is None
+        assert persisted_document is None
         assert persisted_user is not None and persisted_user.status == "deleted"
         audit = (
             await session.execute(

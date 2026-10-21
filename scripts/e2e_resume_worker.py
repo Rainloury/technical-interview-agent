@@ -43,6 +43,13 @@ QA_CONTENT = "有界重试应限制次数，使用指数退避、抖动和幂等
 QA_ANSWER = "有界重试应设置次数上限，使用指数退避与抖动，并通过幂等键避免重复提交。"
 
 
+class DeterministicEmbedding:
+    """Return fixed vectors so browser tests never depend on Ollama."""
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 1024 for _ in texts]
+
+
 class DeterministicResumeLlm:
     """Return valid fixed outputs without any provider or network call."""
 
@@ -264,6 +271,7 @@ async def _serve() -> None:
             storage=LocalPrivateStorage(settings.resume_storage_dir),
             llm=DeterministicResumeLlm(),
             prompt_loader=PromptLoader(settings.prompt_dir),
+            embedding_client=DeterministicEmbedding(),
             max_iterations=3000,
             idle_seconds=0.2,
         )

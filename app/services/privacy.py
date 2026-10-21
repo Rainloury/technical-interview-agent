@@ -19,6 +19,7 @@ from app.db.models import (
     ResumeFile,
     ResumeTask,
     User,
+    UserDocument,
     WrongQuestion,
 )
 from app.errors import AppError
@@ -30,6 +31,7 @@ DELETION_SCOPES = (
     "interviews",
     "wrong_questions",
     "weak_points",
+    "user_documents",
 )
 
 
@@ -173,6 +175,24 @@ async def request_data_deletion(
     )
     for question in questions:
         question.deleted_at = now
+
+    documents = list(
+        (
+            await session.execute(
+                select(UserDocument)
+                .where(
+                    UserDocument.owner_user_id == user.id,
+                    UserDocument.deleted_at.is_(None),
+                )
+                .with_for_update()
+            )
+        ).scalars()
+    )
+    for document in documents:
+        document.state = "deleted"
+        document.deletion_state = "pending"
+        document.deleted_at = now
+        document.updated_at = now
 
     await enqueue_job(
         session,
