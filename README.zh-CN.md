@@ -223,6 +223,13 @@ docker build --pull -t technical-interview-agent-web:v0.1.0 web/
 生产发布应使用不可变镜像 digest。生产环境文件应放在仓库外，通过密钥管理器或
 部署平台注入。
 
+## Android
+
+Capacitor Android 工程位于 `web/android`，加载
+`https://it.rainstone.top` 的同源生产站点。本地构建、release 签名、
+GitHub Actions 与 Google Play Console 步骤见
+[`docs/android-release.zh-CN.md`](docs/android-release.zh-CN.md)。
+
 ## 参与贡献
 
 提交 Pull Request 前请阅读 [`CONTRIBUTING.md`](CONTRIBUTING.md)。参与项目即表示
