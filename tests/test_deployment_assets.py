@@ -98,6 +98,7 @@ def test_web_image_builds_static_assets_and_ships_nginx_healthcheck() -> None:
         "COPY index.html tokens.css tsconfig.json vite.config.ts ./",
         "FROM nginx:1.27-alpine",
         "COPY nginx.conf /etc/nginx/conf.d/default.conf",
+        "COPY nginx-main.conf /etc/nginx/nginx.conf",
         "COPY --from=build /workspace/dist /usr/share/nginx/html",
         "USER nginx",
         "http://127.0.0.1/healthz",

@@ -20,6 +20,7 @@ FROM nginx:1.27-alpine
 USER nginx
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx-main.conf /etc/nginx/nginx.conf
 COPY --from=build /workspace/dist /usr/share/nginx/html
 
 EXPOSE 80
