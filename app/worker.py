@@ -1137,6 +1137,7 @@ class ResumeWorker:
                             qa_request_id=qa_request.id,
                             knowledge_source_version_id=item.knowledge_source_version_id,
                             user_document_chunk_id=item.user_document_chunk_id,
+                            shared_document_chunk_id=item.shared_document_chunk_id,
                             source_kind=item.source_kind,
                             source_title=item.title,
                             section_path=item.section_path,

@@ -14,6 +14,8 @@ from app.db.models import (
     KnowledgeSource,
     KnowledgeSourceSection,
     KnowledgeSourceVersion,
+    SharedDocument,
+    SharedDocumentChunk,
     UserDocument,
     UserDocumentChunk,
 )
@@ -27,13 +29,14 @@ class SearchCandidate:
 
     kind: Literal["vector", "lexical"]
     chunk_id: uuid.UUID
-    source_kind: Literal["system", "user_document"]
+    source_kind: Literal["system", "user_document", "shared_document"]
     title: str
     section_path: str
     snippet: str
     score: float
     knowledge_source_version_id: uuid.UUID | None = None
     user_document_chunk_id: uuid.UUID | None = None
+    shared_document_chunk_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,8 +45,9 @@ class MergedEvidence:
 
     chunk_id: uuid.UUID
     user_document_chunk_id: uuid.UUID | None
+    shared_document_chunk_id: uuid.UUID | None
     knowledge_source_version_id: uuid.UUID | None
-    source_kind: Literal["system", "user_document"]
+    source_kind: Literal["system", "user_document", "shared_document"]
     title: str
     section_path: str
     snippet: str
@@ -87,6 +91,7 @@ def rrf_merge(
         key=lambda item: (
             -item[1],
             0 if item[0].source_kind == "system" else 1,
+            item[0].source_kind,
             item[0].title,
             item[0].section_path,
             str(item[0].chunk_id),
@@ -99,6 +104,11 @@ def rrf_merge(
             user_document_chunk_id=(
                 candidate.user_document_chunk_id
                 if candidate.source_kind == "user_document"
+                else None
+            ),
+            shared_document_chunk_id=(
+                candidate.shared_document_chunk_id
+                if candidate.source_kind == "shared_document"
                 else None
             ),
             knowledge_source_version_id=candidate.knowledge_source_version_id,
@@ -159,6 +169,38 @@ async def hybrid_retrieve(
                 user_document_chunk_id=chunk.id,
             )
             for chunk, title in user_rows
+        )
+        shared_rows = (
+            await session.execute(
+                select(SharedDocumentChunk, SharedDocument.title)
+                .join(SharedDocument, SharedDocument.id == SharedDocumentChunk.document_id)
+                .where(
+                    SharedDocument.state == "ready",
+                    SharedDocument.deleted_at.is_(None),
+                    SharedDocumentChunk.search_vector.op("@@")(_tsquery(terms)),
+                )
+                .order_by(
+                    func.ts_rank_cd(
+                        SharedDocumentChunk.search_vector,
+                        _tsquery(terms),
+                    ).desc(),
+                    SharedDocumentChunk.id,
+                )
+                .limit(20)
+            )
+        ).all()
+        lexical.extend(
+            SearchCandidate(
+                kind="lexical",
+                chunk_id=chunk.id,
+                source_kind="shared_document",
+                title=title,
+                section_path=chunk.section_path,
+                snippet=_snippet(chunk.content, terms),
+                score=1.0,
+                shared_document_chunk_id=chunk.id,
+            )
+            for chunk, title in shared_rows
         )
         latest_system = _latest_system_versions()
         system_rows = (
@@ -237,6 +279,31 @@ async def hybrid_retrieve(
                     user_document_chunk_id=chunk.id,
                 )
                 for chunk, title in user_vectors
+            )
+            shared_vectors = (
+                await session.execute(
+                    select(SharedDocumentChunk, SharedDocument.title)
+                    .join(SharedDocument, SharedDocument.id == SharedDocumentChunk.document_id)
+                    .where(
+                        SharedDocument.state == "ready",
+                        SharedDocument.deleted_at.is_(None),
+                    )
+                    .order_by(SharedDocumentChunk.embedding.cosine_distance(query_vector))
+                    .limit(20)
+                )
+            ).all()
+            vector.extend(
+                SearchCandidate(
+                    kind="vector",
+                    chunk_id=chunk.id,
+                    source_kind="shared_document",
+                    title=title,
+                    section_path=chunk.section_path,
+                    snippet=_snippet(chunk.content, terms),
+                    score=1.0,
+                    shared_document_chunk_id=chunk.id,
+                )
+                for chunk, title in shared_vectors
             )
             latest_system = _latest_system_versions()
             system_vectors = (
