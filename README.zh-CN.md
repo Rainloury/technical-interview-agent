@@ -209,6 +209,12 @@ docker build --pull -t technical-interview-agent-web:v0.1.0 web/
 生产发布应使用不可变镜像 digest。生产环境文件应放在仓库外，通过密钥管理器或
 部署平台注入。
 
+## iOS
+
+原生 `WKWebView` 包装工程位于 `ios/`，保留现有同源认证、CSRF、上传和 SSE
+行为。Xcode、签名、归档和 App Store Connect 步骤见
+[`docs/ios-release.md`](docs/ios-release.md)。
+
 ## 参与贡献
 
 提交 Pull Request 前请阅读 [`CONTRIBUTING.md`](CONTRIBUTING.md)。参与项目即表示

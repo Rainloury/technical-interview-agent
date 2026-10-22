@@ -229,6 +229,13 @@ Use immutable image digests for production rollouts. Keep the production
 environment file outside the repository and inject it through your secret
 manager or deployment platform.
 
+## iOS
+
+The native `WKWebView` wrapper is in `ios/` and keeps the existing same-origin
+authentication, CSRF, upload and SSE behavior. See
+[`docs/ios-release.md`](docs/ios-release.md) for Xcode, signing, archive and
+App Store Connect steps.
+
 ## Contributing
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.

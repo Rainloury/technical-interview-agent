@@ -1,0 +1,10 @@
+// Candidate values are deliberately configuration, not signing material.
+// Select the final identifier and team in Xcode before archiving.
+APP_PRODUCT_BUNDLE_IDENTIFIER = top.rainstone.technicalinterviewagent
+APP_DEVELOPMENT_TEAM =
+APP_MARKETING_VERSION = 0.1.0
+APP_BUILD_NUMBER = 1
+APP_SITE_URL = https:/$()/it.rainstone.top
+
+// The optional local file contains only the team identifier, never keys or profiles.
+#include? "Signing.xcconfig"

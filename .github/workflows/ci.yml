@@ -78,7 +78,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run mypy app tests evals migrations
+      - run: uv run mypy app tests evals migrations scripts
       - run: uv run alembic upgrade head
       - run: uv run alembic downgrade base
       - run: uv run alembic upgrade head
