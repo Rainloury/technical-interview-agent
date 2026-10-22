@@ -41,6 +41,17 @@ async def get_auth_context(request: Request, session: SessionDependency) -> Auth
 AuthDependency = Annotated[AuthContext, Depends(get_auth_context)]
 
 
+def require_admin(auth: AuthContext) -> None:
+    """Require the database-backed administrator role for a write operation."""
+
+    if auth.user.role != "admin":
+        raise AppError(
+            status_code=403,
+            code="admin_required",
+            message="只有管理员可以管理共享资料",
+        )
+
+
 async def get_deletion_status_auth(
     request: Request,
     session: SessionDependency,

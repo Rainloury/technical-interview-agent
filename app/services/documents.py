@@ -124,6 +124,8 @@ def _item(document: UserDocument) -> DocumentItem:
         updated_at=document.updated_at,
         completed_at=document.completed_at,
         retention_expires_at=document.retention_expires_at,
+        visibility="private",
+        can_delete=True,
     )
 
 

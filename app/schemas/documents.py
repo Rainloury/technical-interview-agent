@@ -47,6 +47,8 @@ class DocumentItem(BaseModel):
     updated_at: datetime
     completed_at: datetime | None
     retention_expires_at: datetime
+    visibility: Literal["private", "shared"] = "private"
+    can_delete: bool = True
 
 
 class DocumentPage(BaseModel):

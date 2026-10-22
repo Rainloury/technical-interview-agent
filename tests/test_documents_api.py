@@ -77,6 +77,8 @@ async def test_document_upload_is_owner_scoped_and_idempotent(
     detail = client.get(f"/api/v1/documents/{document_id}")
     assert detail.status_code == 200
     assert detail.json()["title"] == "内部资料"
+    assert detail.json()["visibility"] == "private"
+    assert detail.json()["can_delete"] is True
     assert "object_key" not in detail.text
 
     client.cookies.clear()
