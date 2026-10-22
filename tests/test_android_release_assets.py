@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import yaml
@@ -75,14 +76,14 @@ def test_android_webview_preserves_same_origin_auth_and_upload() -> None:
     assert "setAcceptCookie(true)" in main
     assert "setAcceptThirdPartyCookies(webView, false)" in main
     assert "CookieManager.getInstance().flush()" in main
-    capacitor_picker = (
-        ROOT / "web/node_modules/@capacitor/android/capacitor/src/main/java/com/getcapacitor/"
-        "BridgeWebChromeClient.java"
-    ).read_text(encoding="utf-8")
-    assert "onShowFileChooser" in capacitor_picker
-    assert "EXTRA_ALLOW_MULTIPLE" in capacitor_picker
-    assert "FileChooserParams.parseResult" in capacitor_picker
-    assert "takePersistableUriPermission" not in capacitor_picker
+    capacitor_config = _read("web/capacitor.config.ts")
+    lockfile = json.loads(_read("web/package-lock.json"))
+    assert 'appId: "top.rainstone.technicalinterviewagent"' in capacitor_config
+    assert "captureInput: true" in capacitor_config
+    assert lockfile["packages"]["node_modules/@capacitor/android"]["version"] == "8.5.3"
+    assert 'type="file"' in _read("web/src/pages/ResumeUploadPage.tsx")
+    assert 'type="file"' in _read("web/src/pages/DocumentsPage.tsx")
+    assert "multiple" in _read("web/src/pages/DocumentsPage.tsx")
     assert "addJavascriptInterface" not in main
     assert "setAllowFileAccess(false)" in main
     assert "setAllowContentAccess(false)" in main

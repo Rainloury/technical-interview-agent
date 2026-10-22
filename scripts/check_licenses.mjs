@@ -11,6 +11,8 @@ const allowed = new Set([
   "MIT-0",
   "MPL-2.0",
   "Python-2.0",
+  "Unlicense",
+  "0BSD",
 ]);
 
 // caniuse-lite's CC-BY-4.0 covers its browser-support dataset, not the app code.
