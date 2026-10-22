@@ -251,6 +251,13 @@ production site at `https://it.rainstone.top`. See
 [`docs/android-release.md`](docs/android-release.md) for local builds, release
 signing, GitHub Actions and Google Play Console steps.
 
+## iOS
+
+The native `WKWebView` wrapper is in `ios/` and keeps the existing same-origin
+authentication, CSRF, upload and SSE behavior. See
+[`docs/ios-release.md`](docs/ios-release.md) for Xcode, signing, archive and
+App Store Connect steps.
+
 ## Contributing
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.

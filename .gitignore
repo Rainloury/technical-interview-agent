@@ -34,3 +34,14 @@ web/android/build/
 *.jks
 *.keystore
 
+# iOS signing material and build output must remain local.
+*.mobileprovision
+*.p12
+*.cer
+*.p8
+*.ipa
+*.xcarchive
+ios/build/
+ios/DerivedData/
+ios/ExportOptions.plist
+ios/Config/Signing.xcconfig

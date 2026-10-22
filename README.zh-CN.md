@@ -230,6 +230,12 @@ Capacitor Android 工程位于 `web/android`，加载
 GitHub Actions 与 Google Play Console 步骤见
 [`docs/android-release.zh-CN.md`](docs/android-release.zh-CN.md)。
 
+## iOS
+
+原生 `WKWebView` 包装工程位于 `ios/`，保留现有同源认证、CSRF、上传和 SSE
+行为。Xcode、签名、归档和 App Store Connect 步骤见
+[`docs/ios-release.md`](docs/ios-release.md)。
+
 ## 参与贡献
 
 提交 Pull Request 前请阅读 [`CONTRIBUTING.md`](CONTRIBUTING.md)。参与项目即表示
