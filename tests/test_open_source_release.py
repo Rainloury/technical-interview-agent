@@ -59,5 +59,6 @@ def test_ci_checks_secrets_and_dependency_licenses() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 
     assert "gitleaks/gitleaks-action@" in workflow
-    assert "actions/dependency-review-action@" in workflow
-    assert "allow-licenses:" in workflow
+    assert "pull-requests: read" in workflow
+    assert "uvx --from licensecheck licensecheck" in workflow
+    assert "node scripts/check_licenses.mjs" in workflow

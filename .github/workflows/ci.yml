@@ -13,6 +13,9 @@ on:
 jobs:
   secret-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,30 +24,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  dependency-review:
-    if: github.event_name == 'pull_request'
+  license-check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+      - uses: astral-sh/setup-uv@v6
         with:
-          fail-on-severity: high
-          allow-licenses: >-
-            Apache-2.0,
-            0BSD,
-            BSD-2-Clause,
-            BSD-3-Clause,
-            BlueOak-1.0.0,
-            CC0-1.0,
-            ISC,
-            MIT,
-            MIT-0,
-            MPL-2.0,
-            OFL-1.1,
-            PSF-2.0
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: uv sync --locked
+      - run: uvx --from licensecheck licensecheck --license Apache-2.0 --format simple --zero
+      - run: node scripts/check_licenses.mjs
 
   quality:
     runs-on: ubuntu-latest

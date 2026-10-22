@@ -25,9 +25,15 @@ The complete OFL 1.1 text is bundled at:
 
 The Python and JavaScript dependency trees include packages under permissive
 licenses such as Apache-2.0, MIT, BSD, ISC, MPL-2.0, Python Software Foundation
-License, and CC0. Before publishing a binary distribution, generate an
-SBOM/license inventory for the exact locked dependency set and review any
-license changes introduced by dependency updates.
+License, and CC0. The frontend build also includes the `caniuse-lite`
+browser-support dataset under CC-BY-4.0; that attribution applies to the
+dataset, not the application source.
+
+`uvx --from licensecheck licensecheck ...` and
+`node scripts/check_licenses.mjs` run in CI. Before publishing a binary
+distribution, generate an SBOM/license inventory for the exact locked
+dependency set and review any license changes introduced by dependency
+updates.
 
 ## Services and trademarks
 
