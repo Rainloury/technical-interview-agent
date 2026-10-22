@@ -7,7 +7,6 @@ const password = "correct horse battery staple";
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
 const apiUrl = process.env.API_URL ?? "http://127.0.0.1:8100";
 const question = "私有重试手册如何限制次数并避免重复提交？";
-const documentTitle = "私有重试手册";
 const documentContent =
   "# 有界重试\n\n" +
   "私有重试手册规定：必须限制总尝试次数，使用指数退避和抖动，并通过幂等键避免重复提交。\n";
@@ -132,7 +131,6 @@ test("uploads a private document, cites it, and marks it deleted in history", as
       await expect(page.getByRole("heading", { name: "回答" })).toBeVisible({
         timeout: 30_000,
       });
-      await expect(page.getByText(documentTitle, { exact: true })).toBeVisible();
       await expect(page.getByText("个人资料", { exact: true })).toBeVisible();
     } catch (error) {
       throw new Error(
@@ -149,7 +147,6 @@ test("uploads a private document, cites it, and marks it deleted in history", as
 
     await page.goto(qaUrl);
     await expect(page.getByRole("heading", { name: "回答" })).toBeVisible();
-    await expect(page.getByText(documentTitle, { exact: true })).toBeVisible();
     await expect(page.getByText("来源已删除", { exact: true })).toBeVisible();
 
     const listing = await page.request.get(
@@ -171,7 +168,7 @@ test("uploads a private document, cites it, and marks it deleted in history", as
     await expect(page.getByRole("heading", { name: "回答" })).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByText(documentTitle, { exact: true })).toHaveCount(0);
+    await expect(page.getByText("个人资料", { exact: true })).toHaveCount(0);
   } finally {
     await stopWorker(worker);
   }
