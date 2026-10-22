@@ -135,7 +135,7 @@
 | v2.1 | 2026-10-18 | 整场成本基准通过：10 场完整面试全部覆盖追问，模型与检索成本 P95 ¥0.83908；生产 SMTP 失败改为可诊断上抛；发布评审保留生产邮件、对象存储和 WebKit 兼容 CI 确认项 |
 | v2.2 | 2026-10-18 | 生产依赖选定并落地适配器：DirectMail SMTP、阿里云 OSS 私有桶、GitHub Actions Ubuntu Playwright WebKit（Desktop Safari + iPhone 13）；本地质量门禁 `158 passed / 76 files`，待真实凭据和 CI 实跑验收 |
 | v2.3 | 2026-10-18 | DirectMail 凭据验证通过：465/SSL TLS 握手与 SMTP 登录成功；587/StartTLS 本机超时；实际邮件投递仍待验证 |
-| v2.4 | 2026-10-18 | DirectMail 实际发送通过：测试邮件发往 `no-reply@rainstone.top`，SMTP 服务器接受且无拒收收件人 |
+| v2.4 | 2026-10-18 | DirectMail 实际发送通过：测试邮件发往保留测试地址 `no-reply@example.com`，SMTP 服务器接受且无拒收收件人 |
 | v2.5 | 2026-10-18 | 阿里云 OSS 真实私有桶验收通过：临时对象三步操作、简历上传内容一致性和删除源文件后对象不可读均通过 |
 | v2.6 | 2026-10-18 | Ubuntu 24.04 Playwright WebKit 本地容器实跑通过：Desktop Safari + iPhone 13 共 `14 passed`；`webkit-e2e` 增加 `workflow_dispatch` 与失败报告产物，GitHub Actions 托管 runner 实跑待推送验收 |
 | v2.7 | 2026-10-18 | GitHub Actions `ubuntu-latest` 托管 runner WebKit 实跑通过：Desktop Safari + iPhone 13 `14 passed`（2.4 min），quality job 全绿；修复 preview 构建 API 地址注入，并增加手动 grep、默认零重试和全局超时诊断 |

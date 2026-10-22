@@ -11,6 +11,41 @@ on:
         type: string
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-licenses: >-
+            Apache-2.0,
+            0BSD,
+            BSD-2-Clause,
+            BSD-3-Clause,
+            BlueOak-1.0.0,
+            CC0-1.0,
+            ISC,
+            MIT,
+            MIT-0,
+            MPL-2.0,
+            OFL-1.1,
+            PSF-2.0
+
   quality:
     runs-on: ubuntu-latest
     services:

@@ -77,14 +77,7 @@ def test_first_slice_assets_are_present_after_approval() -> None:
 
 
 def test_phase_docs_describe_the_release_candidate_stage() -> None:
-    documents = (
-        README,
-        DOCS_README,
-        NEXT_STEPS,
-        DEVELOPMENT_FLOW,
-        TECHNICAL_REVIEW,
-        TECHNICAL_DESIGN,
-    )
+    documents = (DOCS_README, NEXT_STEPS, DEVELOPMENT_FLOW, TECHNICAL_REVIEW, TECHNICAL_DESIGN)
     for path in documents:
         text = _read(path)
         assert "发布候选" in text, path
@@ -113,6 +106,10 @@ def test_phase_docs_describe_the_release_candidate_stage() -> None:
         assert "7e2b4c6d8f10" in text, path
         assert "7/7" in text, path
         assert "WebKit" in text and "14 passed" in text, path
+
+    readme = _read(README)
+    assert "发布候选" in readme
+    assert "发布批准待完成" in readme
 
     implementation_docs = (
         README,

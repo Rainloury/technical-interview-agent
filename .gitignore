@@ -8,6 +8,7 @@ deploy/production.env
 .ruff_cache/
 .venv/
 .hallmark
+.superpowers/
 __pycache__/
 *.py[cod]
 *.egg-info/

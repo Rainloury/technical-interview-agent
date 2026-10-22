@@ -1,53 +1,149 @@
 # Technical Interview Agent
 
-技术面试问答与模拟面试智能体服务。项目规则见 `AGENTS.md`，需求与技术基线见 `docs/`。
+A self-hostable technical interview platform with a bounded answer agent,
+private document retrieval, and an async worker.
 
-当前阶段：**发布候选（release candidate）；P0 业务切片、质量门禁、隐私与可观测门禁、G4A 行为矩阵、本地恢复/回滚和告警送达演练已通过；生产环境复核、发布 SHA 冻结与发布批准待完成**。`web/` 已实现注册、登录、找回/重置密码、工作台、四类历史分页、桌面/移动导航、简历闭环、内部资料库、检索问答、模拟面试、终态报告、复习中心和账号数据删除确认。后端已接通账号、会话、工作台、历史、异步 Worker、私有内部资料 RAG、检索问答、面试评分/追问/报告、隐私删除、保留清理与运维聚合指标。技术设计与流程基线分别为 `docs/technical-design.md` v0.22、`docs/development-flow.md` v3.7。真实 provider 三档单轮 eval 已通过；G4A 行为矩阵已通过，整场成本 P95 为 ¥0.83908；生产 DirectMail/OSS 和 GitHub Actions WebKit 均已通过。
+> 当前状态：发布候选（release candidate）。隐私与可观测门禁、真实 provider
+> 三档单轮 eval、G4A 行为矩阵、整场成本门禁、本地恢复/回滚和告警送达演练均已
+> 通过；生产环境复核、发布 SHA 冻结与发布批准待完成。详细发布证据与内部验收
+> 记录见 [`docs/README.md`](docs/README.md) 和
+> [`docs/release-runbook.md`](docs/release-runbook.md)。
 
-登录签发服务端会话 Cookie `interview_session`（`HttpOnly`、`Secure`、`SameSite=Lax`），同时签发前端可读的 `interview_csrf`；写请求通过 `X-CSRF-Token` 校验，数据库在 `auth_sessions.csrf_token_hash` 保存 CSRF 哈希，历史接口返回 `{items, next_cursor}`。
+The application provides:
 
-真实 provider 三档单轮 eval 已通过：FAST `deepseek-flash`、DEFAULT/REASONING `deepseek-v4-pro`，均为 2 steps、正确调用 `add` 并返回 `42`；本轮成本分别约 `$0.000465`、`$0.002612`、`$0.002311`，Prompt `agent_system@1.0.0+agent_turn@1.1.0`。三档单轮、110 条行为矩阵和整场成本门禁均已通过。
+- account registration, session management, password reset, and CSRF-protected
+  writes;
+- resume upload, question answering, simulated interviews, reports, and review;
+- 内部资料库（private internal-document library），支持 PDF、DOCX、TXT 和
+  Markdown 上传；
+- per-file asynchronous indexing and owner-isolated hybrid retrieval;
+- pgvector cosine search plus PostgreSQL lexical BM25-style ranking, fused with
+  reciprocal rank fusion (RRF);
+- automatic use of the current user's ready documents during question answering,
+  with no document selector;
+- deterministic fallback to lexical retrieval when the embedding service is
+  unavailable;
+- `mxbai-embed-large:latest` as the default 1024-dimension embedding model;
+- a React web client and Docker Compose deployment.
 
-上线质量门禁证据：前端 `typecheck`、Vitest `12 files / 37 tests`、ESLint、生产构建通过；后端 `ruff`、格式检查、`mypy`（112 files）、默认测试 `166 passed, 51 skipped`、`RUN_INTEGRATION=1 pytest`（`206 passed`）和 `alembic check` 通过，迁移头 `7e2b4c6d8f10`；确定性 eval `7/7`；Playwright Chromium 桌面与移动视口 `14 passed`，其中隐私专项 `2 passed`。GitHub Actions Ubuntu 24.04 托管 runner 的 Playwright WebKit Desktop Safari + iPhone 13 共 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed`。G4A 行为矩阵完整复跑 `108/110`，两条共享契约修正后定向复验 `2/2`，合计 `110/110`。10 场真实整场面试全部覆盖追问，累计 74 次模型调用；模型与检索成本 P95 为 ¥0.83908，低于 ¥3.00。DirectMail 已验证 TLS、登录和实际发送；阿里云 OSS 真实私有桶已验证简历上传、读取与删除。生产配置在启动时执行 fail-fast；五类告警已通过真实 webhook 演练；生产环境与通知渠道复核仍按[发布与回滚运行手册](docs/release-runbook.md)关闭。
+The service is built for technical interview workflows. It is not a general
+chatbot, and it does not automatically perform external write actions.
 
-## 本地启动
+Sessions use the server-side `interview_session` cookie (`HttpOnly`) and a
+separate `interview_csrf` verifier for `X-CSRF-Token` checks. Database records
+store only the hashes in `auth_sessions.csrf_token_hash`. Paginated history
+endpoints return `{items, next_cursor}`.
+
+## Architecture
+
+```text
+Browser
+  |
+  v
+Nginx web container
+  |-- static React application
+  `-- /api and /health proxy
+          |
+          +--> FastAPI API
+          |      |-- PostgreSQL + pgvector
+          |      |-- Redis
+          |      |-- model provider
+          |      `-- Ollama embeddings
+          |
+          `--> async worker
+                 |-- document extraction and indexing
+                 |-- interview processing
+                 |-- password-reset delivery
+                 `-- retention cleanup
+```
+
+The Python application follows `api -> agent -> tools -> llm`. PostgreSQL is the
+source of truth for sessions and asynchronous jobs. See
+[`docs/adr/`](docs/adr/README.md) for architecture decisions and
+[`docs/technical-design.md`](docs/technical-design.md) for the current design.
+
+## Quick start
+
+### Full local stack
+
+Prerequisites: Docker with Compose.
 
 ```bash
 cp .env.example .env
+docker compose -f deploy/local.compose.yaml up --build --detach
+```
+
+Open `http://127.0.0.1:8080`. The stack runs PostgreSQL, Redis, migrations, the
+API, the worker, and the web server in containers. It does not publish the host
+PostgreSQL, Redis, or API ports.
+
+Embeddings require an independently deployed Ollama service. For local use, set
+`OLLAMA_BASE_URL` in `.env` to an endpoint your containers can reach, for
+example `http://host.docker.internal:11434`. The default embedding model is
+`mxbai-embed-large:latest` with 1024 dimensions. If Ollama is unavailable,
+question answering falls back to lexical retrieval; document indexing retries
+and then fails cleanly rather than writing partial vectors.
+
+### Python and web development
+
+Prerequisites:
+
+- Python 3.11 or 3.12 and [uv](https://docs.astral.sh/uv/)
+- Node.js 22 and npm
+- PostgreSQL with pgvector and Redis, or Docker for those services
+
+```bash
 uv sync
+cp .env.example .env
 docker compose up -d postgres redis
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
 
-服务默认监听 `http://127.0.0.1:8000`。
-
-生产 Worker 使用同一安装入口：
+In another terminal:
 
 ```bash
-uv run technical-interview-agent worker
+cd web
+npm ci
+npm run dev
 ```
 
-Worker 启动时会执行生产配置校验、注册 `SIGINT`/`SIGTERM` 停止信号，并按 `WORKER_CONCURRENCY`、`WORKER_MAX_RUNTIME_SECONDS`、`WORKER_IDLE_SECONDS` 有界轮询。生产必须使用 OSS，不能改用 E2E 的确定性 Worker 脚本。
+The API listens on `http://127.0.0.1:8000` and the Vite client on
+`http://127.0.0.1:3001` by default. Set `VITE_API_BASE_URL` to override the API
+origin used by the frontend.
 
-## 内部资料 RAG
+## Configuration
 
-登录后可进入 `/documents` 多选上传 PDF、DOCX、TXT 或 Markdown，单文件最大 10 MB。批量提交会为每个文件创建独立资料记录和索引任务，Worker 按文件逐个提取、分块、embedding 和入库；只有状态为 `ready` 的资料会自动参与当前账号的问答，系统不提供资料选择器，也不会把个人资料加入系统知识源 allowlist。列表、详情和删除均按 owner 隔离；删除后资料立即停止检索，历史证据标记 `source_deleted`，原文与 chunks 由 Worker 异步清理。默认保留期为 90 天。
+Configuration is loaded through `app/config.py` and documented by
+`.env.example`. Copy the example to `.env` and supply values locally. Never
+commit `.env`, credentials, private keys, or production endpoints.
 
-检索由独立 Ollama 提供 embedding，默认模型 `mxbai-embed-large:latest`、1024 维。配置项：
+The most important settings are:
 
-```text
-OLLAMA_BASE_URL=http://100.88.158.91:11434
-OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest
-OLLAMA_EMBEDDING_DIMENSIONS=1024
-RAG_EMBEDDING_BATCH_SIZE=16
-```
+| Area | Settings |
+| --- | --- |
+| Runtime | `APP_ENV`, `APP_DEBUG`, `APP_ALLOWED_ORIGINS` |
+| PostgreSQL | `DATABASE_URL` |
+| Redis | `REDIS_URL` |
+| Sessions | `SESSION_COOKIE_NAME`, `CSRF_COOKIE_NAME`, `COOKIE_SECURE`, `DATA_ENCRYPTION_KEY` |
+| Model provider | `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_BASE_URL`, model tier names |
+| Embeddings | `OLLAMA_BASE_URL`, `OLLAMA_EMBEDDING_MODEL`, `OLLAMA_EMBEDDING_DIMENSIONS` |
+| Resume storage | `RESUME_STORAGE_BACKEND`, local path or S3-compatible OSS settings |
+| Email | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY`, credentials, sender |
+| Worker | `WORKER_CONCURRENCY`, runtime and shutdown limits |
 
-内部资料检索使用 pgvector 余弦候选和 PostgreSQL `ts_rank_cd` 的 BM25 风格词法候选，两者各取 Top 20，通过 RRF（`k=60`、等权）融合后取 Top 5。Ollama 超时或不可用时问答降级为词法召回并记录降级状态；资料索引不会写入部分向量，重试耗尽后进入 `failed`。
+Staging and production startup validates required security-sensitive settings
+and fails fast when they are incomplete. The production template is
+[`deploy/production.env.example`](deploy/production.env.example).
 
-PostgreSQL 使用 `pgvector/pgvector:pg16` 镜像；`uv run alembic upgrade head` 会先执行 `CREATE EXTENSION IF NOT EXISTS vector`。Ollama 作为独立服务部署，生产 Compose 只配置内部地址，不打包模型文件。
+## Document retrieval
 
-四个 owner-scoped 接口：
+Authenticated users can upload one or more PDF, DOCX, TXT, or Markdown files of
+up to 10 MB each. The batch endpoint creates an independent document and index
+job per file. The worker extracts, chunks, embeds, and stores each file
+separately.
+
+The public document API is owner-scoped:
 
 ```text
 POST   /api/v1/documents
@@ -57,49 +153,34 @@ GET    /api/v1/documents/{document_id}
 DELETE /api/v1/documents/{document_id}
 ```
 
-前端位于 `web/`：
+Only documents in the `ready` state participate in retrieval. Deleting a
+document removes it from future retrieval immediately; historical evidence is
+marked `source_deleted`, and stored content is cleaned up asynchronously.
 
-```bash
-cd web
-npm ci
-npm run dev -- --port 3001
-```
+Retrieval takes the top 20 cosine candidates and top 20 lexical candidates,
+fuses them with equal-weight RRF (`k=60`), and returns the top 5. The full
+contract is in [`docs/api-contract.md`](docs/api-contract.md), and the rationale
+is in
+[ADR-0009](docs/adr/0009-hybrid-rag-for-private-documents.md).
 
-开发模式默认请求 `http://127.0.0.1:8000`，可通过 `VITE_API_BASE_URL` 覆盖；生产构建默认使用同源 API，由 Nginx 代理。
+## Development
 
-Docker 生产编排使用三个应用容器：
-
-- `web`：Nginx 托管 React 静态文件，并同源代理 `/api/*` 和 `/health/*` 到 API。
-- `api`：FastAPI 容器，仅在 Compose 网络内暴露 `8000`。
-- `worker`：异步任务 Worker，不暴露端口，通过 Compose DNS 访问 PostgreSQL、Redis 和 OSS。
-
-生产入口说明与构建命令见 [发布与回滚运行手册](docs/release-runbook.md)。生产只暴露 Nginx Web 入口；API 的 `8000` 仅在 Compose 网络内可见，Worker 没有 HTTP 端口。前端镜像构建：
-
-```bash
-docker build --pull -t technical-interview-agent-web:v0.1.0-rc.1 web/
-```
-
-本地全栈 Docker 部署：
-
-```bash
-docker compose -f deploy/local.compose.yaml up --build --detach
-```
-
-启动后访问 `http://127.0.0.1:8080`。本地编排使用独立的 Compose project、PostgreSQL 和 Redis，不占用宿主机数据库端口；应用镜像只由 `api` 服务构建，`migrate` 和 `worker` 复用同一镜像。
-
-## 质量命令
+Backend checks:
 
 ```bash
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy app tests evals migrations
 uv run pytest -q
-RUN_INTEGRATION=1 uv run pytest -m integration -q
-uv run python -m evals.run
-uv run python -m evals.provider_behavior
 ```
 
-前端质量门禁：
+Integration tests require PostgreSQL and Redis:
+
+```bash
+RUN_INTEGRATION=1 uv run pytest -m integration -q
+```
+
+Frontend checks:
 
 ```bash
 cd web
@@ -110,21 +191,53 @@ npm run build
 npm run test:e2e
 ```
 
-`web/playwright.config.ts` 默认使用本机 Google Chrome；设置 `E2E_BROWSER=webkit` 可运行 Desktop Safari 与 iPhone 13 WebKit 项目。GitHub Actions 的 `webkit-e2e` job 在 `ubuntu-latest` 上启动 PostgreSQL/Redis、安装 WebKit 并运行完整双视口 E2E，可通过 `workflow_dispatch` 手动触发。
-
-没有 PostgreSQL 和 Redis 时，默认测试仍可运行；集成测试通过 `RUN_INTEGRATION=1` 显式启用。
-`uv run python -m evals.run` 当前运行可在无网络环境重复执行的 HTTP 与 Agent 行为用例，不会调用真实供应商。
-`uv run python -m evals.provider_behavior` 是显式联网的 `G4A` 验收入口；它要求 `.env` 中已配置 `LLM_API_KEY`，并将模型、Prompt 版本、工具调用、token、费用和延迟证据保存到 `/private/tmp/technical-interview-agent-provider-eval.json`。确定性测试不会自动调用它。FAST、DEFAULT、REASONING 三档单轮已验证；`uv run python -m evals.provider_matrix` 运行 110 条真实行为矩阵并写入 `evals/provider_matrix.json`。矩阵记录的是单次评分调用成本，不能替代完整面试成本 P95。
-
-仅首次建立或经批准更新评测基线时执行：
+Deterministic evaluation and provider-dependent evaluation are separate:
 
 ```bash
-uv run python -m evals.run --save-baseline
+uv run python -m evals.run
+uv run python -m evals.provider_behavior
 ```
 
-模型档位默认来自 `app/llm/models.py`；DeepSeek 模式默认使用 `deepseek-flash` 与 `deepseek-v4-pro`，`.env.example` 已按这两项配置三档映射。如需切换账号已开通的具体模型，在 `.env` 中覆盖 `LLM_FAST_MODEL`、`LLM_DEFAULT_MODEL`、`LLM_REASONING_MODEL`。OpenAI 兼容服务可设置 `LLM_PROVIDER=openai`，并把 `LLM_BASE_URL` 填成完整端点（以 `/chat/completions` 结尾）；客户端会自动推导 SDK 根地址并走流式 Chat Completions，累计 SSE 内容后执行同一套 Schema 校验。该模式不依赖 `/models` 预检。Prompt 目录和工具结果限制也可通过 `.env.example` 中的对应配置调整。
+The second command performs real provider calls and requires a configured
+`LLM_API_KEY`. Provider evaluations are opt-in.
 
-生产依赖：
+Project rules and agent constraints are in [`AGENTS.md`](AGENTS.md). Public
+documentation starts at [`docs/README.md`](docs/README.md).
 
-- 邮件：阿里云 DirectMail，`SMTP_HOST=smtpdm.aliyun.com`；当前验证通过的是 465 端口 + `SMTP_SECURITY=ssl`（TLS、登录和实际发送成功），587/StartTLS 在本地网络不可达。
-- 对象存储：阿里云 OSS。设置 `RESUME_STORAGE_BACKEND=oss`、`OSS_ENDPOINT`、`OSS_BUCKET`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`，存储桶必须私有。
+## Deployment
+
+Production uses separate `migrate`, `api`, `worker`, and `web` services. Only
+the Nginx entrypoint is exposed. API and worker images run as non-root users
+with a read-only root filesystem where supported.
+
+The deployment and rollback procedure is in
+[`docs/release-runbook.md`](docs/release-runbook.md). The production Compose
+definition is
+[`deploy/production.compose.yaml`](deploy/production.compose.yaml).
+
+Build images with:
+
+```bash
+docker build --pull -t technical-interview-agent:v0.1.0 .
+docker build --pull -t technical-interview-agent-web:v0.1.0 web/
+```
+
+Use immutable image digests for production rollouts. Keep the production
+environment file outside the repository and inject it through your secret
+manager or deployment platform.
+
+## Contributing
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
+Participation is governed by [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+
+- Support and issue guidance: [`SUPPORT.md`](SUPPORT.md)
+- Security reports: [`SECURITY.md`](SECURITY.md)
+- Release history: [`CHANGELOG.md`](CHANGELOG.md)
+- Dependency and font notices: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
+
+## License
+
+Copyright 2026 Rainloury.
+
+Licensed under the [Apache License, Version 2.0](LICENSE).

@@ -1,0 +1,13 @@
+Technical Interview Agent
+Copyright 2026 Rainloury
+
+This product includes font software under the SIL Open Font License 1.1:
+
+- Space Grotesk, Copyright 2020 The Space Grotesk Project Authors
+- JetBrains Mono, Copyright 2020 The JetBrains Mono Project Authors
+
+The complete font licenses are included in web/public/fonts/.
+
+The project also depends on third-party Python and JavaScript packages. Their
+licenses remain in effect for those components. See THIRD_PARTY_NOTICES.md and
+the lock files for the dependency inventory.

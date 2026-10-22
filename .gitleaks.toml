@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Frontend interview topic catalog entries are not API keys"
+paths = ['''web/src/pages/InterviewPage\.tsx$''']
+regexes = ['''\{\s*key:\s*"[a-z_]+",\s*label:''']
