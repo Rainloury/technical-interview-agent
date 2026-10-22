@@ -28,6 +28,37 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+SHARED_DOCUMENT_ADMIN_TRIGGER = """
+CREATE OR REPLACE FUNCTION enforce_shared_document_admin_creator()
+RETURNS trigger AS $$
+BEGIN
+    IF NEW.created_by_user_id IS NOT NULL THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM users
+            WHERE id = NEW.created_by_user_id AND role = 'admin'
+        ) THEN
+            RAISE EXCEPTION 'shared document creator must be an admin'
+                USING ERRCODE = '23514';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+"""
+
+SHARED_DOCUMENT_ADMIN_TRIGGER_EVENT = """
+CREATE TRIGGER trg_shared_document_admin_creator
+BEFORE INSERT OR UPDATE OF created_by_user_id ON shared_documents
+FOR EACH ROW EXECUTE FUNCTION enforce_shared_document_admin_creator();
+"""
+
+
+async def _install_test_triggers(connection: object) -> None:
+    await connection.execute(text(SHARED_DOCUMENT_ADMIN_TRIGGER))  # type: ignore[attr-defined]
+    await connection.execute(  # type: ignore[attr-defined]
+        text(SHARED_DOCUMENT_ADMIN_TRIGGER_EVENT)
+    )
+
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Skip integration tests unless the environment explicitly enables them."""
@@ -75,6 +106,7 @@ async def db_session(settings: Settings) -> AsyncIterator[AsyncSession]:
             for table in Base.metadata.sorted_tables:
                 table.to_metadata(schema_metadata, schema=schema_name)
             await connection.run_sync(schema_metadata.create_all)
+            await _install_test_triggers(connection)
 
         async with engine.connect() as connection:
             transaction = await connection.begin()
@@ -139,6 +171,7 @@ async def app_client(
         for table in Base.metadata.sorted_tables:
             table.to_metadata(schema_metadata, schema=schema_name)
         await connection.run_sync(schema_metadata.create_all)
+        await _install_test_triggers(connection)
     await setup_engine.dispose()
     redis = TestRedis()
 
@@ -189,11 +222,13 @@ def create_user() -> Callable[..., User]:
         *,
         password: str = "correct horse battery staple",  # noqa: S107
         display_name: str | None = "示例用户",
+        role: str = "user",
     ) -> User:
         return User(
             email_normalized=email,
             password_hash=hash_password(password),
             display_name=display_name,
+            role=role,
         )
 
     return factory

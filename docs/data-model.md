@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.8 |
-| 文档状态 | 私有内部资料 RAG 数据约束已落地 |
+| 文档版本 | v0.9 |
+| 文档状态 | 私有与共享内部资料数据约束已落地 |
 | 更新日期 | 2026-10-22 |
 | 技术基线 | PostgreSQL 16+、pgvector、SQLAlchemy 2.0 async、Alembic |
 | 需求依据 | `docs/requirements.md` v1.5 |
@@ -330,7 +330,8 @@ erDiagram
 | `qa_request_id` | UUID | FK |
 | `knowledge_source_version_id` | UUID | FK，可空 |
 | `user_document_chunk_id` | UUID | FK -> `user_document_chunks.id`，可空；来源删除时 `SET NULL` |
-| `source_kind` | enum | `system`、`user_document`，默认 `system` |
+| `source_kind` | enum | `system`、`user_document`、`shared_document`，默认 `system` |
+| `shared_document_chunk_id` | UUID | FK -> `shared_document_chunks.id`，可空；来源删除时 `SET NULL` |
 | `source_title` | text | 快照 |
 | `section_path` | text | 快照 |
 | `snippet` | text | 脱敏摘要，`CHECK (char_length(snippet) <= 200)` |
@@ -406,6 +407,62 @@ erDiagram
 - `HNSW (embedding vector_cosine_ops)` 支持 pgvector 余弦候选召回。
 - 迁移显式执行 `CREATE EXTENSION IF NOT EXISTS vector`，不调用 Ollama。
 - 向量召回与词法召回都必须在查询中附加 owner 和可检索状态过滤；随后按 owner-safe 候选做 RRF 融合。
+
+### 5.8 `users.role`
+
+| 字段 | 类型 | 约束/说明 |
+| --- | --- | --- |
+| `role` | text | 非空，默认 `user`；只允许 `user`、`admin` |
+
+角色只用于共享资料管理权限，不扩大个人资料 owner 范围。首个管理员通过运维 CLI 任命。
+
+### 5.9 `shared_documents`
+
+共享资料没有 `owner_user_id`，其可见范围是所有 active 登录用户。
+
+| 字段 | 类型 | 约束/说明 |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `created_by_user_id` | UUID | FK -> `users.id`，可空；账号删除时 `SET NULL` |
+| `title` / `original_filename` / `detected_mime` | text | 展示和检测元数据 |
+| `size_bytes` | bigint | `1..10485760` |
+| `sha256` | text | 活跃资料全表唯一 |
+| `object_key` | text | 唯一私有存储键 |
+| `state` | enum | `uploaded`、`processing`、`ready`、`failed`、`deleted` |
+| `failure_code` / `error_message` | text | 可空 |
+| `chunk_count` | integer | 默认 0 |
+| `index_version` / `embedding_model` / `embedding_dimensions` | | 索引元数据 |
+| `idempotency_key` / `request_fingerprint` | text | 幂等元数据 |
+| `deletion_state` | text | `pending`、`deleted`、`failed` |
+| `created_at` / `updated_at` | timestamptz | 非空 |
+| `completed_at` / `deleted_at` | timestamptz | 可空 |
+
+约束与索引：
+
+- 活跃资料的 `sha256` 全表唯一；
+- 非空 `idempotency_key` 全表唯一；
+- 创建者必须为 admin，由迁移中的数据库触发器校验；
+- 共享资料不做 90 天自动过期，管理员显式删除前长期可用。
+
+### 5.10 `shared_document_chunks`
+
+| 字段 | 类型 | 约束/说明 |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `document_id` | UUID | FK -> `shared_documents.id`，级联删除 |
+| `chunk_index` | integer | 文件内顺序 |
+| `section_path` / `content` / `content_hash` / `search_text` | text | 检索正文和稳定定位 |
+| `search_vector` | tsvector | 由 `search_text` 生成，GIN 索引 |
+| `token_count` | integer | 非空 |
+| `embedding` | `vector(1024)` | 非空，HNSW cosine 索引 |
+| `created_at` | timestamptz | 非空 |
+
+约束与索引：
+
+- `UNIQUE (document_id, chunk_index)`；
+- `GIN (search_vector)`；
+- `HNSW (embedding vector_cosine_ops)`；
+- 检索只允许 `state='ready' AND deleted_at IS NULL`。
 
 ## 6. 模拟面试
 
@@ -731,6 +788,7 @@ Alembic 首次迁移应包含：
 | `DR-06` | `audit_events` | 只保存最小白名单字段，固定保留 365 天 |
 | `DR-07` | `auth_sessions.csrf_token_hash`、历史分页游标 | `csrf_token_hash` 只保存 verifier 哈希；历史接口使用稳定游标返回 `{items, next_cursor}` |
 | `DR-08` | `user_documents`、`user_document_chunks`、`qa_evidence` | 个人资料按 owner 隔离，不进入 allowlist；删除后停止检索并标记历史证据来源已删除 |
+| `DR-09` | `users.role`、`shared_documents`、`shared_document_chunks`、`qa_evidence` | 管理员上传和删除共享资料；所有 active 用户可读并参与检索；管理员不能读取他人个人资料 |
 
 ADR 对模型的影响：
 
@@ -739,6 +797,7 @@ ADR 对模型的影响：
 - ADR-0007：`async_jobs` 增加 `lease_owner`、`fencing_token`，所有租约写入执行 fencing 校验。
 - ADR-0008：`feedback_unlocked_at` 的解锁条件是终态且所有已接收轮次离开 `scoring`；永久失败进入 `scoring_failed`，报告标记不完整评分。
 - ADR-0009：新增 `vector(1024)`、HNSW、`tsvector`/GIN、`search_text`、私有对象键和来源类型字段；历史证据来自系统资料或用户资料，删除资料时保留摘要但清除后续检索资格。
+- ADR-0010：新增 `users.role`、独立共享资料表和共享分块表，证据增加 `shared_document_chunk_id`，管理员账号删除只置空共享资料创建者。
 
 `DR-01` 与 `DR-02` 已冻结：评分字段可以持久化在内部表，但提交响应和报告 DTO 必须按状态裁剪。进行中不返回受保护字段，终态且全部已接收轮次评分完成后才解锁。
 
@@ -754,3 +813,4 @@ ADR 对模型的影响：
 | v0.6 | 2026-10-17 | 落实 `DR-07` 方案 A：`auth_sessions` 增加 `csrf_token_hash`，`interview_session`/`interview_csrf` 双 Cookie，历史使用 `{items, next_cursor}` 稳定游标分页 |
 | v0.7 | 2026-10-18 | 增加 `data_deletion_requests`、`delete_account_data`、`retention_cleanup`、隐私删除幂等和 365 天审计清理数据约束 |
 | v0.8 | 2026-10-22 | 增加私有 `user_documents`、`user_document_chunks`、pgvector HNSW、tsvector GIN、owner 隔离、90 天保留和证据来源约束 |
+| v0.9 | 2026-10-22 | 增加管理员角色、共享资料表、共享分块表、共享证据来源和创建者生命周期约束 |

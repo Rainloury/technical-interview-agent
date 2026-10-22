@@ -11,6 +11,7 @@ from app.api.v1.interviews import router as interviews_router
 from app.api.v1.privacy import router as privacy_router
 from app.api.v1.qa import router as qa_router
 from app.api.v1.resumes import router as resumes_router
+from app.api.v1.shared_documents import router as shared_documents_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(auth_router)
@@ -22,6 +23,7 @@ router.include_router(reviews_router)
 router.include_router(privacy_router)
 router.include_router(qa_router)
 router.include_router(resumes_router)
+router.include_router(shared_documents_router)
 
 
 @router.get("/ping", tags=["meta"])

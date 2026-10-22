@@ -102,7 +102,7 @@ async def get_dashboard(session: AsyncSession, user: User) -> DashboardResponse:
     ).all()
 
     return DashboardResponse(
-        user=UserSummary(id=user.id, display_name=user.display_name),
+        user=UserSummary(id=user.id, display_name=user.display_name, role=user.role),
         recent_tasks=tasks[:5],
         recent_interviews=[
             RecentInterview(

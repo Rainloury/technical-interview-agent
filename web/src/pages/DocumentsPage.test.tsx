@@ -20,10 +20,27 @@ const READY_DOCUMENT: DocumentItem = {
   updated_at: "2026-10-21T08:01:00Z",
   completed_at: "2026-10-21T08:01:00Z",
   retention_expires_at: "2027-01-19T08:01:00Z",
+  visibility: "private",
+  can_delete: true,
 };
 
 function documentsHandler(items = [READY_DOCUMENT]) {
   return http.get("*/api/v1/documents", () =>
+    HttpResponse.json({ items, next_cursor: null }),
+  );
+}
+
+const SHARED_DOCUMENT: DocumentItem = {
+  ...READY_DOCUMENT,
+  id: "shared-document-1",
+  title: "共享重试手册",
+  original_filename: "shared.md",
+  visibility: "shared",
+  can_delete: false,
+};
+
+function sharedDocumentsHandler(items = [SHARED_DOCUMENT]) {
+  return http.get("*/api/v1/shared-documents", () =>
     HttpResponse.json({ items, next_cursor: null }),
   );
 }
@@ -51,7 +68,7 @@ describe("DocumentsPage", () => {
   });
 
   it("lists private documents and supports empty state", async () => {
-    server.use(authenticatedSessionHandler(), documentsHandler([]));
+    server.use(authenticatedSessionHandler(), documentsHandler([]), sharedDocumentsHandler([]));
     renderApp("/documents");
 
     expect(await screen.findByText("还没有内部资料")).toBeInTheDocument();
@@ -127,6 +144,7 @@ describe("DocumentsPage", () => {
         { ...READY_DOCUMENT, id: "document-processing", title: "处理中", state: "processing" },
         { ...READY_DOCUMENT, id: "document-failed", title: "失败资料", state: "failed", failure_code: "embedding_timeout" },
       ]),
+      sharedDocumentsHandler([]),
       http.post("*/api/v1/documents/batch", () => {
         attempts += 1;
         if (attempts === 1) {
@@ -161,6 +179,7 @@ describe("DocumentsPage", () => {
     server.use(
       authenticatedSessionHandler(),
       http.get("*/api/v1/documents", () => HttpResponse.json({ items, next_cursor: null })),
+      sharedDocumentsHandler([]),
       http.delete("*/api/v1/documents/document-1", ({ request }) => {
         deleteHeaders = request.headers;
         items = [];
@@ -176,5 +195,112 @@ describe("DocumentsPage", () => {
 
     await waitFor(() => expect(deleteHeaders?.get("X-CSRF-Token")).toBe("delete-csrf"));
     await waitFor(() => expect(screen.queryByText("Redis 设计笔记")).not.toBeInTheDocument());
+  });
+
+  it("shows shared documents to regular users without write controls", async () => {
+    server.use(
+      authenticatedSessionHandler(),
+      documentsHandler([]),
+      sharedDocumentsHandler(),
+    );
+    renderApp("/documents");
+
+    expect(await screen.findByText("共享重试手册")).toBeInTheDocument();
+    expect(screen.queryByLabelText("共享资料文件")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "删除 共享重试手册" })).not.toBeInTheDocument();
+  });
+
+  it("lets administrators upload and delete shared documents", async () => {
+    const user = userEvent.setup();
+    const observed: { path: string; key: string | null }[] = [];
+    let sharedItems = [SHARED_DOCUMENT];
+    server.use(
+      http.get("*/api/v1/auth/session", () =>
+        HttpResponse.json({
+          user: { id: "admin-1", display_name: "管理员", role: "admin" },
+          session: { expires_at: "2026-10-24T08:30:00Z" },
+        }),
+      ),
+      documentsHandler([]),
+      http.get("*/api/v1/shared-documents", () =>
+        HttpResponse.json({ items: sharedItems, next_cursor: null }),
+      ),
+      http.post("*/api/v1/shared-documents/batch", ({ request }) => {
+        observed.push({
+          path: new URL(request.url).pathname,
+          key: request.headers.get("Idempotency-Key"),
+        });
+        sharedItems = [{ ...SHARED_DOCUMENT, id: "shared-document-2", title: "新共享资料" }];
+        return HttpResponse.json(
+          {
+            documents: [
+              {
+                document_id: "shared-document-2",
+                state: "uploaded",
+                created_at: "2026-10-21T09:00:00Z",
+              },
+            ],
+            original_filenames: ["new-shared.md"],
+          },
+          { status: 202 },
+        );
+      }),
+      http.delete("*/api/v1/shared-documents/*", () => {
+        sharedItems = [];
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    document.cookie = "interview_csrf=shared-csrf; path=/";
+    renderApp("/documents");
+
+    const file = new File(["Shared"], "new-shared.md", { type: "text/markdown" });
+    await user.upload(await screen.findByLabelText("共享资料文件"), file);
+    await user.click(screen.getByRole("button", { name: "上传 1 个共享文件" }));
+    await waitFor(() => expect(observed).toHaveLength(1));
+    expect(observed[0]?.path).toBe("/api/v1/shared-documents/batch");
+    expect(observed[0]?.key).toBeTruthy();
+
+    await user.click(await screen.findByRole("button", { name: "删除 新共享资料" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+    await waitFor(() =>
+      expect(screen.queryByText("新共享资料")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("shows a shared upload permission error without adding an optimistic row", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get("*/api/v1/auth/session", () =>
+        HttpResponse.json({
+          user: { id: "admin-2", display_name: "管理员", role: "admin" },
+          session: { expires_at: "2026-10-24T08:30:00Z" },
+        }),
+      ),
+      documentsHandler([]),
+      sharedDocumentsHandler([]),
+      http.post("*/api/v1/shared-documents/batch", () =>
+        HttpResponse.json(
+          {
+            error: {
+              code: "admin_required",
+              message: "当前账号没有共享资料权限",
+              retryable: false,
+            },
+          },
+          { status: 403 },
+        ),
+      ),
+    );
+    document.cookie = "interview_csrf=shared-error-csrf; path=/";
+    renderApp("/documents");
+
+    await user.upload(
+      await screen.findByLabelText("共享资料文件"),
+      new File(["Shared"], "denied.md", { type: "text/markdown" }),
+    );
+    await user.click(screen.getByRole("button", { name: "上传 1 个共享文件" }));
+
+    expect(await screen.findByText("当前账号没有共享资料权限")).toBeInTheDocument();
+    expect(screen.queryByText("denied.md")).not.toBeInTheDocument();
   });
 });

@@ -6,6 +6,7 @@ import hashlib
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from fastapi import Request
 from redis.exceptions import RedisError
@@ -45,6 +46,15 @@ class IssuedSession:
     session_id: uuid.UUID
 
 
+@dataclass(frozen=True, slots=True)
+class RoleChange:
+    """Auditable role transition for one active account."""
+
+    user_id: uuid.UUID
+    previous_role: Literal["user", "admin"]
+    current_role: Literal["user", "admin"]
+
+
 async def audit(
     session: AsyncSession,
     *,
@@ -64,6 +74,46 @@ async def audit(
             result=result,
             request_id=request_id[:120] or uuid.uuid4().hex,
         )
+    )
+
+
+async def set_user_role(
+    session: AsyncSession,
+    *,
+    email: str,
+    role: Literal["user", "admin"],
+    request_id: str,
+) -> RoleChange:
+    """Set one active account's role and persist a minimal audit event."""
+
+    normalized = normalize_email(email)
+    user = (
+        await session.execute(
+            select(User)
+            .where(
+                User.email_normalized == normalized,
+                User.status == "active",
+                User.deleted_at.is_(None),
+            )
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if user is None:
+        raise AppError(status_code=404, code="resource_not_found", message="用户不存在")
+    previous = user.role
+    user.role = role
+    await session.flush()
+    await audit(
+        session,
+        action="user_role_changed",
+        resource_id_hash=hashlib.sha256(normalized.encode()).hexdigest(),
+        result="success",
+        request_id=request_id,
+    )
+    return RoleChange(
+        user_id=user.id,
+        previous_role=previous,  # type: ignore[arg-type]
+        current_role=role,
     )
 
 

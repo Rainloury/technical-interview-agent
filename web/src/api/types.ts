@@ -3,6 +3,7 @@ export type HistoryType = "resume" | "qa" | "interview" | "wrong_question";
 export interface UserSummary {
   id: string;
   display_name: string | null;
+  role: "user" | "admin";
 }
 
 export interface SessionSummary {
@@ -75,6 +76,8 @@ export interface DocumentItem {
   updated_at: string;
   completed_at: string | null;
   retention_expires_at: string;
+  visibility: "private" | "shared";
+  can_delete: boolean;
 }
 
 export interface DocumentPage {

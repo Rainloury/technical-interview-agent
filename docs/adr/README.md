@@ -15,8 +15,9 @@
 | [ADR-0007](./0007-database-job-queue.md) | P0 使用 PostgreSQL 任务表而非新增消息队列 | 已接受 | 异步任务、部署 |
 | [ADR-0008](./0008-protected-feedback.md) | 受保护反馈按整场终态解锁 | 已接受 | 面试、报告、DTO |
 | [ADR-0009](./0009-hybrid-rag-for-private-documents.md) | 私有内部资料采用 pgvector、BM25 和 RRF 混合检索 | 已接受 | 数据、检索、Worker、前端、部署 |
+| [ADR-0010](./0010-shared-documents-and-admin-role.md) | 共享资料采用独立资源与管理员角色 | 已接受 | 鉴权、数据、检索、Worker、前端、运维 |
 
-当前 ADR-0001 至 ADR-0009 已全部接受。
+当前 ADR-0001 至 ADR-0010 已全部接受。
 
 ## 状态
 

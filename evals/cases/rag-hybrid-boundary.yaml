@@ -1,6 +1,6 @@
 id: rag-hybrid-boundary
 kind: rag_hybrid_boundary
-description: Keep private document evidence isolated and reject invented citations after RRF.
+description: Keep private and shared evidence distinct and reject invented citations after RRF.
 category: security
 critical: true
 cost_cny: 0.0
@@ -14,6 +14,12 @@ input:
       snippet: Limit attempts, add exponential backoff and jitter, and use idempotency keys.
       relevance_score: 0.94
       source_kind: user_document
+    - citation_id: evidence-2
+      title: Shared retry guide
+      section_path: Shared / Retry
+      snippet: Shared guidance requires bounded attempts and idempotent replay.
+      relevance_score: 0.88
+      source_kind: shared_document
   vector_status: degraded
 expect:
   question_untrusted: true
@@ -23,6 +29,7 @@ expect:
   evidence_status: supported
   evidence_ids:
     - evidence-1
+    - evidence-2
   vector_status: degraded
 forbidden:
   evidence_ids:
