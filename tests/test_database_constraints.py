@@ -13,6 +13,8 @@ from app.db.models import (
     QaEvidence,
     QaRequest,
     QaStreamEvent,
+    SharedDocument,
+    SharedDocumentChunk,
     User,
     UserDocument,
     UserDocumentChunk,
@@ -338,9 +340,196 @@ async def test_user_document_constraints_and_evidence_source_kind(
     db_session.add(chunk)
     await db_session.flush()
     assert chunk.owner_user_id == user.id
+
+
+async def test_shared_document_requires_admin_creator_role(
+    db_session: AsyncSession,
+) -> None:
+    regular = await _user(db_session)
+    admin = User(
+        email_normalized=f"{uuid.uuid4()}@example.com",
+        password_hash="not-used",
+        role="admin",
+    )
+    db_session.add(admin)
+    await db_session.flush()
+
+    with pytest.raises(IntegrityError):
+        db_session.add(
+            SharedDocument(
+                created_by_user_id=regular.id,
+                title="共享资料",
+                original_filename="shared.md",
+                detected_mime="text/markdown",
+                size_bytes=10,
+                sha256="c" * 64,
+                object_key="shared/not-admin",
+            )
+        )
+        await db_session.flush()
+    await db_session.rollback()
+
+    regular = await _user(db_session)
+    admin = User(
+        email_normalized=f"{uuid.uuid4()}@example.com",
+        password_hash="not-used",
+        role="admin",
+    )
+    db_session.add(admin)
+    await db_session.flush()
+
+    allowed = SharedDocument(
+        created_by_user_id=admin.id,
+        title="共享资料",
+        original_filename="shared.md",
+        detected_mime="text/markdown",
+        size_bytes=10,
+        sha256="d" * 64,
+        object_key="shared/admin",
+    )
+    db_session.add(allowed)
+    await db_session.flush()
+    assert allowed.created_by_user_id == admin.id
+
+
+async def test_shared_document_content_hash_is_unique_while_active(
+    db_session: AsyncSession,
+) -> None:
+    admin = User(
+        email_normalized=f"{uuid.uuid4()}@example.com",
+        password_hash="not-used",
+        role="admin",
+    )
+    db_session.add(admin)
+    await db_session.flush()
+    first = SharedDocument(
+        created_by_user_id=admin.id,
+        title="one",
+        original_filename="one.md",
+        detected_mime="text/markdown",
+        size_bytes=5,
+        sha256="e" * 64,
+        object_key="shared/one",
+    )
+    db_session.add(first)
+    await db_session.flush()
+    db_session.add(
+        SharedDocument(
+            created_by_user_id=admin.id,
+            title="two",
+            original_filename="two.md",
+            detected_mime="text/markdown",
+            size_bytes=5,
+            sha256="e" * 64,
+            object_key="shared/two",
+        )
+    )
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+    await db_session.rollback()
+
+
+async def test_shared_document_chunks_are_isolated_by_document(
+    db_session: AsyncSession,
+) -> None:
+    admin = User(
+        email_normalized=f"{uuid.uuid4()}@example.com",
+        password_hash="not-used",
+        role="admin",
+    )
+    db_session.add(admin)
+    await db_session.flush()
+    document = SharedDocument(
+        created_by_user_id=admin.id,
+        title="shared",
+        original_filename="shared.md",
+        detected_mime="text/markdown",
+        size_bytes=12,
+        sha256="f" * 64,
+        object_key="shared/chunks",
+    )
+    db_session.add(document)
+    await db_session.flush()
+    db_session.add(
+        SharedDocumentChunk(
+            document_id=document.id,
+            chunk_index=0,
+            section_path="正文 / 1",
+            content="shared content",
+            content_hash="1" * 64,
+            search_text="shared content",
+            token_count=2,
+            embedding=[0.0] * 1024,
+        )
+    )
+    await db_session.flush()
+    db_session.add(
+        SharedDocumentChunk(
+            document_id=document.id,
+            chunk_index=0,
+            section_path="正文 / 2",
+            content="duplicate index",
+            content_hash="2" * 64,
+            search_text="duplicate index",
+            token_count=2,
+            embedding=[0.0] * 1024,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
+    await db_session.rollback()
+
+
+async def test_qa_evidence_accepts_shared_document_source(
+    db_session: AsyncSession,
+) -> None:
+    admin = User(
+        email_normalized=f"{uuid.uuid4()}@example.com",
+        password_hash="not-used",
+        role="admin",
+    )
+    db_session.add(admin)
+    await db_session.flush()
+    owner = await _user(db_session)
+    request = await _qa_request(db_session, owner)
+    document = SharedDocument(
+        created_by_user_id=admin.id,
+        title="shared",
+        original_filename="shared.md",
+        detected_mime="text/markdown",
+        size_bytes=12,
+        sha256="3" * 64,
+        object_key="shared/evidence",
+    )
+    db_session.add(document)
+    await db_session.flush()
+    chunk = SharedDocumentChunk(
+        document_id=document.id,
+        chunk_index=0,
+        section_path="正文 / 1",
+        content="evidence",
+        content_hash="4" * 64,
+        search_text="evidence",
+        token_count=1,
+        embedding=[0.0] * 1024,
+    )
+    db_session.add(chunk)
+    await db_session.flush()
+    db_session.add(
+        QaEvidence(
+            qa_request_id=request.id,
+            shared_document_chunk_id=chunk.id,
+            source_kind="shared_document",
+            source_title="shared",
+            section_path="正文 / 1",
+            snippet="evidence",
+            relevance_score=0.5,
+        )
+    )
+    await db_session.flush()
     assert len(chunk.embedding) == 1024
 
-    request = await _qa_request(db_session, user)
+    request = await _qa_request(db_session, owner)
     evidence = QaEvidence(
         qa_request_id=request.id,
         source_title="Redis 笔记",
