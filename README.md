@@ -229,6 +229,13 @@ Use immutable image digests for production rollouts. Keep the production
 environment file outside the repository and inject it through your secret
 manager or deployment platform.
 
+## Android
+
+The Capacitor Android shell is in `web/android` and targets the same-origin
+production site at `https://it.rainstone.top`. See
+[`docs/android-release.md`](docs/android-release.md) for local builds, release
+signing, GitHub Actions and Google Play Console steps.
+
 ## Contributing
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
