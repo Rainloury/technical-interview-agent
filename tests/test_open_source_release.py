@@ -52,8 +52,9 @@ def test_readme_languages_link_to_each_other() -> None:
     english = (ROOT / "README.md").read_text(encoding="utf-8")
     chinese = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
 
-    assert "[简体中文](README.zh-CN.md)" in english
+    assert "[Chinese](README.zh-CN.md)" in english
     assert "[English](README.md)" in chinese
+    assert english.isascii()
 
 
 def test_web_fonts_are_served_locally() -> None:
