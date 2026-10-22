@@ -55,8 +55,10 @@ def test_readme_languages_link_to_each_other() -> None:
     assert "[Chinese](README.zh-CN.md)" in english
     assert "[English](README.md)" in chinese
     assert english.isascii()
-    assert "[Live site](https://it.rainstone.top/)" in english
-    assert "[在线站点](https://it.rainstone.top/)" in chinese
+    assert "[Live site](https://it.rainstone.top)" in english
+    assert "[在线站点](https://it.rainstone.top)" in chinese
+    assert "https://it.rainstone.top/" not in english
+    assert "https://it.rainstone.top/" not in chinese
 
 
 def test_web_fonts_are_served_locally() -> None:

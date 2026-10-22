@@ -1,6 +1,6 @@
 # Technical Interview Agent
 
-English | [Chinese](README.zh-CN.md) | [Live site](https://it.rainstone.top/)
+English | [Chinese](README.zh-CN.md) | [Live site](https://it.rainstone.top)
 
 A self-hostable technical interview platform with a bounded answer agent,
 private document retrieval, and an async worker.
