@@ -72,6 +72,7 @@ def test_production_nginx_is_the_public_entry_and_serves_spa() -> None:
         "proxy_pass $api_upstream$request_uri;",
         "resolver 127.0.0.11 valid=10s ipv6=off;",
         "proxy_buffering off;",
+        "proxy_set_header X-Forwarded-Proto $scheme;",
         "try_files $uri $uri/ /index.html;",
         "location = /healthz",
     ):
@@ -231,15 +232,15 @@ def test_synology_compose_is_self_contained_for_npm_reverse_proxy() -> None:
         "APP_ENV: development",
         "APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:",
         "CSRF_ALLOWED_ORIGINS: ${CSRF_ALLOWED_ORIGINS:",
-        "COOKIE_SECURE: ${COOKIE_SECURE:-false}",
+        "COOKIE_SECURE: ${COOKIE_SECURE:-true}",
         "PASSWORD_RESET_BASE_URL: ${PASSWORD_RESET_BASE_URL:",
         "RESUME_STORAGE_BACKEND: local",
         "OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}",
         "OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-",
         "OLLAMA_EMBEDDING_DIMENSIONS: ${OLLAMA_EMBEDDING_DIMENSIONS:-",
-        'APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-["http://192.168.50.66:8080"]}',
-        'CSRF_ALLOWED_ORIGINS: ${CSRF_ALLOWED_ORIGINS:-["http://192.168.50.66:8080"]}',
-        "PASSWORD_RESET_BASE_URL: ${PASSWORD_RESET_BASE_URL:-http://192.168.50.66:8080/reset-password}",
+        'APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-["https://it.rainstone.top"]}',
+        'CSRF_ALLOWED_ORIGINS: ${CSRF_ALLOWED_ORIGINS:-["https://it.rainstone.top"]}',
+        "PASSWORD_RESET_BASE_URL: ${PASSWORD_RESET_BASE_URL:-https://it.rainstone.top/reset-password}",
         "storage-init:",
         'user: "0:0"',
         "chown -R 10001:10001",
@@ -278,9 +279,9 @@ def test_synology_compose_is_self_contained_for_npm_reverse_proxy() -> None:
     ):
         assert f"{variable}=" in env_example
     assert "APP_ENV=" not in env_example
-    assert 'APP_ALLOWED_ORIGINS=["http://192.168.50.66:8080"]' in env_example
-    assert 'CSRF_ALLOWED_ORIGINS=["http://192.168.50.66:8080"]' in env_example
-    assert "PASSWORD_RESET_BASE_URL=http://192.168.50.66:8080/reset-password" in env_example
+    assert 'APP_ALLOWED_ORIGINS=["https://it.rainstone.top"]' in env_example
+    assert 'CSRF_ALLOWED_ORIGINS=["https://it.rainstone.top"]' in env_example
+    assert "PASSWORD_RESET_BASE_URL=https://it.rainstone.top/reset-password" in env_example
 
 
 def test_deployment_uses_pgvector_and_ollama_configuration() -> None:
