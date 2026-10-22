@@ -1,5 +1,5 @@
 # Synology Container Manager / DSM 7 deployment.
-# NPM should forward https://192.168.50.66:100 to http://192.168.50.66:8080.
+# The app is exposed to NPM or direct browser access on host port 8080.
 name: technical-interview-agent-synology
 
 x-api-image: &api-image
@@ -16,9 +16,9 @@ x-application: &application
     APP_ENV: development
     APP_HOST: 0.0.0.0
     APP_PORT: "8000"
-    APP_ALLOWED_ORIGINS: '["https://192.168.50.66:100"]'
-    CSRF_ALLOWED_ORIGINS: '["https://192.168.50.66:100"]'
-    COOKIE_SECURE: "false"
+    APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-["http://192.168.50.66:8080"]}
+    CSRF_ALLOWED_ORIGINS: ${CSRF_ALLOWED_ORIGINS:-["http://192.168.50.66:8080"]}
+    COOKIE_SECURE: ${COOKIE_SECURE:-false}
     DATABASE_URL: postgresql+asyncpg://interview:${POSTGRES_PASSWORD:-change-me}@postgres:5432/interview
     REDIS_URL: redis://redis:6379/0
     DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?set DATA_ENCRYPTION_KEY}
@@ -35,7 +35,7 @@ x-application: &application
     RESUME_STORAGE_DIR: /var/lib/technical-interview-agent/resumes
     TOOL_RESULT_DIR: /var/lib/technical-interview-agent/tool-results
     MAIL_LOCAL_RESET_FILE: /var/lib/technical-interview-agent/password-reset.json
-    PASSWORD_RESET_BASE_URL: https://192.168.50.66:100/reset-password
+    PASSWORD_RESET_BASE_URL: ${PASSWORD_RESET_BASE_URL:-http://192.168.50.66:8080/reset-password}
     WORKER_HEALTH_FILE: /var/run/technical-interview-agent/worker-health.json
     WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
     WORKER_MAX_RUNTIME_SECONDS: "86400"
