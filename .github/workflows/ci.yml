@@ -122,7 +122,7 @@ jobs:
           set -euo pipefail
           test "$(docker image inspect technical-interview-agent-web:ci --format '{{.Config.User}}')" = "nginx"
           docker run --rm technical-interview-agent-web:ci nginx -t
-          docker run --detach --name web-ci -p 18080:80 technical-interview-agent-web:ci
+          docker run --detach --name web-ci -p 18080:8080 technical-interview-agent-web:ci
           ready=0
           for attempt in $(seq 1 20); do
             if curl --fail --silent http://127.0.0.1:18080/healthz >/dev/null; then

@@ -80,14 +80,19 @@ def test_production_nginx_is_the_public_entry_and_serves_spa() -> None:
     for fragment in (
         "web:",
         "${WEB_IMAGE_REPOSITORY:?set WEB_IMAGE_REPOSITORY}",
-        "${WEB_BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-8080}:80",
+        "${WEB_BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-8080}:8080",
     ):
         assert fragment in compose
 
+    assert "listen 8080;" in nginx
+    assert "listen 80;" not in nginx
     assert "ports:" in compose.split("  web:", 1)[1].split("  postgres:", 1)[0]
     assert "api:\n    <<: *application" in compose
     assert 'expose:\n      - "8000"' in compose
     assert "API_BIND_ADDRESS" not in compose
+    web = compose.split("  web:", 1)[1].split("  postgres:", 1)[0]
+    assert "cap_add:" not in web
+    assert "http://127.0.0.1:8080/healthz" in web
 
 
 def test_web_image_builds_static_assets_and_ships_nginx_healthcheck() -> None:
@@ -103,9 +108,12 @@ def test_web_image_builds_static_assets_and_ships_nginx_healthcheck() -> None:
         "COPY nginx-main.conf /etc/nginx/nginx.conf",
         "COPY --from=build /workspace/dist /usr/share/nginx/html",
         "USER nginx",
-        "http://127.0.0.1/healthz",
+        "EXPOSE 8080",
+        "http://127.0.0.1:8080/healthz",
     ):
         assert fragment in dockerfile
+
+    assert "EXPOSE 80\n" not in dockerfile
 
 
 def test_production_compose_requires_explicit_image_and_secret_env() -> None:
@@ -196,7 +204,9 @@ def test_local_compose_builds_application_image_once_for_all_backend_roles() -> 
     assert "args:\n        PIP_INDEX_URL:" in backend_services
     assert backend_services.count("args:") == 1
     assert "name: technical-interview-agent-local" in compose
-    assert "127.0.0.1:8080:80" in compose
+    assert "127.0.0.1:8080:8080" in compose
+    web = compose.split("  web:", 1)[1].split("volumes:", 1)[0]
+    assert "http://127.0.0.1:8080/healthz" in web
 
 
 def test_local_compose_initializes_shared_storage_before_application() -> None:

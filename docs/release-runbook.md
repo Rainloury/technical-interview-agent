@@ -207,7 +207,7 @@ docker build --pull -t "$WEB_IMAGE_REPOSITORY:$IMAGE_TAG" web/
 docker push "$WEB_IMAGE_REPOSITORY:$IMAGE_TAG"
 ```
 
-API/Worker 镜像以 UID/GID `10001` 的非 root 用户运行；Web 镜像基于官方 Nginx 镜像，根文件系统只读，Nginx 缓存与运行目录使用受限 tmpfs，并只保留启动 Nginx、绑定 80 端口所需的 `CHOWN`、`SETGID`、`SETUID`、`NET_BIND_SERVICE` capabilities。API 探针检查 `/health/ready`；Worker 探针检查 `/var/run/technical-interview-agent/worker-health.json` 的 `running` 状态和 30 秒内更新时间；Web 探针检查 `/healthz`。
+API/Worker 镜像以 UID/GID `10001` 的非 root 用户运行；Web 镜像基于官方 Nginx 镜像，以 `nginx` 用户运行，根文件系统只读，Nginx 缓存与运行目录使用受限 tmpfs。Web 容器内部只监听非特权端口 `8080`，Compose 再将 `WEB_BIND_ADDRESS:WEB_PORT` 映射到该端口，因此不依赖 `NET_BIND_SERVICE` 等低端口 capability。API 探针检查 `/health/ready`；Worker 探针检查 `/var/run/technical-interview-agent/worker-health.json` 的 `running` 状态和 30 秒内更新时间；Web 探针检查容器内 `8080` 端口的 `/healthz`。
 
 启动后检查：
 
