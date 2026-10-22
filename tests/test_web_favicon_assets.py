@@ -14,13 +14,9 @@ def test_favicon_assets_cover_browser_mobile_and_windows() -> None:
     assert (public / "favicon.svg").read_text(encoding="utf-8").startswith("<svg")
     assert (public / "favicon-32.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     assert (public / "favicon-192.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
-    assert (public / "apple-touch-icon.png").read_bytes().startswith(
-        b"\x89PNG\r\n\x1a\n"
-    )
+    assert (public / "apple-touch-icon.png").read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     assert (public / "favicon.ico").read_bytes().startswith(b"\x00\x00\x01\x00")
-    assert '"short_name": "Interview"' in (public / "site.webmanifest").read_text(
-        encoding="utf-8"
-    )
+    assert '"short_name": "Interview"' in (public / "site.webmanifest").read_text(encoding="utf-8")
 
 
 def test_index_declares_favicon_and_application_manifest() -> None:
