@@ -4,10 +4,12 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Boolean,
     CheckConstraint,
+    Computed,
     ForeignKey,
     Index,
     Integer,
@@ -17,6 +19,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -300,6 +303,18 @@ class KnowledgeSourceSection(Base):
         CheckConstraint("section_index >= 0", name="section_index"),
         CheckConstraint("char_length(content) > 0", name="content"),
         Index("ix_knowledge_source_sections_version", "version_id", "section_index"),
+        Index(
+            "ix_knowledge_source_sections_search_vector",
+            "search_vector",
+            postgresql_using="gin",
+        ),
+        Index(
+            "ix_knowledge_source_sections_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
 
     id: Mapped[uuid.UUID] = _pk()
@@ -311,7 +326,17 @@ class KnowledgeSourceSection(Base):
     section_index: Mapped[int] = mapped_column(Integer, nullable=False)
     section_path: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    search_text: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('simple', search_text)", persisted=True),
+        nullable=False,
+    )
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(1024))
+    embedding_model: Mapped[str | None] = mapped_column(Text)
+    embedding_dimensions: Mapped[int | None] = mapped_column(Integer)
+    embedding_index_version: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -414,6 +439,10 @@ class QaEvidence(Base):
     knowledge_source_version_id: Mapped[uuid.UUID | None] = mapped_column(
         UUIDType, ForeignKey("knowledge_source_versions.id", ondelete="SET NULL")
     )
+    user_document_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUIDType, ForeignKey("user_document_chunks.id", ondelete="SET NULL")
+    )
+    source_kind: Mapped[str] = mapped_column(String(32), nullable=False, server_default="system")
     source_title: Mapped[str] = mapped_column(Text, nullable=False)
     section_path: Mapped[str] = mapped_column(Text, nullable=False)
     snippet: Mapped[str] = mapped_column(Text, nullable=False)
@@ -422,6 +451,109 @@ class QaEvidence(Base):
     source_state: Mapped[str] = mapped_column(
         String(32), nullable=False, server_default="available"
     )
+    created_at: Mapped[datetime] = _created_at()
+
+
+class UserDocument(Base):
+    __tablename__ = "user_documents"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('uploaded','processing','ready','failed','deleted')",
+            name="state",
+        ),
+        CheckConstraint(
+            "deletion_state IS NULL OR deletion_state IN ('pending','deleted','failed')",
+            name="deletion_state",
+        ),
+        CheckConstraint("size_bytes > 0 AND size_bytes <= 10485760", name="size_bytes"),
+        CheckConstraint("chunk_count >= 0", name="chunk_count"),
+        Index("ix_user_documents_owner_created", "owner_user_id", "created_at"),
+        Index("ix_user_documents_owner_state_updated", "owner_user_id", "state", "updated_at"),
+        Index(
+            "uq_user_documents_owner_sha",
+            "owner_user_id",
+            "sha256",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "uq_user_documents_owner_idempotency",
+            "owner_user_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUIDType, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    original_filename: Mapped[str] = mapped_column(Text, nullable=False)
+    detected_mime: Mapped[str] = mapped_column(Text, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, server_default="uploaded")
+    failure_code: Mapped[str | None] = mapped_column(Text)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    index_version: Mapped[str | None] = mapped_column(Text)
+    embedding_model: Mapped[str | None] = mapped_column(Text)
+    embedding_dimensions: Mapped[int | None] = mapped_column(Integer)
+    idempotency_key: Mapped[str | None] = mapped_column(Text)
+    request_fingerprint: Mapped[str | None] = mapped_column(Text)
+    deletion_state: Mapped[str | None] = mapped_column(String(16))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    deleted_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    retention_expires_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, nullable=False, server_default=text("now() + interval '90 days'")
+    )
+
+
+class UserDocumentChunk(Base):
+    __tablename__ = "user_document_chunks"
+    __table_args__ = (
+        UniqueConstraint("document_id", "chunk_index"),
+        CheckConstraint("chunk_index >= 0", name="chunk_index"),
+        CheckConstraint("token_count > 0", name="token_count"),
+        Index("ix_user_document_chunks_owner_document", "owner_user_id", "document_id"),
+        Index(
+            "ix_user_document_chunks_search_vector",
+            "search_vector",
+            postgresql_using="gin",
+        ),
+        Index(
+            "ix_user_document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUIDType, ForeignKey("user_documents.id", ondelete="CASCADE"), nullable=False
+    )
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUIDType, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    section_path: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    search_text: Mapped[str] = mapped_column(Text, nullable=False)
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('simple', search_text)", persisted=True),
+        nullable=False,
+    )
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(1024), nullable=False)
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -750,7 +882,8 @@ class AsyncJob(Base):
             "job_type IN ('parse_resume','analyze_resume','generate_questions',"
             "'answer_question','score_open_interview_turn','score_interview_turn',"
             "'advance_interview','generate_report','delete_data','delete_account_data',"
-            "'retention_cleanup','password_reset_delivery')",
+            "'retention_cleanup','password_reset_delivery','process_document',"
+            "'delete_document')",
             name="job_type",
         ),
         CheckConstraint(

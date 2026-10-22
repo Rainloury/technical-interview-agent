@@ -6,6 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 const password = "correct horse battery staple";
 const question = "如何设计有界重试并避免重复提交？";
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
+const apiUrl = process.env.API_URL ?? "http://127.0.0.1:8100";
 
 interface WorkerProcess {
   process: ChildProcessByStdio<null, Readable, Readable>;
@@ -129,7 +130,40 @@ test("answers a question from published evidence and reopens it from history", a
     await page.getByRole("button", { name: "开始检索" }).click();
     await expect(page).toHaveURL(/\/qa\/[0-9a-f-]+$/);
 
+    const match = page.url().match(/\/qa\/([0-9a-f-]+)$/);
+    expect(match).not.toBeNull();
+    const qaId = match?.[1] ?? "";
+    let qaDiagnostics: unknown = null;
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(
+            `${apiUrl}/api/v1/qa/${qaId}`,
+          );
+          if (!response.ok()) {
+            qaDiagnostics = { status: response.status() };
+            return "request_failed";
+          }
+          const payload = (await response.json()) as {
+            state: string;
+            error: unknown;
+          };
+          qaDiagnostics = payload;
+          return payload.state;
+        },
+        { timeout: 30_000, intervals: [500, 1000, 2000] },
+      )
+      .toMatch(/^(completed|failed)$/);
+
     try {
+      if (
+        typeof qaDiagnostics === "object" &&
+        qaDiagnostics !== null &&
+        "state" in qaDiagnostics &&
+        qaDiagnostics.state === "failed"
+      ) {
+        throw new Error(`QA failed: ${JSON.stringify(qaDiagnostics)}`);
+      }
       await expect(page.getByRole("heading", { name: "回答" })).toBeVisible({
         timeout: 25_000,
       });
@@ -138,7 +172,7 @@ test("answers a question from published evidence and reopens it from history", a
       expect(answerText).toContain("幂等键");
     } catch (error) {
       throw new Error(
-        `${error instanceof Error ? error.message : String(error)}\nWorker diagnostics:\n${worker.diagnostics()}`,
+        `${error instanceof Error ? error.message : String(error)}\nQA diagnostics: ${JSON.stringify(qaDiagnostics)}\nWorker diagnostics:\n${worker.diagnostics()}`,
       );
     }
     await expect(page.getByText("有界重试设计指南", { exact: true })).toBeVisible();

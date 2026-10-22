@@ -23,7 +23,7 @@ pytestmark = pytest.mark.eval
 def test_seed_eval_suite_passes() -> None:
     report = run_suite()
 
-    assert report.total == 7
+    assert report.total == 8
     assert report.passed == report.total
     assert report.pass_rate == 1.0
     agent_case = next(
@@ -37,6 +37,8 @@ def test_seed_eval_suite_passes() -> None:
     ]
     assert len(threshold_cases) == 4
     assert all(result.passed for result in threshold_cases)
+    rag_case = next(result for result in report.results if result.case_id == "rag-hybrid-boundary")
+    assert rag_case.passed is True
 
 
 def test_pass_rate_regression_over_fifteen_percent_is_rejected(tmp_path: Path) -> None:

@@ -56,13 +56,41 @@ async def _run_alerts() -> None:
         await engine.dispose()
 
 
+async def _run_rag_backfill() -> None:
+    from app.rag.backfill import backfill_system_embeddings
+    from app.rag.ollama import OllamaEmbeddingClient
+
+    settings = get_settings()
+    if settings.ollama_base_url is None:
+        raise ValueError("OLLAMA_BASE_URL is required for rag-backfill")
+    engine = create_engine(settings)
+    embedding = OllamaEmbeddingClient(settings)
+    try:
+        session_factory = create_session_factory(engine)
+        async with session_factory() as session:
+            result = await backfill_system_embeddings(
+                session,
+                embedding_client=embedding,
+                settings=settings,
+            )
+        print(
+            f"processed={result.processed} skipped={result.skipped} failed={result.failed}",
+            flush=True,
+        )
+        if result.failed:
+            raise RuntimeError("one or more system embeddings failed")
+    finally:
+        await embedding.aclose()
+        await engine.dispose()
+
+
 def _command_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Technical interview agent")
     parser.add_argument("--reload", action="store_true")
     parser.add_argument(
         "command",
         nargs="?",
-        choices=("api", "worker", "migrate", "alerts"),
+        choices=("api", "worker", "migrate", "alerts", "rag-backfill"),
         default="api",
     )
     return parser
@@ -89,6 +117,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         if args.reload:
             parser.error("--reload is only supported for the api command")
         asyncio.run(_run_alerts())
+        return
+    if args.command == "rag-backfill":
+        if args.reload:
+            parser.error("--reload is only supported for the api command")
+        asyncio.run(_run_rag_backfill())
         return
     _run_api(reload=args.reload)
 

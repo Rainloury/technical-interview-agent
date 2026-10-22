@@ -110,7 +110,7 @@ export function QaPage() {
           <p className="eyebrow">KNOWLEDGE / QA</p>
           <h1>技术问答</h1>
           <p className="page-lede">
-            提交一个具体的技术问题。系统会先检索已审核资料，再给出带公开证据的回答。
+            提交一个具体的技术问题。系统会先检索当前账号已就绪资料与系统资料，再给出带公开证据的回答。
           </p>
         </div>
         <Link className="secondary-button secondary-button--link" to="/workspace">
@@ -238,8 +238,8 @@ export function QaPage() {
               <ShieldCheck size={19} />
             </span>
             <div>
-              <h2>只用已审核资料</h2>
-              <p>检索范围固定为最新发布且已加入白名单的知识来源。</p>
+              <h2>账号内资料优先</h2>
+              <p>检索范围包含当前账号已就绪资料，以及最新发布且已加入白名单的系统知识。</p>
             </div>
           </div>
           <div className="qa-note">

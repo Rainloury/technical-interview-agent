@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-17T16:03:09.929403+00:00",
-  "total": 3,
-  "passed": 3,
+  "generated_at": "2026-10-21T10:52:25.074152+00:00",
+  "total": 8,
+  "passed": 8,
   "pass_rate": 1.0,
   "total_cost_cny": 0.0,
   "cases": [
@@ -13,7 +13,37 @@
       "failure_reason": null
     },
     {
+      "case_id": "interview-critical-error",
+      "passed": true,
+      "cost_cny": 0.0,
+      "failure_reason": null
+    },
+    {
+      "case_id": "interview-threshold-fail",
+      "passed": true,
+      "cost_cny": 0.0,
+      "failure_reason": null
+    },
+    {
+      "case_id": "interview-threshold-gates",
+      "passed": true,
+      "cost_cny": 0.0,
+      "failure_reason": null
+    },
+    {
+      "case_id": "interview-threshold-mid",
+      "passed": true,
+      "cost_cny": 0.0,
+      "failure_reason": null
+    },
+    {
       "case_id": "qa-evidence-boundary",
+      "passed": true,
+      "cost_cny": 0.0,
+      "failure_reason": null
+    },
+    {
+      "case_id": "rag-hybrid-boundary",
       "passed": true,
       "cost_cny": 0.0,
       "failure_reason": null

@@ -6,7 +6,17 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from app.config import Settings
 from app.db.jobs import finish_job, lease_next_job, renew_job_lease
-from app.db.models import AsyncJob, Interview, QaRequest, QaStreamEvent, User
+from app.db.models import (
+    AsyncJob,
+    Interview,
+    KnowledgeSourceSection,
+    QaEvidence,
+    QaRequest,
+    QaStreamEvent,
+    User,
+    UserDocument,
+    UserDocumentChunk,
+)
 from app.db.session import create_engine, create_session_factory
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -293,4 +303,71 @@ async def test_audit_retention_constraint_is_enforced(db_session: AsyncSession) 
             ),
             {"id": uuid.uuid4()},
         )
+    await db_session.rollback()
+
+
+async def test_user_document_constraints_and_evidence_source_kind(
+    db_session: AsyncSession,
+) -> None:
+    user = await _user(db_session)
+    document = UserDocument(
+        owner_user_id=user.id,
+        title="Redis 笔记",
+        original_filename="redis.md",
+        detected_mime="text/markdown",
+        size_bytes=12,
+        sha256="a" * 64,
+        object_key=f"{user.id.hex}/redis.md",
+        state="ready",
+        chunk_count=1,
+        retention_expires_at=datetime.now(UTC) + timedelta(days=90),
+    )
+    db_session.add(document)
+    await db_session.flush()
+    chunk = UserDocumentChunk(
+        document_id=document.id,
+        owner_user_id=user.id,
+        chunk_index=0,
+        section_path="正文 / 1",
+        content="Redis 使用 LRU 淘汰。",
+        content_hash="b" * 64,
+        search_text="Redis 使用 LRU 淘汰",
+        token_count=6,
+        embedding=[0.0] * 1024,
+    )
+    db_session.add(chunk)
+    await db_session.flush()
+    assert chunk.owner_user_id == user.id
+    assert len(chunk.embedding) == 1024
+
+    request = await _qa_request(db_session, user)
+    evidence = QaEvidence(
+        qa_request_id=request.id,
+        source_title="Redis 笔记",
+        section_path="正文 / 1",
+        snippet="Redis 使用 LRU 淘汰。",
+        relevance_score=0.9,
+        position={"rank": 1},
+    )
+    db_session.add(evidence)
+    await db_session.flush()
+    assert evidence.source_kind == "system"
+    assert evidence.user_document_chunk_id is None
+
+    section = KnowledgeSourceSection(
+        version_id=uuid.uuid4(),
+        section_index=0,
+        section_path="系统",
+        content="系统资料",
+        token_count=4,
+        embedding=[0.0] * 1024,
+        embedding_model="bge-m3",
+        embedding_dimensions=1024,
+        embedding_index_version="rag-v1",
+    )
+    assert section.embedding_model == "bge-m3"
+
+    document.state = "invalid"
+    with pytest.raises(IntegrityError):
+        await db_session.flush()
     await db_session.rollback()

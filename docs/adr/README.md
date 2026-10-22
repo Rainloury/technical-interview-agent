@@ -14,13 +14,13 @@
 | [ADR-0006](./0006-sse-contract.md) | 问答使用可重连 SSE 事件流 | 已接受 | 问答接口、前端 |
 | [ADR-0007](./0007-database-job-queue.md) | P0 使用 PostgreSQL 任务表而非新增消息队列 | 已接受 | 异步任务、部署 |
 | [ADR-0008](./0008-protected-feedback.md) | 受保护反馈按整场终态解锁 | 已接受 | 面试、报告、DTO |
-| [ADR-0009](./0009-hybrid-rag-for-private-documents.md) | 私有内部资料采用 pgvector、BM25 和 RRF 混合检索 | 待评审 | 数据、检索、Worker、前端、部署 |
+| [ADR-0009](./0009-hybrid-rag-for-private-documents.md) | 私有内部资料采用 pgvector、BM25 和 RRF 混合检索 | 已接受 | 数据、检索、Worker、前端、部署 |
 
-当前 ADR-0001 至 ADR-0008 已全部接受；ADR-0009 待规格审查后接受。
+当前 ADR-0001 至 ADR-0009 已全部接受。
 
 ## 状态
 
-- `proposed`：技术方案提出，等待评审；当前没有处于此状态的 ADR。
+- `proposed`：技术方案提出，等待评审。
 - `accepted`：评审通过，作为实现约束。
 - `superseded`：被后续 ADR 替代。
 - `rejected`：明确不采用。

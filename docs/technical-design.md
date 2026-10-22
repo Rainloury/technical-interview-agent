@@ -96,10 +96,11 @@ Worker
 
 ```text
 创建 QA request
-  -> 加载知识源白名单和版本
-  -> 生成检索计划
-  -> 查询批准知识源
-  -> 相关性过滤、去重和预算裁剪
+  -> Ollama 生成问题向量（不可用时降级）
+  -> 当前 owner 的 ready 资料向量 Top 20
+  -> 当前 owner 资料 + 系统 allowlist 的词法 Top 20
+  -> RRF 融合（k=60，等权）
+  -> 取 Top 5、冻结证据快照
   -> 生成结构化回答
   -> 校验引用、证据和延伸问题
   -> 持久化增量事件与最终答案
@@ -109,7 +110,7 @@ Worker
 
 任意 URL、用户上传文件或未授权知识源在检索计划阶段被拒绝。回答中的关键事实只能引用当前请求冻结的证据 ID。
 
-实现状态：P0 问答切片已验收。`POST /api/v1/qa` 创建请求，`GET /api/v1/qa/{id}` 返回当前状态与结果，`GET /api/v1/qa/{id}/stream` 提供持久事件流；三个接口均按 owner 隔离。`Idempotency-Key` 与请求指纹冲突返回稳定错误；只检索 allowlist 中最新已发布版本。证据在任务执行时冻结，公开 DTO 仅返回 `citation_id`、标题、章节路径、最长 200 字符片段、相关度和 `source_state`，不暴露内部 UUID 或对象位置。事件按持久化序号通过 `after_seq` 或 `Last-Event-ID` 重放，`completed` 与 `error` 互斥。
+实现状态：P0 问答切片已验收，内部资料 RAG 切片已接入。`POST /api/v1/qa` 创建请求，`GET /api/v1/qa/{id}` 返回当前状态与结果，`GET /api/v1/qa/{id}/stream` 提供持久事件流；三个接口均按 owner 隔离。检索自动组合当前用户已就绪的私有资料与系统 allowlist 中最新已发布版本，不提供资料选择器；个人资料永不写入 allowlist。Ollama `mxbai-embed-large:latest` 返回 1024 维向量，服务不可用时问答降级为 PostgreSQL `ts_rank_cd` 的 BM25 风格词法召回，并记录 `vector_status=degraded`。向量和词法候选各取 Top 20，经 RRF 融合后取 Top 5。证据在任务执行时冻结，公开 DTO 仅返回 `citation_id`、标题、章节路径、最长 200 字符片段、相关度、`source_kind` 和 `source_state`，不暴露内部 UUID、owner 或对象位置。事件按持久化序号通过 `after_seq` 或 `Last-Event-ID` 重放，`completed` 与 `error` 互斥。
 
 ### 4.3 模拟面试
 
@@ -318,11 +319,21 @@ G4A 证据补充（2026-10-18）：真实 provider FAST、DEFAULT、REASONING �
 ## 9. 检索与证据
 
 - 每次检索固定知识源版本，历史记录不因知识库更新而变化。
+- 私有资料以 `owner_user_id` 双重过滤，只有 `ready`、未删除且未过期的资料进入向量或词法候选。
+- 系统 allowlist 只通过 `knowledge_sources.allowlisted` 和最新已发布版本进入检索；个人上传资料不修改 allowlist。
 - 检索工具输入只来自受控计划，不接受用户指定 URL。
 - 结果按相关性阈值、来源白名单、版本、去重键和预算裁剪。
 - 证据必须包含来源、版本、章节、片段摘要和稳定证据 ID。
 - 证据不足时明确标注模型知识；不确定时拒答。
 - Prompt 中检索结果放入 `<untrusted>` 块，声明只能作为数据。
+- 证据公开字段增加 `source_kind`（`system` / `user_document`）；删除个人资料后，历史证据保留摘要并标记 `source_deleted`，但后续检索不再召回。
+
+部署与迁移：
+
+- PostgreSQL 使用 `pgvector/pgvector:pg16` 镜像；Alembic 在执行建表前运行 `CREATE EXTENSION IF NOT EXISTS vector`。
+- 独立 Ollama 服务通过 `OLLAMA_BASE_URL`、`OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest` 和 `OLLAMA_EMBEDDING_DIMENSIONS=1024` 配置。
+- embedding 调用有连接超时、请求超时、有限重试和维度校验；资料索引失败重试耗尽后进入 `failed`，问答则在向量不可用时降级词法召回。
+- Compose 和 CI 不打包模型文件；生产只配置内部 Ollama 地址，模型实例独立部署和运维。
 
 简历来源删除后的证据规则：
 
@@ -365,6 +376,7 @@ P0 不新增消息队列依赖，采用 PostgreSQL 任务表：
 | 分析、面试、错题和薄弱点 | 90 天到期或用户申请删除 |
 | 临时工具结果 | 短期保留，到期清理 |
 | 审计摘要 | 最小白名单元数据保留 365 天 |
+| 私有内部资料 | 默认 90 天；删除或到期后停止检索并异步清理对象与分块 |
 
 删除流程：
 
@@ -478,3 +490,4 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 | v0.19 | 2026-10-18 | 新增生产镜像、migrate/API/Worker Compose、非 root/只读容器约束、Worker 心跳和 CI 镜像构建门禁 |
 | v0.20 | 2026-10-18 | 密码重置改为加密密文 + 持久任务异步投递；增加 `DATA_ENCRYPTION_KEY`、重试、死信和密文清理 |
 | v0.21 | 2026-10-20 | 修正发布候选状态表述：生产复核与发布批准待完成，避免把本地恢复/告警演练误写为未关闭 |
+| v0.22 | 2026-10-22 | 接受 ADR-0009：增加私有资料上传、pgvector + BM25 风格词法 + RRF、Ollama `mxbai-embed-large:latest`、BM25 降级、90 天保留和来源删除语义 |

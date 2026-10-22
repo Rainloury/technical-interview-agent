@@ -4,6 +4,9 @@ import type {
   Dashboard,
   DataDeletionAccepted,
   DataDeletionStatus,
+  DocumentAccepted,
+  DocumentItem,
+  DocumentPage,
   HistoryPage,
   HistoryType,
   Interview,
@@ -533,4 +536,26 @@ export const api = {
     }),
   latestDataDeletion: () =>
     request<DataDeletionStatus | null>("/api/v1/me/data-deletion"),
+  documents: (cursor?: string | null, limit = 20) =>
+    request<DocumentPage>("/api/v1/documents", {
+      query: { cursor, limit },
+    }),
+  document: (id: string) => request<DocumentItem>(`/api/v1/documents/${id}`),
+  uploadDocument: (file: File, title: string, idempotencyKey: string) => {
+    const formData = new FormData();
+    formData.set("file", file);
+    if (title.trim()) {
+      formData.set("title", title.trim());
+    }
+    return request<DocumentAccepted>("/api/v1/documents", {
+      method: "POST",
+      formData,
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
+  },
+  deleteDocument: (id: string, idempotencyKey: string) =>
+    request<void>(`/api/v1/documents/${id}`, {
+      method: "DELETE",
+      headers: { "Idempotency-Key": idempotencyKey },
+    }),
 };

@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: interview
           POSTGRES_USER: interview
@@ -117,7 +117,7 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: interview
           POSTGRES_USER: interview

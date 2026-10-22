@@ -49,9 +49,38 @@ export interface HistoryPage {
   next_cursor: string | null;
 }
 
+export type DocumentState = "uploaded" | "processing" | "ready" | "failed" | "deleted";
+
+export interface DocumentAccepted {
+  document_id: string;
+  state: DocumentState;
+  created_at: string;
+}
+
+export interface DocumentItem {
+  id: string;
+  title: string;
+  original_filename: string;
+  state: DocumentState;
+  chunk_count: number;
+  failure_code: string | null;
+  error_message: string | null;
+  index_version: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  retention_expires_at: string;
+}
+
+export interface DocumentPage {
+  items: DocumentItem[];
+  next_cursor: string | null;
+}
+
 export type QaState = "created" | "retrieving" | "answering" | "completed" | "failed";
 export type QaAnswerPreference = "concise" | "detailed";
 export type QaEvidenceStatus = "supported" | "model_knowledge" | "insufficient";
+export type QaEvidenceSourceKind = "system" | "user_document";
 
 export interface QaAccepted {
   qa_request_id: string;
@@ -74,6 +103,7 @@ export interface QaEvidence {
   snippet: string;
   relevance_score: number;
   source_state: "available" | "source_deleted";
+  source_kind: QaEvidenceSourceKind;
 }
 
 export interface QaRequest {
@@ -101,6 +131,8 @@ export interface QaStreamEvent {
     text?: string;
     answer?: QaAnswer;
     evidence?: QaEvidence[];
+    source_kind?: QaEvidenceSourceKind;
+    vector_status?: "ok" | "degraded" | "disabled";
     extended_questions?: string[];
     code?: string;
     message?: string;

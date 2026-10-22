@@ -5,6 +5,7 @@ import {
   LogOut,
   Menu,
   MessageSquareText,
+  Library,
   Plus,
   Target,
   Search,
@@ -20,9 +21,10 @@ import { useAuth } from "../auth/context";
 const navigation = [
   { to: "/workspace", label: "工作台", code: "01", icon: LayoutDashboard },
   { to: "/qa", label: "技术问答", code: "02", icon: Search },
-  { to: "/interviews", label: "模拟面试", code: "03", icon: MessageSquareText },
-  { to: "/reviews", label: "复习中心", code: "04", icon: Target },
-  { to: "/history", label: "历史记录", code: "05", icon: History },
+  { to: "/documents", label: "内部资料", code: "03", icon: Library },
+  { to: "/interviews", label: "模拟面试", code: "04", icon: MessageSquareText },
+  { to: "/reviews", label: "复习中心", code: "05", icon: Target },
+  { to: "/history", label: "历史记录", code: "06", icon: History },
 ];
 
 export function AppShell() {

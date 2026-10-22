@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { PublicOnlyRoute } from "./auth/PublicOnlyRoute";
 import { AppShell } from "./components/AppShell";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { DocumentsPage } from "./pages/DocumentsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { InterviewDetailPage } from "./pages/InterviewDetailPage";
 import { InterviewPage } from "./pages/InterviewPage";
@@ -34,6 +35,7 @@ export function App() {
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/qa" element={<QaPage />} />
           <Route path="/qa/:id" element={<QaDetailPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/interviews" element={<InterviewPage />} />
           <Route path="/interviews/:id" element={<InterviewDetailPage />} />
           <Route path="/reviews" element={<ReviewPage />} />

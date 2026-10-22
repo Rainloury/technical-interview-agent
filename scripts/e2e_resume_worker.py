@@ -23,7 +23,7 @@ from app.interview_contracts import (
 from app.llm.client import PromptMetadata, TraceContext
 from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
-from app.qa_contracts import QaAnswerOutput
+from app.qa_contracts import QaAnswerOutput, tokenize
 from app.resume_contracts import (
     GeneratedQuestionOutput,
     ResumeAnalysisOutput,
@@ -41,6 +41,13 @@ QA_VERSION_ID = uuid.UUID("1f4b4e3e-2f59-4a15-9a71-2fa3d7b94002")
 QA_SECTION_ID = uuid.UUID("1f4b4e3e-2f59-4a15-9a71-2fa3d7b94003")
 QA_CONTENT = "有界重试应限制次数，使用指数退避、抖动和幂等键来避免重复提交。"
 QA_ANSWER = "有界重试应设置次数上限，使用指数退避与抖动，并通过幂等键避免重复提交。"
+
+
+class DeterministicEmbedding:
+    """Return fixed vectors so browser tests never depend on Ollama."""
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * 1024 for _ in texts]
 
 
 class DeterministicResumeLlm:
@@ -242,11 +249,13 @@ async def _seed_qa_source(
                     section_index=0,
                     section_path="重试策略 / 有界重试",
                     content=QA_CONTENT,
+                    search_text=" ".join(tokenize(QA_CONTENT)),
                     token_count=len(QA_CONTENT),
                 )
             )
         else:
             section.content = QA_CONTENT
+            section.search_text = " ".join(tokenize(QA_CONTENT))
             section.token_count = len(QA_CONTENT)
         await session.commit()
 
@@ -264,6 +273,7 @@ async def _serve() -> None:
             storage=LocalPrivateStorage(settings.resume_storage_dir),
             llm=DeterministicResumeLlm(),
             prompt_loader=PromptLoader(settings.prompt_dir),
+            embedding_client=DeterministicEmbedding(),
             max_iterations=3000,
             idle_seconds=0.2,
         )

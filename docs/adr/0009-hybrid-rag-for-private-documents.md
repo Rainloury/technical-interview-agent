@@ -2,10 +2,11 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | `proposed` |
+| 状态 | `accepted` |
 | 日期 | 2026-10-21 |
+| 审批日期 | 2026-10-21 |
 | 决策者 | 项目负责人 |
-| 评审状态 | 待规格批准 |
+| 评审状态 | 已批准 |
 | 影响 | 数据、存储、检索、Worker、API、前端、部署、成本 |
 
 ## 背景
@@ -16,7 +17,7 @@
 
 - 每个用户拥有独立私有资料库；资料、分块、对象和证据都按 `owner_user_id` 隔离。
 - 支持 PDF、DOCX、TXT、Markdown，上传后异步解析、分块、embedding 和索引。
-- 使用独立 Ollama 服务提供 `bge-m3` embedding，默认 1024 维；模型、维度和服务地址显式配置。
+- 使用独立 Ollama 服务提供 embedding，当前部署为 `mxbai-embed-large:latest`，默认 1024 维；模型、维度和服务地址显式配置。
 - 使用 PostgreSQL pgvector 存储向量，使用 HNSW 余弦索引做候选召回。
 - 使用 PostgreSQL `ts_rank_cd` 做 BM25 风格词法召回，中文采用固定字符级预处理。
 - 向量与 BM25 各取 Top 20，通过 RRF（`k=60`，等权）融合后取 Top 5。
@@ -65,7 +66,7 @@
 ## 验证
 
 - 空库迁移、降级、再次升级和 `alembic check` 通过，`vector` 扩展可用。
-- `bge-m3` 返回 1024 维有限数值向量；维度不匹配时拒绝写入。
+- `mxbai-embed-large:latest` 返回 1024 维有限数值向量；维度不匹配时拒绝写入。
 - 用户资料与系统资料都能进入混合检索，RRF 结果稳定且不超过 Top 5。
 - 其他用户资料、未 ready 资料和已删除资料不进入向量或 BM25 候选。
 - Ollama 超时/不可用时问答降级 BM25，并留下稳定错误码和降级指标。
@@ -75,4 +76,4 @@
 
 ## 审批
 
-本 ADR 与 `docs/superpowers/specs/2026-10-21-user-rag-design.md` 一并审查。规格和 ADR 获批后，状态改为 `accepted`，再进入实现计划。
+本 ADR 与 `docs/superpowers/specs/2026-10-21-user-rag-design.md` 已于 2026-10-21 获项目负责人批准，状态为 `accepted`。

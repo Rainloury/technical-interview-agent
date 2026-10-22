@@ -10,6 +10,32 @@ from app.prompts.loader import PromptLoader
 from pydantic import ValidationError
 
 
+def test_rag_defaults_are_explicit() -> None:
+    settings = Settings(app_env="test", _env_file=None)
+
+    assert settings.ollama_embedding_model == "mxbai-embed-large:latest"
+    assert settings.ollama_embedding_dimensions == 1024
+    assert settings.document_max_bytes == 10_485_760
+    assert settings.document_max_characters == 200_000
+    assert settings.document_chunk_size == 800
+    assert settings.document_chunk_overlap == 100
+    assert settings.rag_embedding_batch_size == 16
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("ollama_base_url", "ftp://ollama:11434"),
+        ("ollama_embedding_dimensions", 0),
+        ("document_chunk_overlap", 800),
+        ("rag_embedding_batch_size", 0),
+    ],
+)
+def test_rag_settings_reject_invalid_values(field: str, value: object) -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate({field: value})
+
+
 def test_settings_accept_supported_dependencies() -> None:
     settings = Settings(
         database_url="postgresql+asyncpg://u:p@db:5432/name",
@@ -97,6 +123,7 @@ def _production_settings() -> Settings:
         ops_metrics_token="ops-production-token-32-characters-min",
         alert_webhook_url="https://alerts.example.com/hooks/technical-interview-agent",
         alert_webhook_token="alert-production-token",
+        ollama_base_url="http://ollama.internal:11434",
     )
 
 
@@ -150,6 +177,7 @@ def test_settings_can_disable_dotenv_loading(tmp_path: Path) -> None:
         ),
         ("smtp_host", None, "missing deployed configuration: SMTP_HOST"),
         ("llm_api_key", None, "missing deployed configuration: LLM_API_KEY"),
+        ("ollama_base_url", None, "missing deployed configuration: OLLAMA_BASE_URL"),
         ("alert_webhook_url", None, "missing deployed configuration: ALERT_WEBHOOK_URL"),
     ],
 )

@@ -2,10 +2,10 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.7 |
-| 文档状态 | 隐私删除、保留清理与审计保留数据约束已落地 |
-| 更新日期 | 2026-10-18 |
-| 技术基线 | PostgreSQL 16+、SQLAlchemy 2.0 async、Alembic |
+| 文档版本 | v0.8 |
+| 文档状态 | 私有内部资料 RAG 数据约束已落地 |
+| 更新日期 | 2026-10-22 |
+| 技术基线 | PostgreSQL 16+、pgvector、SQLAlchemy 2.0 async、Alembic |
 | 需求依据 | `docs/requirements.md` v1.5 |
 
 > 本文定义逻辑数据模型、关系、约束和索引入口。`DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受；账号、评分公开边界、持久 SSE 游标、任务租约、删除后证据摘要、最小审计和首个用户可见切片的数据约束按本文冻结。
@@ -34,6 +34,9 @@ erDiagram
     USERS ||--o{ QA_REQUESTS : asks
     QA_REQUESTS ||--o{ QA_EVIDENCE : cites
     QA_REQUESTS ||--o{ QA_STREAM_EVENTS : emits
+    USERS ||--o{ USER_DOCUMENTS : owns
+    USER_DOCUMENTS ||--o{ USER_DOCUMENT_CHUNKS : contains
+    USER_DOCUMENT_CHUNKS ||--o{ QA_EVIDENCE : supports
     USERS ||--o{ INTERVIEWS : takes
     INTERVIEWS ||--o{ INTERVIEW_TURNS : contains
     INTERVIEW_TURNS ||--o{ INTERVIEW_TURNS : parent_of
@@ -325,7 +328,9 @@ erDiagram
 | --- | --- | --- |
 | `id` | UUID | PK |
 | `qa_request_id` | UUID | FK |
-| `knowledge_source_version_id` | UUID | FK |
+| `knowledge_source_version_id` | UUID | FK，可空 |
+| `user_document_chunk_id` | UUID | FK -> `user_document_chunks.id`，可空；来源删除时 `SET NULL` |
+| `source_kind` | enum | `system`、`user_document`，默认 `system` |
 | `source_title` | text | 快照 |
 | `section_path` | text | 快照 |
 | `snippet` | text | 脱敏摘要，`CHECK (char_length(snippet) <= 200)` |
@@ -340,6 +345,67 @@ erDiagram
 - 证据摘要不是知识库原文的完整副本。
 - 来源删除后 `snippet` 仍不得超过 200 个字符，`position` 必须为 `NULL`，不得再保存文件名、原文引用或可恢复正文的上下文。
 - 删除和保留策略仍须与知识源许可协调，不能因用户需求批准而突破外部许可。
+
+### 5.6 `user_documents`
+
+每个登录用户拥有独立资料域，`owner_user_id` 是强制隔离键。系统 allowlist 仍只存在于 `knowledge_sources`，个人资料不得写入该表。
+
+| 字段 | 类型 | 约束/说明 |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `owner_user_id` | UUID | FK -> `users.id`，非空 |
+| `title` | text | 非空，展示标题 |
+| `original_filename` | text | 非空，仅 owner 可见 |
+| `detected_mime` | text | 非空 |
+| `size_bytes` | bigint | `1..10485760` |
+| `sha256` | text | 文件内容哈希 |
+| `object_key` | text | 唯一私有存储键，不返回 API |
+| `state` | enum | `uploaded`、`processing`、`ready`、`failed`、`deleted` |
+| `failure_code` | text | 可空 |
+| `error_message` | text | 可空，仅中性原因 |
+| `chunk_count` | integer | 默认 0 |
+| `index_version` | text | 当前为 `rag-v1` |
+| `embedding_model` | text | 成功索引时固定模型名 |
+| `embedding_dimensions` | integer | 成功索引时固定为 1024 |
+| `deletion_state` | text | `pending`、`deleted`、`failed`，用于异步对象清理 |
+| `idempotency_key` | text | 服务端哈希后的幂等键 |
+| `request_fingerprint` | text | 上传内容指纹 |
+| `created_at` / `updated_at` | timestamptz | 非空 |
+| `completed_at` / `deleted_at` | timestamptz | 可空 |
+| `retention_expires_at` | timestamptz | 非空，默认创建后 90 天 |
+
+约束与索引：
+
+- `UNIQUE (owner_user_id, sha256) WHERE deleted_at IS NULL`。
+- `UNIQUE (owner_user_id, idempotency_key) WHERE idempotency_key IS NOT NULL`。
+- `INDEX (owner_user_id, created_at DESC)` 和 `INDEX (owner_user_id, state, updated_at)`。
+- 检索只允许 `state = 'ready' AND deleted_at IS NULL AND retention_expires_at > now()`。
+
+### 5.7 `user_document_chunks`
+
+| 字段 | 类型 | 约束/说明 |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `document_id` | UUID | FK -> `user_documents.id`，级联删除 |
+| `owner_user_id` | UUID | FK -> `users.id`，非空 |
+| `chunk_index` | integer | 从 0 开始 |
+| `section_path` | text | 稳定章节路径 |
+| `content` | text | 规范化分块正文，不直接返回公开 DTO |
+| `content_hash` | text | 分块哈希 |
+| `search_text` | text | 中文双字切分和英文词项组成的词法检索文本 |
+| `search_vector` | tsvector | 由 `search_text` 生成，GIN 索引 |
+| `token_count` | integer | 非空 |
+| `embedding` | `vector(1024)` | `mxbai-embed-large:latest` 向量，非空 |
+| `created_at` | timestamptz | 非空 |
+
+约束与索引：
+
+- `UNIQUE (document_id, chunk_index)`。
+- `INDEX (owner_user_id, document_id)`。
+- `GIN (search_vector)` 支持 PostgreSQL `ts_rank_cd` 的 BM25 风格词法召回。
+- `HNSW (embedding vector_cosine_ops)` 支持 pgvector 余弦候选召回。
+- 迁移显式执行 `CREATE EXTENSION IF NOT EXISTS vector`，不调用 Ollama。
+- 向量召回与词法召回都必须在查询中附加 owner 和可检索状态过滤；随后按 owner-safe 候选做 RRF 融合。
 
 ## 6. 模拟面试
 
@@ -664,6 +730,7 @@ Alembic 首次迁移应包含：
 | `DR-05` | 分析证据、报告快照、QA 证据 | 摘要不超过 200 字符，来源删除后清除位置、文件名和上下文 |
 | `DR-06` | `audit_events` | 只保存最小白名单字段，固定保留 365 天 |
 | `DR-07` | `auth_sessions.csrf_token_hash`、历史分页游标 | `csrf_token_hash` 只保存 verifier 哈希；历史接口使用稳定游标返回 `{items, next_cursor}` |
+| `DR-08` | `user_documents`、`user_document_chunks`、`qa_evidence` | 个人资料按 owner 隔离，不进入 allowlist；删除后停止检索并标记历史证据来源已删除 |
 
 ADR 对模型的影响：
 
@@ -671,6 +738,7 @@ ADR 对模型的影响：
 - ADR-0006：新增 `qa_stream_events` 和 `qa_requests.last_event_seq`，事件游标和终态从 PostgreSQL 重建。
 - ADR-0007：`async_jobs` 增加 `lease_owner`、`fencing_token`，所有租约写入执行 fencing 校验。
 - ADR-0008：`feedback_unlocked_at` 的解锁条件是终态且所有已接收轮次离开 `scoring`；永久失败进入 `scoring_failed`，报告标记不完整评分。
+- ADR-0009：新增 `vector(1024)`、HNSW、`tsvector`/GIN、`search_text`、私有对象键和来源类型字段；历史证据来自系统资料或用户资料，删除资料时保留摘要但清除后续检索资格。
 
 `DR-01` 与 `DR-02` 已冻结：评分字段可以持久化在内部表，但提交响应和报告 DTO 必须按状态裁剪。进行中不返回受保护字段，终态且全部已接收轮次评分完成后才解锁。
 
@@ -685,3 +753,4 @@ ADR 对模型的影响：
 | v0.5 | 2026-10-17 | 接受 ADR-0003、ADR-0006、ADR-0007、ADR-0008；增加持久 SSE 事件模型、数据库时钟截止、任务租约 fencing 字段和受保护反馈终态约束 |
 | v0.6 | 2026-10-17 | 落实 `DR-07` 方案 A：`auth_sessions` 增加 `csrf_token_hash`，`interview_session`/`interview_csrf` 双 Cookie，历史使用 `{items, next_cursor}` 稳定游标分页 |
 | v0.7 | 2026-10-18 | 增加 `data_deletion_requests`、`delete_account_data`、`retention_cleanup`、隐私删除幂等和 365 天审计清理数据约束 |
+| v0.8 | 2026-10-22 | 增加私有 `user_documents`、`user_document_chunks`、pgvector HNSW、tsvector GIN、owner 隔离、90 天保留和证据来源约束 |

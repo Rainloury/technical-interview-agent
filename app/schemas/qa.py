@@ -47,6 +47,7 @@ class QaEvidenceView(BaseModel):
     snippet: str = Field(max_length=200)
     relevance_score: float = Field(ge=0, le=1)
     source_state: Literal["available", "source_deleted"]
+    source_kind: Literal["system", "user_document"] = "system"
 
 
 class QaAnswerView(BaseModel):

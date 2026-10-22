@@ -20,7 +20,7 @@ from app.security import hash_password
 from app.storage import LocalPrivateStorage
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import MetaData, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -57,22 +57,26 @@ def settings(tmp_path: Path) -> Settings:
 async def db_session(settings: Settings) -> AsyncIterator[AsyncSession]:
     """Provide a schema isolated from other tests and stale rows."""
 
-    engine = create_engine(settings)
     schema_name = f"test_{uuid.uuid4().hex}"
+    setup_engine = create_async_engine(settings.database_url)
+    async with setup_engine.begin() as connection:
+        await connection.execute(text(f'CREATE SCHEMA "{schema_name}"'))
+        await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    await setup_engine.dispose()
+    engine = create_async_engine(
+        settings.database_url,
+        connect_args={"server_settings": {"search_path": f"{schema_name},pg_catalog,public"}},
+    )
     factory = create_session_factory(engine)
     try:
         async with engine.begin() as connection:
-            await connection.execute(text(f'CREATE SCHEMA "{schema_name}"'))
-            await connection.execute(text(f'SET LOCAL search_path TO "{schema_name}"'))
-            await connection.run_sync(
-                lambda sync_connection: Base.metadata.create_all(
-                    sync_connection,
-                )
-            )
+            schema_metadata = MetaData()
+            for table in Base.metadata.sorted_tables:
+                table.to_metadata(schema_metadata, schema=schema_name)
+            await connection.run_sync(schema_metadata.create_all)
 
         async with engine.connect() as connection:
             transaction = await connection.begin()
-            await connection.execute(text(f'SET LOCAL search_path TO "{schema_name}"'))
             async with factory(
                 bind=connection,
                 join_transaction_mode="create_savepoint",
@@ -120,11 +124,20 @@ async def app_client(
     """Run API requests against a committed, disposable database schema."""
 
     schema_name = f"test_{uuid.uuid4().hex}"
-    setup_engine = create_engine(settings)
-    async with setup_engine.begin() as connection:
+    bootstrap_engine = create_async_engine(settings.database_url)
+    async with bootstrap_engine.begin() as connection:
         await connection.execute(text(f'CREATE SCHEMA "{schema_name}"'))
-        await connection.execute(text(f'SET LOCAL search_path TO "{schema_name}"'))
-        await connection.run_sync(Base.metadata.create_all)
+        await connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    await bootstrap_engine.dispose()
+    setup_engine = create_async_engine(
+        settings.database_url,
+        connect_args={"server_settings": {"search_path": f"{schema_name},pg_catalog,public"}},
+    )
+    async with setup_engine.begin() as connection:
+        schema_metadata = MetaData()
+        for table in Base.metadata.sorted_tables:
+            table.to_metadata(schema_metadata, schema=schema_name)
+        await connection.run_sync(schema_metadata.create_all)
     await setup_engine.dispose()
     redis = TestRedis()
 
@@ -132,7 +145,7 @@ async def app_client(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine = create_async_engine(
             settings.database_url,
-            connect_args={"server_settings": {"search_path": schema_name}},
+            connect_args={"server_settings": {"search_path": f"{schema_name},pg_catalog,public"}},
         )
         app.state.settings = settings
         app.state.session_factory = create_session_factory(engine)
@@ -147,7 +160,7 @@ async def app_client(
     app.router.lifespan_context = lifespan
     write_engine = create_async_engine(
         settings.database_url,
-        connect_args={"server_settings": {"search_path": schema_name}},
+        connect_args={"server_settings": {"search_path": f"{schema_name},pg_catalog,public"}},
     )
     write_factory = create_session_factory(write_engine)
     try:

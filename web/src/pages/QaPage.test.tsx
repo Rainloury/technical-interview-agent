@@ -92,6 +92,7 @@ describe("QaPage", () => {
       snippet: "函数通常返回值，存储过程可以包含更完整的业务步骤。",
       relevance_score: 0.9,
       source_state: "available",
+      source_kind: "system",
     };
     const answer: QaAnswer = {
       direct_answer: "两者在返回值、调用方式和适用场景上不同。",
