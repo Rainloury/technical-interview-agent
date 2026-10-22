@@ -36,7 +36,7 @@ def test_public_configuration_does_not_expose_internal_hosts() -> None:
         "README.zh-CN.md",
         "deploy/production.env.example",
     )
-    forbidden_fragments = ("100.88.158.91", "rainstone.top")
+    forbidden_fragments = ("100.88.158.91", "no-reply@rainstone.top")
 
     leaks = [
         f"{path}: {fragment}"
@@ -55,6 +55,10 @@ def test_readme_languages_link_to_each_other() -> None:
     assert "[Chinese](README.zh-CN.md)" in english
     assert "[English](README.md)" in chinese
     assert english.isascii()
+    assert "[Live site](https://it.rainstone.top)" in english
+    assert "[在线站点](https://it.rainstone.top)" in chinese
+    assert "https://it.rainstone.top/" not in english
+    assert "https://it.rainstone.top/" not in chinese
 
 
 def test_web_fonts_are_served_locally() -> None:

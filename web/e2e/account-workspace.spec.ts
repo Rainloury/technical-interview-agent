@@ -16,6 +16,18 @@ function emailFor(projectName: string): string {
   return `e2e-${projectName}-${suffix}@example.com`;
 }
 
+test("shows the public GitHub repository entry on the home screen", async ({ page }) => {
+  await page.goto("/login");
+
+  const githubLink = page.getByRole("link", { name: "开源仓库" }).filter({ visible: true });
+  await expect(githubLink).toBeVisible();
+  await expect(githubLink).toHaveAttribute(
+    "href",
+    "https://github.com/Rainloury/technical-interview-agent",
+  );
+  await expect(githubLink.locator('[data-github-mark="true"]')).toBeVisible();
+});
+
 async function register(page: Page, email: string): Promise<void> {
   await page.goto("/register");
   await page.getByLabel("邮箱").fill(email);

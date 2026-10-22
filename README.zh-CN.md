@@ -1,6 +1,6 @@
 # Technical Interview Agent
 
-[English](README.md) | 简体中文
+[English](README.md) | 简体中文 | [在线站点](https://it.rainstone.top)
 
 一个可自托管的技术面试平台，包含有界回答智能体、私有资料检索和异步 Worker。
 
