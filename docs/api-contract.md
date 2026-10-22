@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.9 |
-| 文档状态 | 私有内部资料 RAG 契约已落地 |
+| 文档版本 | v0.10 |
+| 文档状态 | 私有与共享内部资料契约已落地 |
 | 更新日期 | 2026-10-22 |
 | 基础路径 | `/api/v1` |
 | 数据格式 | JSON UTF-8；文件上传使用 `multipart/form-data` |
@@ -478,6 +478,24 @@ X-CSRF-Token: <csrf>
 
 私有资料默认保留 90 天。账号数据删除和保留到期同样必须停止检索、清理对象并标记历史来源。
 
+### 5.4 共享资料与管理权限
+
+共享资料依据 `DR-09` 和 ADR-0010。所有接口要求登录；读接口对所有 active 用户开放，写接口只允许 `role=admin`。普通用户调用写接口返回 `403 admin_required`。
+
+```text
+POST   /api/v1/shared-documents
+POST   /api/v1/shared-documents/batch
+GET    /api/v1/shared-documents
+GET    /api/v1/shared-documents/{document_id}
+DELETE /api/v1/shared-documents/{document_id}
+```
+
+上传、批量上传和删除要求 `Idempotency-Key` 与有效 CSRF。列表和详情返回与私有资料相同的状态字段，并增加 `visibility=shared` 和 `can_delete`；不返回对象键、创建者 ID、正文、embedding 或分块 ID。
+
+共享资料只有 `ready` 状态参与检索。删除后立即从列表、详情和后续检索消失，引用它的 `qa_evidence.source_state` 变为 `source_deleted`。管理员账号删除不级联删除共享资料。
+
+个人资料接口返回 `visibility=private` 与 `can_delete=true`，且仍然只对 owner 可见；管理员也不能读取其他用户的个人资料。
+
 ## 6. 检索问答
 
 ### 6.1 创建问答
@@ -510,7 +528,7 @@ Idempotency-Key: <uuid>
 - 空输入、超长输入和非技术输入返回可理解结果。
 - 用户文本中的 URL 不作为知识源；任意 URL 返回 `422 unsupported_source`。
 - 用户输入不能扩大方向知识源白名单。
-- 问答自动检索当前 owner 已就绪的私有资料，以及现有系统 allowlist 中最新已发布知识源；不提供资料选择器。
+- 问答自动检索当前 owner 已就绪的私有资料、所有已就绪共享资料，以及现有系统 allowlist 中最新已发布知识源；不提供资料选择器。
 - Ollama embedding 不可用时，检索降级为 PostgreSQL 词法召回，回答仍可完成；用户私有资料不会因降级进入系统 allowlist。
 
 ### 6.2 SSE 流
@@ -909,3 +927,4 @@ Authorization: Bearer <ops_metrics_token>
 | v0.7 | 2026-10-17 | 落实 `DR-07` 方案 A：补充 `interview_session`/`interview_csrf`、`X-CSRF-Token`、`csrf_token_hash` 和 `{items, next_cursor}` 历史分页契约 |
 | v0.8 | 2026-10-18 | 冻结账号数据删除、删除状态查询、30/90/365 天保留清理和 `ops_metrics_token` 运维指标契约 |
 | v0.9 | 2026-10-22 | 增加私有内部资料上传、列表、详情和删除契约；问答自动检索 owner 资料与系统 allowlist，embedding 不可用时词法降级 |
+| v0.10 | 2026-10-22 | 增加管理员共享资料接口和权限矩阵；共享资料对所有 active 用户可见并参与检索，个人资料继续严格按 owner 隔离 |
