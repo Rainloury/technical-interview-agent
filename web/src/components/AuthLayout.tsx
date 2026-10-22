@@ -1,6 +1,8 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { Link } from "react-router-dom";
+
+import { GitHubMark } from "./GitHubMark";
 
 interface AuthLayoutProps extends PropsWithChildren {
   title: string;
@@ -8,14 +10,34 @@ interface AuthLayoutProps extends PropsWithChildren {
   footer?: ReactNode;
 }
 
+const githubUrl = "https://github.com/Rainloury/technical-interview-agent";
+
+function GitHubLink({ compact = false }: { compact?: boolean }) {
+  return (
+    <a
+      className={compact ? "auth-github auth-github--compact" : "auth-github"}
+      href={githubUrl}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <GitHubMark />
+      <span>开源仓库</span>
+      {!compact && <ExternalLink size={14} aria-hidden="true" />}
+    </a>
+  );
+}
+
 export function AuthLayout({ title, subtitle, footer, children }: AuthLayoutProps) {
   return (
     <main className="auth-page">
       <section className="auth-intro" aria-label="产品说明">
-        <Link className="auth-back" to="/login">
-          <ArrowLeft size={17} aria-hidden="true" />
-          <span>技术面试工作台</span>
-        </Link>
+        <div className="auth-intro-nav">
+          <Link className="auth-back" to="/login">
+            <ArrowLeft size={17} aria-hidden="true" />
+            <span>技术面试工作台</span>
+          </Link>
+          <GitHubLink />
+        </div>
         <div className="auth-intro-copy">
           <p className="eyebrow">TECHNICAL INTERVIEW AGENT / v1</p>
           <h1>把每次练习，留成可复盘的记录。</h1>
@@ -63,7 +85,10 @@ export function AuthLayout({ title, subtitle, footer, children }: AuthLayoutProp
         <div className="auth-form-wrap">
           <div className="auth-panel-meta">
             <span>SECURE SESSION</span>
-            <span>INTERVIEW_AGENT / AUTH</span>
+            <div className="auth-panel-meta-end">
+              <span>INTERVIEW_AGENT / AUTH</span>
+              <GitHubLink compact />
+            </div>
           </div>
           <p className="eyebrow mobile-only">TECHNICAL INTERVIEW AGENT</p>
           <h2>{title}</h2>

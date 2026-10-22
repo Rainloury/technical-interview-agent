@@ -37,6 +37,9 @@ updates.
 
 ## Services and trademarks
 
+The GitHub mark is a trademark of GitHub, Inc. Its SVG path is based on the
+official GitHub favicon distributed by GitHub.
+
 The project can connect to independently deployed services such as model
 providers, Ollama, PostgreSQL, Redis, S3-compatible storage, and email
 providers. Those services and their models are not included in this
