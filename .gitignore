@@ -3,6 +3,7 @@
 .env.compose
 deploy/.env.compose
 deploy/production.env
+deploy/synology.env
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/

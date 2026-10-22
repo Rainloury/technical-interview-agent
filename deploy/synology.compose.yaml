@@ -25,7 +25,7 @@ x-application: &application
     LLM_FAST_MODEL: ${LLM_FAST_MODEL:-deepseek-flash}
     LLM_DEFAULT_MODEL: ${LLM_DEFAULT_MODEL:-deepseek-v4-pro}
     LLM_REASONING_MODEL: ${LLM_REASONING_MODEL:-deepseek-v4-pro}
-    OLLAMA_BASE_URL: http://host.docker.internal:11434
+    OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-mxbai-embed-large:latest}
     OLLAMA_EMBEDDING_DIMENSIONS: ${OLLAMA_EMBEDDING_DIMENSIONS:-1024}
     RESUME_STORAGE_BACKEND: local
