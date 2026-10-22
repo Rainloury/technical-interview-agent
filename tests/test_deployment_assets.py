@@ -236,9 +236,6 @@ def test_synology_compose_is_self_contained_for_npm_reverse_proxy() -> None:
         "OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}",
         "OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-",
         "OLLAMA_EMBEDDING_DIMENSIONS: ${OLLAMA_EMBEDDING_DIMENSIONS:-",
-        "networks:",
-        "name: synology-npm",
-        "external: true",
         "storage-init:",
         'user: "0:0"',
         "chown -R 10001:10001",
@@ -257,6 +254,7 @@ def test_synology_compose_is_self_contained_for_npm_reverse_proxy() -> None:
     assert 'ports:\n      - "${API' not in compose
     assert 'ports:\n      - "${REDIS' not in compose
     assert 'ports:\n      - "${POSTGRES' not in compose
+    assert "external: true" not in compose
     assert compose.count("build:") == 2
 
     for variable in (

@@ -189,9 +189,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
-    networks:
-      - default
-      - synology-npm
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -216,12 +213,6 @@ services:
       timeout: 3s
       start_period: 10s
       retries: 3
-
-networks:
-  default:
-  synology-npm:
-    name: synology-npm
-    external: true
 
 volumes:
   postgres-data:
