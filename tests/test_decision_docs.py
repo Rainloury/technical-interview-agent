@@ -19,6 +19,7 @@ RESTORE_DRILL = ROOT / "docs" / "database-restore-drill-2026-10-18.md"
 ROLLBACK_DRILL = ROOT / "docs" / "application-rollback-drill-2026-10-18.md"
 ALERT_DRILL = ROOT / "docs" / "alert-delivery-drill-2026-10-19.md"
 README = ROOT / "README.md"
+README_ZH = ROOT / "README.zh-CN.md"
 DOCS_README = ROOT / "docs" / "README.md"
 
 
@@ -108,8 +109,11 @@ def test_phase_docs_describe_the_release_candidate_stage() -> None:
         assert "WebKit" in text and "14 passed" in text, path
 
     readme = _read(README)
-    assert "发布候选" in readme
-    assert "发布批准待完成" in readme
+    chinese_readme = _read(README_ZH)
+    assert "release candidate" in readme
+    assert "release" in readme and "approval" in readme
+    assert "发布候选" in chinese_readme
+    assert "发布批准待完成" in chinese_readme
 
     implementation_docs = (
         README,
@@ -235,6 +239,7 @@ def test_private_rag_decision_and_public_contract_are_documented() -> None:
     threat_model = _read(THREAT_MODEL)
     decision_register = _read(DECISION_REGISTER)
     readme = _read(README)
+    chinese_readme = _read(README_ZH)
 
     assert "| 状态 | `accepted` |" in adr
     assert "| 审批日期 | 2026-10-21 |" in adr
@@ -254,7 +259,10 @@ def test_private_rag_decision_and_public_contract_are_documented() -> None:
     for fragment in ("个人资料", "owner", "Prompt", "<untrusted>"):
         assert fragment in threat_model, fragment
     assert "DR-08" in decision_register
-    assert "内部资料" in readme and "mxbai-embed-large:latest" in readme
+    assert "Document retrieval" in readme
+    assert "mxbai-embed-large:latest" in readme
+    assert "内部资料" in chinese_readme
+    assert "mxbai-embed-large:latest" in chinese_readme
 
 
 def test_production_config_signoff_requires_platform_evidence() -> None:

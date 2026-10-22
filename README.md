@@ -1,21 +1,24 @@
 # Technical Interview Agent
 
+English | [Chinese](README.zh-CN.md)
+
 A self-hostable technical interview platform with a bounded answer agent,
 private document retrieval, and an async worker.
 
-> 当前状态：发布候选（release candidate）。隐私与可观测门禁、真实 provider
-> 三档单轮 eval、G4A 行为矩阵、整场成本门禁、本地恢复/回滚和告警送达演练均已
-> 通过；生产环境复核、发布 SHA 冻结与发布批准待完成。详细发布证据与内部验收
-> 记录见 [`docs/README.md`](docs/README.md) 和
-> [`docs/release-runbook.md`](docs/release-runbook.md)。
+> Current status: release candidate. Privacy and observability gates, the
+> three-tier single-turn provider eval, the G4A behavior matrix, the full-session
+> cost gate, local restore/rollback drills, and alert delivery drills have all
+> passed. Production environment review, release SHA freeze, and release
+> approval remain. See [`docs/README.md`](docs/README.md) and
+> [`docs/release-runbook.md`](docs/release-runbook.md) for detailed release
+> evidence and internal acceptance records.
 
 The application provides:
 
 - account registration, session management, password reset, and CSRF-protected
   writes;
 - resume upload, question answering, simulated interviews, reports, and review;
-- 内部资料库（private internal-document library），支持 PDF、DOCX、TXT 和
-  Markdown 上传；
+- private internal-document libraries with PDF, DOCX, TXT, and Markdown upload;
 - per-file asynchronous indexing and owner-isolated hybrid retrieval;
 - pgvector cosine search plus PostgreSQL lexical BM25-style ranking, fused with
   reciprocal rank fusion (RRF);
