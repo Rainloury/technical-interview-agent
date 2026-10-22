@@ -257,6 +257,7 @@ def test_synology_compose_is_self_contained_for_npm_reverse_proxy() -> None:
     assert 'ports:\n      - "${API' not in compose
     assert 'ports:\n      - "${REDIS' not in compose
     assert 'ports:\n      - "${POSTGRES' not in compose
+    assert compose.count("build:") == 2
 
     for variable in (
         "POSTGRES_PASSWORD",

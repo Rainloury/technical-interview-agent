@@ -2,13 +2,16 @@
 # NPM should forward https://192.168.50.66:100 to http://192.168.50.66:8080.
 name: technical-interview-agent-synology
 
-x-application: &application
+x-api-image: &api-image
   image: technical-interview-agent-api:synology
   build:
     context: ..
     dockerfile: Dockerfile
     args:
-      PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+      PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+
+x-application: &application
+  <<: *api-image
   environment: &application-environment
     APP_ENV: development
     APP_HOST: 0.0.0.0
@@ -81,12 +84,7 @@ services:
       retries: 20
 
   storage-init:
-    image: technical-interview-agent-api:synology
-    build:
-      context: ..
-      dockerfile: Dockerfile
-      args:
-        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+    <<: *api-image
     user: "0:0"
     command:
       [
