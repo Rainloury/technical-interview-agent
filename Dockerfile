@@ -12,7 +12,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 
-RUN groupadd --system --gid 10001 app \
+RUN python -m pip install --no-cache-dir uv==0.12.17 \
+    && groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app
 
 WORKDIR /app
@@ -23,8 +24,10 @@ COPY alembic.ini ./
 COPY pyproject.toml ./
 COPY README.md ./
 COPY requirements.txt ./
-RUN python -m pip install --no-cache-dir --requirement requirements.txt \
-    && python -m pip install --no-cache-dir --no-deps .
+ENV UV_INDEX_URL=${PIP_INDEX_URL} \
+    UV_HTTP_TIMEOUT=120
+RUN uv pip sync --system --no-cache requirements.txt \
+    && uv pip install --system --no-cache --no-deps .
 
 ENV APP_ENV=production \
     APP_HOST=0.0.0.0 \

@@ -24,6 +24,20 @@ services:
       timeout: 3s
       retries: 20
 
+  storage-init:
+    image: technical-interview-agent-api:local
+    user: "0:0"
+    command:
+      [
+        "sh",
+        "-c",
+        "mkdir -p /var/lib/technical-interview-agent/resumes /var/lib/technical-interview-agent/tool-results /var/run/technical-interview-agent && chown -R 10001:10001 /var/lib/technical-interview-agent /var/run/technical-interview-agent",
+      ]
+    volumes:
+      - app-data:/var/lib/technical-interview-agent
+      - worker-health:/var/run/technical-interview-agent
+    restart: "no"
+
   migrate:
     image: technical-interview-agent-api:local
     command: ["technical-interview-agent", "migrate"]
@@ -41,6 +55,8 @@ services:
       MAIL_LOCAL_RESET_FILE: /var/lib/technical-interview-agent/password-reset.json
       WORKER_HEALTH_FILE: /var/run/technical-interview-agent/worker-health.json
     depends_on:
+      storage-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -76,6 +92,8 @@ services:
     expose:
       - "8000"
     depends_on:
+      storage-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -116,6 +134,8 @@ services:
       WORKER_HEALTH_FILE: /var/run/technical-interview-agent/worker-health.json
       PASSWORD_RESET_BASE_URL: http://127.0.0.1:8080/reset-password
     depends_on:
+      storage-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

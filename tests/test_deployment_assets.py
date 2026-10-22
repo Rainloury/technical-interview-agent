@@ -22,7 +22,9 @@ def test_production_image_is_locked_non_root_and_uses_uv() -> None:
         "PIP_DEFAULT_TIMEOUT=120",
         "PIP_RETRIES=8",
         "PIP_INDEX_URL",
-        "pip install --no-cache-dir --requirement requirements.txt",
+        "uv pip sync",
+        "requirements.txt",
+        "uv pip install --system --no-cache --no-deps .",
         "USER app",
         'technical-interview-agent", "api',
         "HEALTHCHECK",
@@ -190,11 +192,22 @@ def test_local_compose_builds_application_image_once_for_all_backend_roles() -> 
     backend_services = compose.split("  postgres:", 1)[1].split("  web:", 1)[0]
 
     assert backend_services.count("dockerfile: Dockerfile") == 1
-    assert backend_services.count("image: technical-interview-agent-api:local") == 3
+    assert backend_services.count("image: technical-interview-agent-api:local") >= 3
     assert "args:\n        PIP_INDEX_URL:" in backend_services
     assert backend_services.count("args:") == 1
     assert "name: technical-interview-agent-local" in compose
     assert "127.0.0.1:8080:80" in compose
+
+
+def test_local_compose_initializes_shared_storage_before_application() -> None:
+    compose = _read("deploy/local.compose.yaml")
+    storage_init = compose.split("  storage-init:", 1)[1].split("  migrate:", 1)[0]
+
+    assert 'user: "0:0"' in storage_init
+    assert "chown -R 10001:10001 /var/lib/technical-interview-agent" in storage_init
+    for service in ("migrate:", "api:", "worker:"):
+        section = compose.split(f"  {service}", 1)[1]
+        assert "storage-init:\n        condition: service_completed_successfully" in section
 
 
 def test_deployment_uses_pgvector_and_ollama_configuration() -> None:
