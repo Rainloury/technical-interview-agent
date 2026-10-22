@@ -53,6 +53,7 @@ class UserSummary(BaseModel):
 
     id: UUID
     display_name: str | None
+    role: Literal["user", "admin"]
 
 
 class SessionSummary(BaseModel):

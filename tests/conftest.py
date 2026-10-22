@@ -189,11 +189,13 @@ def create_user() -> Callable[..., User]:
         *,
         password: str = "correct horse battery staple",  # noqa: S107
         display_name: str | None = "示例用户",
+        role: str = "user",
     ) -> User:
         return User(
             email_normalized=email,
             password_hash=hash_password(password),
             display_name=display_name,
+            role=role,
         )
 
     return factory

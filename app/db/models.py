@@ -43,6 +43,7 @@ def _updated_at() -> Mapped[datetime]:
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
+        CheckConstraint("role IN ('user','admin')", name="role"),
         CheckConstraint(
             "status IN ('active','suspended','deletion_pending','deleted')",
             name="status",
@@ -54,6 +55,7 @@ class User(Base):
     email_normalized: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(120))
+    role: Mapped[str] = mapped_column(String(16), nullable=False, server_default="user")
     status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="active")
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()

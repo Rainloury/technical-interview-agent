@@ -84,15 +84,37 @@ async def _run_rag_backfill() -> None:
         await engine.dispose()
 
 
+async def _set_role(*, email: str, role: str) -> None:
+    from app.services.auth import set_user_role
+
+    settings = get_settings()
+    engine = create_engine(settings)
+    try:
+        session_factory = create_session_factory(engine)
+        async with session_factory() as session:
+            result = await set_user_role(
+                session,
+                email=email,
+                role=role,  # type: ignore[arg-type]
+                request_id="cli-set-role",
+            )
+            await session.commit()
+        print(f"{result.previous_role}->{result.current_role}", flush=True)
+    finally:
+        await engine.dispose()
+
+
 def _command_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Technical interview agent")
     parser.add_argument("--reload", action="store_true")
     parser.add_argument(
         "command",
         nargs="?",
-        choices=("api", "worker", "migrate", "alerts", "rag-backfill"),
+        choices=("api", "worker", "migrate", "alerts", "rag-backfill", "set-role"),
         default="api",
     )
+    parser.add_argument("--email")
+    parser.add_argument("--role", choices=("user", "admin"))
     return parser
 
 
@@ -122,6 +144,13 @@ def main(argv: Sequence[str] | None = None) -> None:
         if args.reload:
             parser.error("--reload is only supported for the api command")
         asyncio.run(_run_rag_backfill())
+        return
+    if args.command == "set-role":
+        if args.reload:
+            parser.error("--reload is only supported for the api command")
+        if not args.email or not args.role:
+            parser.error("set-role requires --email and --role")
+        asyncio.run(_set_role(email=args.email, role=args.role))
         return
     _run_api(reload=args.reload)
 
