@@ -1,5 +1,7 @@
 # Technical Interview Agent
 
+English | [简体中文](README.zh-CN.md)
+
 A self-hostable technical interview platform with a bounded answer agent,
 private document retrieval, and an async worker.
 

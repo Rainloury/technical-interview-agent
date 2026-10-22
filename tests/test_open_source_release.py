@@ -13,6 +13,7 @@ def test_open_source_release_metadata_and_governance_files_exist() -> None:
         "SUPPORT.md",
         "CHANGELOG.md",
         "NOTICE",
+        "README.zh-CN.md",
         "THIRD_PARTY_NOTICES.md",
         ".github/pull_request_template.md",
         ".github/ISSUE_TEMPLATE/bug_report.yml",
@@ -32,6 +33,7 @@ def test_public_configuration_does_not_expose_internal_hosts() -> None:
     public_files = (
         ".env.example",
         "README.md",
+        "README.zh-CN.md",
         "deploy/production.env.example",
     )
     forbidden_fragments = ("100.88.158.91", "rainstone.top")
@@ -44,6 +46,14 @@ def test_public_configuration_does_not_expose_internal_hosts() -> None:
     ]
 
     assert leaks == []
+
+
+def test_readme_languages_link_to_each_other() -> None:
+    english = (ROOT / "README.md").read_text(encoding="utf-8")
+    chinese = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
+
+    assert "[简体中文](README.zh-CN.md)" in english
+    assert "[English](README.md)" in chinese
 
 
 def test_web_fonts_are_served_locally() -> None:
