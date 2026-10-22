@@ -2239,25 +2239,43 @@ class WorkerRunner:
             if self._settings.ollama_base_url is not None:
                 embedding_client = OllamaEmbeddingClient(self._settings)
             write_health("running")
+            heartbeat_stop = asyncio.Event()
+
+            async def refresh_health() -> None:
+                while not heartbeat_stop.is_set():
+                    try:
+                        await asyncio.wait_for(
+                            heartbeat_stop.wait(),
+                            timeout=self._settings.worker_heartbeat_interval_seconds,
+                        )
+                    except TimeoutError:
+                        write_health("running")
+
+            heartbeat_task = asyncio.create_task(refresh_health(), name="worker-heartbeat")
             logger.info(
                 "worker starting",
                 environment=self._settings.app_env,
                 concurrency=self._settings.worker_concurrency,
                 max_runtime_seconds=self._settings.worker_max_runtime_seconds,
             )
-            await run_worker(
-                settings=self._settings,
-                session_factory=session_factory,
-                storage=storage,
-                llm=llm,
-                prompt_loader=PromptLoader(self._settings.prompt_dir),
-                embedding_client=embedding_client,
-                concurrency=self._settings.worker_concurrency,
-                stop_event=stop_event,
-                max_runtime_seconds=self._settings.worker_max_runtime_seconds,
-                worker_id_prefix=run_id,
-                shutdown_grace_seconds=self._settings.worker_shutdown_grace_seconds,
-            )
+            try:
+                await run_worker(
+                    settings=self._settings,
+                    session_factory=session_factory,
+                    storage=storage,
+                    llm=llm,
+                    prompt_loader=PromptLoader(self._settings.prompt_dir),
+                    embedding_client=embedding_client,
+                    concurrency=self._settings.worker_concurrency,
+                    stop_event=stop_event,
+                    max_runtime_seconds=self._settings.worker_max_runtime_seconds,
+                    worker_id_prefix=run_id,
+                    shutdown_grace_seconds=self._settings.worker_shutdown_grace_seconds,
+                )
+            finally:
+                heartbeat_stop.set()
+                heartbeat_task.cancel()
+                await asyncio.gather(heartbeat_task, return_exceptions=True)
         finally:
             if llm is not None:
                 aclose_llm = getattr(llm, "aclose", None)
