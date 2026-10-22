@@ -24,7 +24,7 @@ from app.llm.client import (
 )
 from app.storage import LocalPrivateStorage
 from app.worker import WorkerResult, run_worker
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
@@ -374,6 +374,11 @@ async def test_worker_runner_rejects_incomplete_production_configuration_before_
     assert called is False
 
 
+def test_worker_heartbeat_interval_must_be_positive() -> None:
+    with pytest.raises(ValidationError):
+        Settings(worker_heartbeat_interval_seconds=0)
+
+
 async def test_worker_runner_preserves_llm_initialization_error_and_releases_resources(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -465,6 +470,55 @@ async def test_worker_runner_writes_live_health_while_running(
     worker_id = observed[0]["worker_id"]
     assert isinstance(worker_id, str)
     assert worker_id.startswith("resume-worker-")
+    assert not health_file.exists()
+
+
+async def test_worker_runner_refreshes_health_while_worker_is_running(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    health_file = tmp_path / "worker-health.json"
+    observed_mtimes: list[float] = []
+
+    class FakeEngine:
+        async def dispose(self) -> None:
+            return None
+
+    class FakeStorage:
+        async def aclose(self) -> None:
+            return None
+
+    class FakeLoop:
+        def add_signal_handler(self, signum: int, callback: object, *args: object) -> None:
+            del signum, callback, args
+
+        def remove_signal_handler(self, signum: int) -> None:
+            del signum
+
+    async def fake_run_worker(**kwargs: object) -> None:
+        del kwargs
+        observed_mtimes.append(health_file.stat().st_mtime_ns)
+        await asyncio.sleep(0.06)
+        observed_mtimes.append(health_file.stat().st_mtime_ns)
+
+    monkeypatch.setattr(app.worker, "create_engine", lambda _settings: FakeEngine())
+    monkeypatch.setattr(app.worker, "create_resume_storage", lambda _settings: FakeStorage())
+    monkeypatch.setattr(asyncio, "get_running_loop", lambda: FakeLoop())
+    monkeypatch.setattr(app.worker, "run_worker", fake_run_worker)
+
+    runner = app.worker.WorkerRunner(
+        settings=Settings(
+            app_env="test",
+            worker_health_file=str(health_file),
+            worker_heartbeat_interval_seconds=0.02,
+            _env_file=None,
+        ),
+        llm_factory=lambda _settings: object(),
+    )
+    await runner.run()
+
+    assert len(observed_mtimes) == 2
+    assert observed_mtimes[0] < observed_mtimes[1]
     assert not health_file.exists()
 
 

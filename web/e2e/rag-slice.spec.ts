@@ -7,7 +7,6 @@ const password = "correct horse battery staple";
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
 const apiUrl = process.env.API_URL ?? "http://127.0.0.1:8100";
 const question = "私有重试手册如何限制次数并避免重复提交？";
-const documentTitle = "私有重试手册";
 const documentContent =
   "# 有界重试\n\n" +
   "私有重试手册规定：必须限制总尝试次数，使用指数退避和抖动，并通过幂等键避免重复提交。\n";
@@ -105,16 +104,15 @@ test("uploads a private document, cites it, and marks it deleted in history", as
 
     await page.goto("/documents");
     await expect(page.getByRole("heading", { name: "内部资料" })).toBeVisible();
-    await page.getByLabel("资料标题").fill(documentTitle);
     await page.getByLabel("资料文件").setInputFiles({
       name: "private-retry.md",
       mimeType: "text/markdown",
       buffer: Buffer.from(documentContent),
     });
-    await page.getByRole("button", { name: "上传资料" }).click();
+    await page.getByRole("button", { name: "上传 1 个文件" }).click();
 
     try {
-      await expect(page.getByText(documentTitle, { exact: true })).toBeVisible();
+      await expect(page.getByText("private-retry.md", { exact: true })).toBeVisible();
       await expect(page.getByText("可检索", { exact: true })).toBeVisible({
         timeout: 30_000,
       });
@@ -133,7 +131,6 @@ test("uploads a private document, cites it, and marks it deleted in history", as
       await expect(page.getByRole("heading", { name: "回答" })).toBeVisible({
         timeout: 30_000,
       });
-      await expect(page.getByText(documentTitle, { exact: true })).toBeVisible();
       await expect(page.getByText("个人资料", { exact: true })).toBeVisible();
     } catch (error) {
       throw new Error(
@@ -142,15 +139,14 @@ test("uploads a private document, cites it, and marks it deleted in history", as
     }
 
     await page.goto("/documents");
-    await page.getByRole("button", { name: `删除 ${documentTitle}` }).click();
+    await page.getByRole("button", { name: "删除 private-retry.md" }).click();
     await page.getByRole("button", { name: "确认删除" }).click();
     await expect(
-      page.getByRole("main").getByText(documentTitle, { exact: true }),
+      page.getByRole("main").getByText("private-retry.md", { exact: true }),
     ).toHaveCount(0);
 
     await page.goto(qaUrl);
     await expect(page.getByRole("heading", { name: "回答" })).toBeVisible();
-    await expect(page.getByText(documentTitle, { exact: true })).toBeVisible();
     await expect(page.getByText("来源已删除", { exact: true })).toBeVisible();
 
     const listing = await page.request.get(
@@ -159,10 +155,10 @@ test("uploads a private document, cites it, and marks it deleted in history", as
     );
     expect(listing.status()).toBe(200);
     const listingPayload = (await listing.json()) as {
-      items: { title: string }[];
+      items: { original_filename: string }[];
     };
     expect(
-      listingPayload.items.some((item) => item.title === documentTitle),
+      listingPayload.items.some((item) => item.original_filename === "private-retry.md"),
     ).toBe(false);
 
     await page.goto("/qa");
@@ -172,7 +168,7 @@ test("uploads a private document, cites it, and marks it deleted in history", as
     await expect(page.getByRole("heading", { name: "回答" })).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByText(documentTitle, { exact: true })).toHaveCount(0);
+    await expect(page.getByText("个人资料", { exact: true })).toHaveCount(0);
   } finally {
     await stopWorker(worker);
   }

@@ -99,6 +99,7 @@ class Settings(BaseSettings):
     worker_concurrency: int = Field(default=1, ge=1, le=32)
     worker_max_runtime_seconds: int = Field(default=86_400, ge=1)
     worker_idle_seconds: float = Field(default=1.0, gt=0)
+    worker_heartbeat_interval_seconds: float = Field(default=10.0, gt=0)
     worker_shutdown_grace_seconds: float = Field(default=30.0, gt=0)
     worker_health_file: str = "/var/run/technical-interview-agent/worker-health.json"
     ops_metrics_token: SecretStr | None = None

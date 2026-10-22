@@ -214,10 +214,13 @@ def test_deployment_uses_pgvector_and_ollama_configuration() -> None:
     production = _read("deploy/production.compose.yaml")
     local = _read("deploy/local.compose.yaml")
     env_example = _read(".env.example")
+    production_env_example = _read("deploy/production.env.example")
 
     assert "pgvector/pgvector:pg16" in production
     assert "pgvector/pgvector:pg16" in local
     assert "OLLAMA_BASE_URL" in env_example
+    assert "WORKER_HEARTBEAT_INTERVAL_SECONDS=10" in env_example
+    assert "WORKER_HEARTBEAT_INTERVAL_SECONDS=10" in production_env_example
     assert "OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest" in env_example
     assert "OLLAMA_EMBEDDING_DIMENSIONS=1024" in env_example
 

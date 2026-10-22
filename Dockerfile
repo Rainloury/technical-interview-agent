@@ -2,7 +2,8 @@
 
 FROM python:3.12-slim-bookworm AS base
 
-ARG PIP_INDEX_URL=https://pypi.org/simple
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+ARG PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -12,7 +13,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 
-RUN python -m pip install --no-cache-dir uv==0.12.17 \
+RUN python -m pip install --no-cache-dir \
+    --index-url "${PIP_INDEX_URL}" \
+    --trusted-host "${PIP_TRUSTED_HOST}" \
+    --timeout 120 \
+    uv==0.12.17 \
     && groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app
 

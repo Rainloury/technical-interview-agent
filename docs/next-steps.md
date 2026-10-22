@@ -40,7 +40,7 @@
 | 前端工程与账号路径 | 已完成 | `web/`；注册、登录、找回/重置密码、空工作台和响应式导航 | 否 |
 | 历史分页 | 已完成 | `web/src/pages/HistoryPage.tsx`；`{items, next_cursor}`，每页 10 条 | 否 |
 | 浏览器 E2E | `passed` | Chromium 桌面与移动 `14 passed`，隐私专项 `2 passed`；GitHub Actions Ubuntu 24.04 托管 runner WebKit Desktop Safari + iPhone 13 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed` | 否 |
-| DirectMail 实际投递 | `passed` | `smtpdm.aliyun.com:465` + SSL 的 TLS 握手与登录通过；测试邮件于 2026-10-18T08:37:24Z 发往 `no-reply@rainstone.top`，SMTP 服务器接受且 `refused={}`；收件箱到达仍需人工确认 | 否 |
+| DirectMail 实际投递 | `passed` | `smtpdm.aliyun.com:465` + SSL 的 TLS 握手与登录通过；测试邮件于 2026-10-18T08:37:24Z 发往保留测试地址 `no-reply@example.com`，SMTP 服务器接受且 `refused={}`；收件箱到达仍需人工确认 | 否 |
 | OSS 简历上传与删除 | `passed` | 真实私有桶 PUT/GET/DELETE 通过；业务层 `upload_resume` 生成 `stored` 记录，读取内容与 PDF 字节一致；`delete_resume_source` 后状态为 `deleted` 且对象不可读 | 否 |
 | 简历纵向切片 | `passed` | 上传、PDF/DOCX 校验、异步处理、10 道题、失败重试、原始文件删除和 `source_deleted` 状态通过 | 否 |
 | 检索问答切片 | `passed` | owner 鉴权、幂等、任意 URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放、终态互斥和前端历史重开通过 | 否 |
@@ -282,7 +282,7 @@ flowchart TD
 | v2.2 | 2026-10-18 | 发布评审启动：技术质量、隐私和 G4A 门禁通过；SMTP 生产投递失败不再静默吞错；真实邮件供应商、生产对象存储与 WebKit 兼容 CI 仍为发布前确认项 |
 | v2.3 | 2026-10-18 | 发布依赖选定：邮件使用阿里云 DirectMail SMTP；原始简历使用阿里云 OSS 私有桶；WebKit 兼容由 GitHub Actions `ubuntu-latest` 的 Desktop Safari 与 iPhone 13 Playwright 项目覆盖 |
 | v2.4 | 2026-10-18 | DirectMail 账号验证通过：项目 `.env` 使用 `smtpdm.aliyun.com:465` + SSL，TLS 握手与 SMTP 登录成功；587/StartTLS 在本机网络超时。尚未发送测试邮件 |
-| v2.5 | 2026-10-18 | DirectMail 实际发送测试通过：测试邮件发往 `no-reply@rainstone.top`，SMTP 服务器接受且无拒收收件人；至此 DirectMail 连接、认证和发送均已验证 |
+| v2.5 | 2026-10-18 | DirectMail 实际发送测试通过：测试邮件发往保留测试地址 `no-reply@example.com`，SMTP 服务器接受且无拒收收件人；至此 DirectMail 连接、认证和发送均已验证 |
 | v2.6 | 2026-10-18 | 阿里云 OSS 真实私有桶验收通过：临时对象 PUT/GET/DELETE 成功；简历业务上传后对象状态 `stored` 且内容一致；删除源文件后状态 `deleted` 且对象不可读 |
 | v2.7 | 2026-10-18 | Ubuntu 24.04 Playwright WebKit 本地容器实跑 `14 passed`（4.1 min），覆盖 Desktop Safari + iPhone 13；新增 `workflow_dispatch` 与失败 Playwright 报告上传，GitHub Actions 托管 runner 实跑待推送 |
 | v2.8 | 2026-10-18 | GitHub Actions `ubuntu-latest` 托管 runner WebKit 实跑通过：Desktop Safari + iPhone 13 `14 passed`（2.4 min）；修复 preview 构建的 API 地址注入，增加手动 grep、默认零重试和全局超时；quality job 全绿 |

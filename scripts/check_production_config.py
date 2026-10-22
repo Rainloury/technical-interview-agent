@@ -63,6 +63,7 @@ def _report(settings: Settings, env_file: Path | None) -> dict[str, object]:
         "worker_concurrency": settings.worker_concurrency,
         "worker_max_runtime_seconds": settings.worker_max_runtime_seconds,
         "worker_idle_seconds": settings.worker_idle_seconds,
+        "worker_heartbeat_interval_seconds": settings.worker_heartbeat_interval_seconds,
         "worker_shutdown_grace_seconds": settings.worker_shutdown_grace_seconds,
         "secret_presence": {
             "llm_api_key": _present(settings.llm_api_key),
