@@ -1,0 +1,231 @@
+# Synology Container Manager / DSM 7 deployment.
+# NPM should forward https://192.168.50.66:100 to http://192.168.50.66:8080.
+name: technical-interview-agent-synology
+
+x-application: &application
+  image: technical-interview-agent-api:synology
+  build:
+    context: ..
+    dockerfile: Dockerfile
+    args:
+      PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+  environment: &application-environment
+    APP_ENV: development
+    APP_HOST: 0.0.0.0
+    APP_PORT: "8000"
+    APP_ALLOWED_ORIGINS: '["https://192.168.50.66:100"]'
+    CSRF_ALLOWED_ORIGINS: '["https://192.168.50.66:100"]'
+    COOKIE_SECURE: "false"
+    DATABASE_URL: postgresql+asyncpg://interview:${POSTGRES_PASSWORD:-change-me}@postgres:5432/interview
+    REDIS_URL: redis://redis:6379/0
+    DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?set DATA_ENCRYPTION_KEY}
+    LLM_PROVIDER: ${LLM_PROVIDER:-deepseek}
+    LLM_API_KEY: ${LLM_API_KEY:?set LLM_API_KEY}
+    LLM_BASE_URL: ${LLM_BASE_URL:-}
+    LLM_FAST_MODEL: ${LLM_FAST_MODEL:-deepseek-flash}
+    LLM_DEFAULT_MODEL: ${LLM_DEFAULT_MODEL:-deepseek-v4-pro}
+    LLM_REASONING_MODEL: ${LLM_REASONING_MODEL:-deepseek-v4-pro}
+    OLLAMA_BASE_URL: http://host.docker.internal:11434
+    OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-mxbai-embed-large:latest}
+    OLLAMA_EMBEDDING_DIMENSIONS: ${OLLAMA_EMBEDDING_DIMENSIONS:-1024}
+    RESUME_STORAGE_BACKEND: local
+    RESUME_STORAGE_DIR: /var/lib/technical-interview-agent/resumes
+    TOOL_RESULT_DIR: /var/lib/technical-interview-agent/tool-results
+    MAIL_LOCAL_RESET_FILE: /var/lib/technical-interview-agent/password-reset.json
+    PASSWORD_RESET_BASE_URL: https://192.168.50.66:100/reset-password
+    WORKER_HEALTH_FILE: /var/run/technical-interview-agent/worker-health.json
+    WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+    WORKER_MAX_RUNTIME_SECONDS: "86400"
+    WORKER_IDLE_SECONDS: "1"
+    WORKER_HEARTBEAT_INTERVAL_SECONDS: "10"
+    WORKER_SHUTDOWN_GRACE_SECONDS: "30"
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: interview
+      POSTGRES_USER: interview
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U interview -d interview"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  storage-init:
+    image: technical-interview-agent-api:synology
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+    user: "0:0"
+    command:
+      [
+        "sh",
+        "-c",
+        "mkdir -p /var/lib/technical-interview-agent/resumes /var/lib/technical-interview-agent/tool-results && chown -R 10001:10001 /var/lib/technical-interview-agent",
+      ]
+    volumes:
+      - app-data:/var/lib/technical-interview-agent
+    restart: "no"
+
+  migrate:
+    <<: *application
+    command: ["technical-interview-agent", "migrate"]
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /var/run/technical-interview-agent:size=1m,mode=1777
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+    volumes:
+      - app-data:/var/lib/technical-interview-agent
+    restart: "no"
+
+  api:
+    <<: *application
+    command: ["technical-interview-agent", "api"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "8000"
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - app-data:/var/lib/technical-interview-agent
+      - worker-health:/var/run/technical-interview-agent
+    stop_grace_period: 30s
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)",
+        ]
+      interval: 15s
+      timeout: 3s
+      start_period: 20s
+      retries: 3
+
+  worker:
+    <<: *application
+    command: ["technical-interview-agent", "worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+      migrate:
+        condition: service_completed_successfully
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    volumes:
+      - app-data:/var/lib/technical-interview-agent
+      - worker-health:/var/run/technical-interview-agent
+    stop_grace_period: 35s
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import json, pathlib, sys, time; p=pathlib.Path('/var/run/technical-interview-agent/worker-health.json'); d=json.loads(p.read_text()); sys.exit(0 if d.get('state') == 'running' and time.time() - p.stat().st_mtime < 30 else 1)",
+        ]
+      interval: 15s
+      timeout: 3s
+      start_period: 20s
+      retries: 3
+
+  web:
+    image: technical-interview-agent-web:synology
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+    ports:
+      - "${WEB_BIND_ADDRESS:-192.168.50.66}:${WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - default
+      - synology-npm
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=32m
+      - /var/run:size=1m
+      - /tmp:size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:8080/healthz",
+        ]
+      interval: 15s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+
+networks:
+  default:
+  synology-npm:
+    name: synology-npm
+    external: true
+
+volumes:
+  postgres-data:
+  app-data:
+  worker-health:

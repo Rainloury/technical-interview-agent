@@ -220,6 +220,53 @@ def test_local_compose_initializes_shared_storage_before_application() -> None:
         assert "storage-init:\n        condition: service_completed_successfully" in section
 
 
+def test_synology_compose_is_self_contained_for_npm_reverse_proxy() -> None:
+    compose = _read("deploy/synology.compose.yaml")
+    env_example = _read("deploy/synology.env.example")
+
+    for fragment in (
+        "name: technical-interview-agent-synology",
+        "WEB_BIND_ADDRESS:-192.168.50.66",
+        "WEB_PORT:-8080}:8080",
+        "APP_ENV: development",
+        "APP_ALLOWED_ORIGINS:",
+        "CSRF_ALLOWED_ORIGINS:",
+        'COOKIE_SECURE: "false"',
+        "RESUME_STORAGE_BACKEND: local",
+        "OLLAMA_BASE_URL: http://host.docker.internal:11434",
+        "networks:",
+        "name: synology-npm",
+        "external: true",
+        "storage-init:",
+        'user: "0:0"',
+        "chown -R 10001:10001",
+        "read_only: true",
+        "no-new-privileges:true",
+        "cap_drop:",
+        "/health/ready",
+        "worker-health.json",
+        "http://127.0.0.1:8080/healthz",
+    ):
+        assert fragment in compose
+
+    assert "APP_ENV: production" not in compose
+    assert "${PRODUCTION_ENV_FILE" not in compose
+    assert "env_file:" not in compose
+    assert 'ports:\n      - "${API' not in compose
+    assert 'ports:\n      - "${REDIS' not in compose
+    assert 'ports:\n      - "${POSTGRES' not in compose
+
+    for variable in (
+        "POSTGRES_PASSWORD",
+        "DATA_ENCRYPTION_KEY",
+        "LLM_API_KEY",
+        "WEB_BIND_ADDRESS",
+        "WEB_PORT",
+    ):
+        assert f"{variable}=" in env_example
+    assert "APP_ENV=" not in env_example
+
+
 def test_deployment_uses_pgvector_and_ollama_configuration() -> None:
     production = _read("deploy/production.compose.yaml")
     local = _read("deploy/local.compose.yaml")
