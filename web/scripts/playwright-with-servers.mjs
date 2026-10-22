@@ -21,7 +21,7 @@ const workerHealthFile =
 const testArgs = (process.env.PLAYWRIGHT_ARGS ?? "")
   .match(/(?:[^\s"]+|"[^"]*")+/g)
   ?.map((value) => value.replace(/^"|"$/g, ""))
-  .filter(Boolean);
+  .filter(Boolean) ?? [];
 const serverEnvironment = {
   ...process.env,
   DATA_ENCRYPTION_KEY: dataEncryptionKey,

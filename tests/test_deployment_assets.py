@@ -219,3 +219,10 @@ def test_ci_initializes_pgvector_extension() -> None:
     assert "CREATE EXTENSION IF NOT EXISTS vector" in migration
     assert 'postgresql_using="hnsw"' in migration
     assert 'postgresql_ops={"embedding": "vector_cosine_ops"}' in migration
+
+
+def test_playwright_wrapper_handles_empty_focused_args() -> None:
+    wrapper = _read("web/scripts/playwright-with-servers.mjs")
+
+    assert "PLAYWRIGHT_ARGS" in wrapper
+    assert "?? []" in wrapper
