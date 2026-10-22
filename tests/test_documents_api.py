@@ -35,6 +35,19 @@ def _upload(
     )
 
 
+def _upload_many(
+    client: TestClient,
+    files: list[tuple[str, bytes, str]],
+    *,
+    key: str | None = None,
+) -> Any:
+    return client.post(
+        "/api/v1/documents/batch",
+        files=[("files", item) for item in files],
+        headers={**_write_headers(client), "Idempotency-Key": key or str(uuid.uuid4())},
+    )
+
+
 async def _owner(app_client: AppHarness, create_user: Any, email: str) -> None:
     async with app_client.session_factory() as session:
         session.add(create_user(email))
@@ -76,6 +89,110 @@ async def test_document_upload_is_owner_scoped_and_idempotent(
         ).status_code
         == 404
     )
+
+
+async def test_batch_document_upload_creates_one_document_and_job_per_file(
+    app_client: AppHarness,
+    create_user: Any,
+) -> None:
+    await _owner(app_client, create_user, "doc-batch@example.com")
+    client = app_client.client
+    _login(client, "doc-batch@example.com")
+
+    response = _upload_many(
+        client,
+        [
+            ("redis.md", b"# Redis\n\nPrivate Redis notes.", "text/markdown"),
+            ("retry.txt", b"Private retry notes.", "text/plain"),
+        ],
+    )
+
+    assert response.status_code == 202, response.text
+    payload = response.json()
+    assert len(payload["documents"]) == 2
+    assert set(payload["original_filenames"]) == {
+        "redis.md",
+        "retry.txt",
+    }
+    assert all(item["state"] == "uploaded" for item in payload["documents"])
+    async with app_client.session_factory() as session:
+        document_ids = [uuid.UUID(item["document_id"]) for item in payload["documents"]]
+        documents = list(
+            (
+                await session.execute(select(UserDocument).where(UserDocument.id.in_(document_ids)))
+            ).scalars()
+        )
+        assert len(documents) == 2
+        owner_id = (
+            await session.execute(
+                select(UserDocument.owner_user_id).where(UserDocument.id == document_ids[0])
+            )
+        ).scalar_one()
+        jobs = list(
+            (
+                await session.execute(
+                    select(AsyncJob).where(
+                        AsyncJob.owner_user_id == owner_id,
+                        AsyncJob.job_type == "process_document",
+                    )
+                )
+            ).scalars()
+        )
+    assert len(jobs) == 2
+    assert len({document.original_filename for document in documents}) == 2
+
+
+async def test_batch_document_upload_rolls_back_when_any_file_is_invalid(
+    app_client: AppHarness,
+    create_user: Any,
+) -> None:
+    await _owner(app_client, create_user, "doc-batch-invalid@example.com")
+    client = app_client.client
+    _login(client, "doc-batch-invalid@example.com")
+
+    response = _upload_many(
+        client,
+        [
+            ("valid.md", b"# Valid\n\nPrivate notes.", "text/markdown"),
+            ("invalid.exe", b"not supported", "application/octet-stream"),
+        ],
+    )
+
+    assert response.status_code == 422
+    async with app_client.session_factory() as session:
+        documents = list((await session.execute(select(UserDocument))).scalars())
+        jobs = list(
+            (
+                await session.execute(
+                    select(AsyncJob).where(AsyncJob.job_type == "process_document")
+                )
+            ).scalars()
+        )
+    assert documents == []
+    assert jobs == []
+
+
+async def test_batch_document_upload_rejects_duplicate_files(
+    app_client: AppHarness,
+    create_user: Any,
+) -> None:
+    await _owner(app_client, create_user, "doc-batch-duplicate@example.com")
+    client = app_client.client
+    _login(client, "doc-batch-duplicate@example.com")
+
+    response = _upload_many(
+        client,
+        [
+            ("same.md", b"# Same\n\nDuplicate bytes.", "text/markdown"),
+            ("same.md", b"# Same\n\nDuplicate bytes.", "text/markdown"),
+        ],
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_request"
+    async with app_client.session_factory() as session:
+        documents = list((await session.execute(select(UserDocument))).scalars())
+    assert documents == []
 
 
 async def test_document_same_name_with_different_bytes_creates_distinct_records(

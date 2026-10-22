@@ -57,6 +57,11 @@ export interface DocumentAccepted {
   created_at: string;
 }
 
+export interface DocumentBatchAccepted {
+  documents: DocumentAccepted[];
+  original_filenames: string[];
+}
+
 export interface DocumentItem {
   id: string;
   title: string;

@@ -46,6 +46,7 @@ def settings(tmp_path: Path) -> Settings:
 
     return Settings(
         app_env="test",
+        _env_file=None,
         app_allowed_origins=["https://testserver"],
         csrf_allowed_origins=["https://testserver"],
         data_encryption_key=base64.urlsafe_b64encode(os.urandom(32)).decode(),

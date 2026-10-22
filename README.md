@@ -32,7 +32,7 @@ Worker 启动时会执行生产配置校验、注册 `SIGINT`/`SIGTERM` 停止�
 
 ## 内部资料 RAG
 
-登录后可进入 `/documents` 上传 PDF、DOCX、TXT 或 Markdown，单文件最大 10 MB。上传后 Worker 异步提取、分块、embedding 和索引；只有状态为 `ready` 的资料会自动参与当前账号的问答，系统不提供资料选择器，也不会把个人资料加入系统知识源 allowlist。列表、详情和删除均按 owner 隔离；删除后资料立即停止检索，历史证据标记 `source_deleted`，原文与 chunks 由 Worker 异步清理。默认保留期为 90 天。
+登录后可进入 `/documents` 多选上传 PDF、DOCX、TXT 或 Markdown，单文件最大 10 MB。批量提交会为每个文件创建独立资料记录和索引任务，Worker 按文件逐个提取、分块、embedding 和入库；只有状态为 `ready` 的资料会自动参与当前账号的问答，系统不提供资料选择器，也不会把个人资料加入系统知识源 allowlist。列表、详情和删除均按 owner 隔离；删除后资料立即停止检索，历史证据标记 `source_deleted`，原文与 chunks 由 Worker 异步清理。默认保留期为 90 天。
 
 检索由独立 Ollama 提供 embedding，默认模型 `mxbai-embed-large:latest`、1024 维。配置项：
 
@@ -51,6 +51,7 @@ PostgreSQL 使用 `pgvector/pgvector:pg16` 镜像；`uv run alembic upgrade head
 
 ```text
 POST   /api/v1/documents
+POST   /api/v1/documents/batch
 GET    /api/v1/documents
 GET    /api/v1/documents/{document_id}
 DELETE /api/v1/documents/{document_id}

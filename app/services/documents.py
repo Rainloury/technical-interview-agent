@@ -18,7 +18,12 @@ from app.config import Settings
 from app.db.jobs import enqueue_job
 from app.db.models import AsyncJob, QaEvidence, User, UserDocument, UserDocumentChunk
 from app.errors import AppError
-from app.schemas.documents import DocumentAccepted, DocumentItem, DocumentPage
+from app.schemas.documents import (
+    DocumentAccepted,
+    DocumentBatchAccepted,
+    DocumentItem,
+    DocumentPage,
+)
 from app.storage import ObjectStorage
 
 SUPPORTED_MIME_BY_SUFFIX = {
@@ -171,7 +176,7 @@ async def _owned_document(
     return document
 
 
-async def upload_document(
+async def _store_document(
     session: AsyncSession,
     storage: ObjectStorage,
     user: User,
@@ -179,8 +184,8 @@ async def upload_document(
     *,
     idempotency_key: str,
     settings: Settings,
-) -> DocumentAccepted:
-    """Validate, privately store, and enqueue one document."""
+) -> tuple[DocumentAccepted, str | None]:
+    """Validate, privately store, and enqueue one document without committing."""
 
     filename = _safe_name(upload.filename)
     detected_mime = _validate_identity(
@@ -212,10 +217,13 @@ async def upload_document(
                 message="该幂等键已用于其他资料",
             )
         existing_document = await _owned_document(session, user, existing_job.resource_id)
-        return DocumentAccepted(
-            document_id=existing_document.id,
-            state=existing_document.state,
-            created_at=existing_document.created_at,
+        return (
+            DocumentAccepted(
+                document_id=existing_document.id,
+                state=existing_document.state,
+                created_at=existing_document.created_at,
+            ),
+            None,
         )
 
     existing_by_key = (
@@ -234,10 +242,13 @@ async def upload_document(
                 code="idempotency_conflict",
                 message="该幂等键已用于其他资料",
             )
-        return DocumentAccepted(
-            document_id=existing_by_key.id,
-            state=existing_by_key.state,
-            created_at=existing_by_key.created_at,
+        return (
+            DocumentAccepted(
+                document_id=existing_by_key.id,
+                state=existing_by_key.state,
+                created_at=existing_by_key.created_at,
+            ),
+            None,
         )
 
     stored_document = (
@@ -254,10 +265,13 @@ async def upload_document(
     object_key = f"{user.id.hex}/documents/{uuid.uuid4().hex}"
     uploaded_object: str | None = None
     if stored_document is not None and stored_document.state in {"uploaded", "processing", "ready"}:
-        return DocumentAccepted(
-            document_id=stored_document.id,
-            state=stored_document.state,
-            created_at=stored_document.created_at,
+        return (
+            DocumentAccepted(
+                document_id=stored_document.id,
+                state=stored_document.state,
+                created_at=stored_document.created_at,
+            ),
+            None,
         )
     if stored_document is None:
         document = UserDocument(
@@ -290,30 +304,110 @@ async def upload_document(
         uploaded_object = document.object_key
     document.idempotency_key = stored_key
     document.updated_at = datetime.now(UTC)
-    try:
-        await session.flush()
-        await enqueue_job(
-            session,
-            owner_user_id=user.id,
-            job_type="process_document",
-            resource_type="user_document",
-            resource_id=document.id,
-            idempotency_key=f"process-document:{document.id.hex}:{uuid.uuid4().hex}",
-            request_fingerprint=fingerprint,
-            max_attempts=settings.worker_max_attempts,
-        )
-        await session.commit()
-        await session.refresh(document)
-        return DocumentAccepted(
+    await session.flush()
+    await enqueue_job(
+        session,
+        owner_user_id=user.id,
+        job_type="process_document",
+        resource_type="user_document",
+        resource_id=document.id,
+        idempotency_key=f"process-document:{document.id.hex}:{uuid.uuid4().hex}",
+        request_fingerprint=fingerprint,
+        max_attempts=settings.worker_max_attempts,
+    )
+    return (
+        DocumentAccepted(
             document_id=document.id,
             state=document.state,
             created_at=document.created_at,
+        ),
+        uploaded_object,
+    )
+
+
+async def upload_document(
+    session: AsyncSession,
+    storage: ObjectStorage,
+    user: User,
+    upload: DocumentUpload,
+    *,
+    idempotency_key: str,
+    settings: Settings,
+) -> DocumentAccepted:
+    """Validate, privately store, enqueue, and commit one document."""
+
+    uploaded_object: str | None = None
+    try:
+        accepted, uploaded_object = await _store_document(
+            session,
+            storage,
+            user,
+            upload,
+            idempotency_key=idempotency_key,
+            settings=settings,
         )
+        await session.commit()
+        return accepted
     except Exception:
         await session.rollback()
         if uploaded_object is not None:
             await storage.delete(uploaded_object)
         raise
+
+
+async def upload_documents(
+    session: AsyncSession,
+    storage: ObjectStorage,
+    user: User,
+    uploads: list[DocumentUpload],
+    *,
+    idempotency_key: str,
+    settings: Settings,
+) -> DocumentBatchAccepted:
+    """Store and enqueue every file in one atomic batch."""
+
+    if not uploads:
+        raise AppError(
+            status_code=422,
+            code="invalid_request",
+            message="至少选择一个资料文件",
+        )
+    identities = [
+        (upload.filename, hashlib.sha256(upload.content).hexdigest()) for upload in uploads
+    ]
+    if len(identities) != len(set(identities)):
+        raise AppError(
+            status_code=422,
+            code="invalid_request",
+            message="同一批次不能重复上传相同文件",
+        )
+    accepted: list[DocumentAccepted] = []
+    uploaded_objects: list[str] = []
+    try:
+        for upload in uploads:
+            content_hash = hashlib.sha256(upload.content).hexdigest()
+            item_key = f"{idempotency_key}:{upload.filename}:{content_hash}"
+            accepted_item, uploaded_object = await _store_document(
+                session,
+                storage,
+                user,
+                upload,
+                idempotency_key=item_key,
+                settings=settings,
+            )
+            accepted.append(accepted_item)
+            if uploaded_object is not None:
+                uploaded_objects.append(uploaded_object)
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        for object_key in uploaded_objects:
+            await storage.delete(object_key)
+        raise
+    return DocumentBatchAccepted(
+        documents=accepted,
+        original_filenames=[_safe_name(upload.filename) for upload in uploads],
+    )
 
 
 async def list_documents(

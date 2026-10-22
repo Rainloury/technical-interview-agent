@@ -5,7 +5,7 @@ import { http, HttpResponse } from "msw";
 import { authenticatedSessionHandler, server } from "../test/server";
 import { renderApp } from "../test/render";
 import type { DocumentItem } from "../api/types";
-import { validateDocument } from "../utils/documentValidation";
+import { validateDocument, validateDocuments } from "../utils/documentValidation";
 
 const READY_DOCUMENT: DocumentItem = {
   id: "document-1",
@@ -41,6 +41,13 @@ describe("DocumentsPage", () => {
         }),
       ),
     ).toBe("文件不能超过 10 MB。");
+    expect(validateDocuments([])).toBe("请选择资料文件。");
+    expect(
+      validateDocuments([
+        new File(["ok"], "ok.md", { type: "text/markdown" }),
+        new File(["x"], "bad.exe", { type: "application/octet-stream" }),
+      ]),
+    ).toContain("bad.exe");
   });
 
   it("lists private documents and supports empty state", async () => {
@@ -51,7 +58,7 @@ describe("DocumentsPage", () => {
     expect(screen.getByRole("link", { name: "上传第一份资料" })).toBeInTheDocument();
   });
 
-  it("uploads a document with csrf and idempotency key", async () => {
+  it("uploads multiple documents in one batch with csrf and idempotency key", async () => {
     const user = userEvent.setup();
     const observed: {
       csrf: string | null;
@@ -62,25 +69,33 @@ describe("DocumentsPage", () => {
     server.use(
       authenticatedSessionHandler(),
       http.get("*/api/v1/documents", () => HttpResponse.json({ items, next_cursor: null })),
-      http.post("*/api/v1/documents", async ({ request }) => {
+      http.post("*/api/v1/documents/batch", async ({ request }) => {
         observed.push({
           csrf: request.headers.get("X-CSRF-Token"),
           key: request.headers.get("Idempotency-Key"),
           contentType: request.headers.get("Content-Type"),
         });
+        const form = await request.formData();
+        expect(form.getAll("files")).toHaveLength(2);
         items = [
-          {
-            ...READY_DOCUMENT,
-            id: "document-2",
-            title: "新资料",
-            original_filename: "notes.txt",
-          },
+          { ...READY_DOCUMENT, id: "document-2", title: "notes.txt" },
+          { ...READY_DOCUMENT, id: "document-3", title: "retry.md" },
         ];
         return HttpResponse.json(
           {
-            document_id: "document-2",
-            state: "uploaded",
-            created_at: "2026-10-21T09:00:00Z",
+            documents: [
+              {
+                document_id: "document-2",
+                state: "uploaded",
+                created_at: "2026-10-21T09:00:00Z",
+              },
+              {
+                document_id: "document-3",
+                state: "uploaded",
+                created_at: "2026-10-21T09:00:00Z",
+              },
+            ],
+            original_filenames: ["notes.txt", "retry.md"],
           },
           { status: 202 },
         );
@@ -89,10 +104,12 @@ describe("DocumentsPage", () => {
     document.cookie = "interview_csrf=documents-csrf; path=/";
     renderApp("/documents");
 
-    const file = new File(["Redis"], "notes.txt", { type: "text/plain" });
-    await user.upload(await screen.findByLabelText("资料文件"), file);
-    await user.type(screen.getByLabelText("资料标题"), "新资料");
-    await user.click(screen.getByRole("button", { name: "上传资料" }));
+    const files = [
+      new File(["Redis"], "notes.txt", { type: "text/plain" }),
+      new File(["Retry"], "retry.md", { type: "text/markdown" }),
+    ];
+    await user.upload(await screen.findByLabelText("资料文件"), files);
+    await user.click(screen.getByRole("button", { name: "上传 2 个文件" }));
 
     await waitFor(() => expect(observed).toHaveLength(1));
     expect(observed[0]?.csrf).toBe("documents-csrf");
@@ -110,7 +127,7 @@ describe("DocumentsPage", () => {
         { ...READY_DOCUMENT, id: "document-processing", title: "处理中", state: "processing" },
         { ...READY_DOCUMENT, id: "document-failed", title: "失败资料", state: "failed", failure_code: "embedding_timeout" },
       ]),
-      http.post("*/api/v1/documents", () => {
+      http.post("*/api/v1/documents/batch", () => {
         attempts += 1;
         if (attempts === 1) {
           return HttpResponse.json(
@@ -131,7 +148,7 @@ describe("DocumentsPage", () => {
     expect(screen.getByText("索引失败")).toBeInTheDocument();
     const file = new File(["Retry"], "retry.txt", { type: "text/plain" });
     await user.upload(screen.getByLabelText("资料文件"), file);
-    await user.click(screen.getByRole("button", { name: "上传资料" }));
+    await user.click(screen.getByRole("button", { name: "上传 1 个文件" }));
     expect(await screen.findByText("上传暂时失败")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "重试" }));
     await waitFor(() => expect(attempts).toBe(2));

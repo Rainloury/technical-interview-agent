@@ -5,6 +5,7 @@ import type {
   DataDeletionAccepted,
   DataDeletionStatus,
   DocumentAccepted,
+  DocumentBatchAccepted,
   DocumentItem,
   DocumentPage,
   HistoryPage,
@@ -548,6 +549,17 @@ export const api = {
       formData.set("title", title.trim());
     }
     return request<DocumentAccepted>("/api/v1/documents", {
+      method: "POST",
+      formData,
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
+  },
+  uploadDocuments: (files: File[], idempotencyKey: string) => {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file);
+    }
+    return request<DocumentBatchAccepted>("/api/v1/documents/batch", {
       method: "POST",
       formData,
       headers: { "Idempotency-Key": idempotencyKey },

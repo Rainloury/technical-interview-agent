@@ -388,6 +388,7 @@ Idempotency-Key: <uuid>
 
 ```text
 POST   /api/v1/documents
+POST   /api/v1/documents/batch
 GET    /api/v1/documents
 GET    /api/v1/documents/{document_id}
 DELETE /api/v1/documents/{document_id}
@@ -420,6 +421,17 @@ X-CSRF-Token: <csrf>
 ```
 
 上传后 Worker 异步解析、分块和 embedding。状态依次为 `uploaded`、`processing`、`ready`；重试耗尽后为 `failed`。同 owner 相同内容在未删除时复用既有记录；相同幂等键但文件或标题不同返回 `409 idempotency_conflict`。
+
+批量上传使用同一幂等键，一次提交多个文件：
+
+```http
+POST /api/v1/documents/batch
+Content-Type: multipart/form-data
+Idempotency-Key: <uuid>
+X-CSRF-Token: <csrf>
+```
+
+表单字段 `files` 可重复。批次在单个事务中创建每个文件的资料记录和独立 `process_document` 任务；任一文件校验失败时整批回滚。Worker 按文件逐个解析、分块、embedding 和入库，单个文件失败不会阻止其他文件完成任务。
 
 ### 5.2 列表与详情
 

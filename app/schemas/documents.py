@@ -21,6 +21,15 @@ class DocumentAccepted(BaseModel):
     created_at: datetime
 
 
+class DocumentBatchAccepted(BaseModel):
+    """Accepted metadata for one batch of private-document uploads."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    documents: list[DocumentAccepted]
+    original_filenames: list[str]
+
+
 class DocumentItem(BaseModel):
     """Owner-visible document status and bounded metadata."""
 

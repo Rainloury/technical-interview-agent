@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
-import { type ChangeEvent, type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api, ApiError } from "../api/client";
@@ -13,7 +13,7 @@ import { LoadingRows } from "../components/LoadingRows";
 import { useSessionGuard } from "../hooks/useSessionGuard";
 import { userError } from "../utils/errors";
 import { formatDate } from "../utils/format";
-import { validateDocument } from "../utils/documentValidation";
+import { validateDocuments } from "../utils/documentValidation";
 
 const documentStates: Record<DocumentItem["state"], { label: string; tone: string }> = {
   uploaded: { label: "已上传", tone: "uploaded" },
@@ -22,6 +22,10 @@ const documentStates: Record<DocumentItem["state"], { label: string; tone: strin
   failed: { label: "索引失败", tone: "failed" },
   deleted: { label: "已删除", tone: "deleted" },
 };
+
+function fileSignature(files: File[]): string {
+  return files.map((file) => `${file.name}:${file.size}:${file.lastModified}`).join("|");
+}
 
 function DocumentRow({
   document,
@@ -63,12 +67,11 @@ function DocumentRow({
 
 export function DocumentsPage() {
   const queryClient = useQueryClient();
-  const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [requestKey, setRequestKey] = useState<string | null>(null);
-  const [requestedFile, setRequestedFile] = useState<File | null>(null);
-  const [requestedTitle, setRequestedTitle] = useState("");
+  const [requestedSignature, setRequestedSignature] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DocumentItem | null>(null);
   const [deleteKey, setDeleteKey] = useState<string | null>(null);
 
@@ -88,18 +91,18 @@ export function DocumentsPage() {
 
   const upload = useMutation({
     mutationFn: ({
-      selectedFile,
-      selectedTitle,
+      selectedFiles,
       key,
     }: {
-      selectedFile: File;
-      selectedTitle: string;
+      selectedFiles: File[];
       key: string;
-    }) => api.uploadDocument(selectedFile, selectedTitle, key),
+    }) => api.uploadDocuments(selectedFiles, key),
     onSuccess: () => {
-      setFile(null);
-      setTitle("");
+      setFiles([]);
       setRequestKey(null);
+      if (fileInput.current) {
+        fileInput.current.value = "";
+      }
       void queryClient.invalidateQueries({ queryKey: queryKeys.documents });
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
     },
@@ -117,27 +120,27 @@ export function DocumentsPage() {
   });
 
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const nextFile = event.target.files?.[0] ?? null;
-    setFile(nextFile);
-    setFileError(validateDocument(nextFile));
+    const nextFiles = Array.from(event.target.files ?? []);
+    setFiles(nextFiles);
+    setFileError(validateDocuments(nextFiles));
     setRequestKey(null);
   };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const error = validateDocument(file);
+    const error = validateDocuments(files);
     setFileError(error);
-    if (error || !file) {
+    if (error || files.length === 0) {
       return;
     }
     let key = requestKey;
-    if (!key || requestedFile !== file || requestedTitle !== title) {
+    const signature = fileSignature(files);
+    if (!key || requestedSignature !== signature) {
       key = newIdempotencyKey();
       setRequestKey(key);
-      setRequestedFile(file);
-      setRequestedTitle(title);
+      setRequestedSignature(signature);
     }
-    upload.mutate({ selectedFile: file, selectedTitle: title, key });
+    upload.mutate({ selectedFiles: files, key });
   };
 
   const conflict =
@@ -173,14 +176,24 @@ export function DocumentsPage() {
             <label className={`file-picker ${fileError ? "file-picker--error" : ""}`}>
               <FileText size={22} aria-hidden="true" />
               <span>
-                <strong>{file?.name ?? "选择 PDF、DOCX、TXT 或 Markdown"}</strong>
-                <small>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : "最大 10 MB"}</small>
+                <strong>
+                  {files.length > 0
+                    ? `已选择 ${files.length} 个文件`
+                    : "选择 PDF、DOCX、TXT 或 Markdown"}
+                </strong>
+                <small>
+                  {files.length > 0
+                    ? files.map((file) => file.name).join("、")
+                    : "可多选，单个文件最大 10 MB"}
+                </small>
               </span>
               <input
+                ref={fileInput}
                 id="document-file"
                 className="visually-hidden"
                 type="file"
                 accept=".pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown"
+                multiple
                 onChange={handleFile}
                 disabled={upload.isPending}
               />
@@ -191,21 +204,6 @@ export function DocumentsPage() {
               </p>
             )}
           </div>
-          <div className="field">
-            <label htmlFor="document-title">资料标题</label>
-            <input
-              id="document-title"
-              className="text-input"
-              value={title}
-              maxLength={120}
-              placeholder="可选，默认使用文件名"
-              onChange={(event) => {
-                setTitle(event.target.value);
-                setRequestKey(null);
-              }}
-              disabled={upload.isPending}
-            />
-          </div>
           {upload.isError && (
             <ErrorNotice
               message={userError(upload.error)}
@@ -214,16 +212,19 @@ export function DocumentsPage() {
                   ? undefined
                   : () =>
                       upload.mutate({
-                        selectedFile: file!,
-                        selectedTitle: title,
+                        selectedFiles: files,
                         key: requestKey ?? newIdempotencyKey(),
                       })
               }
             />
           )}
-          <button className="primary-button" type="submit" disabled={upload.isPending || !file}>
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={upload.isPending || files.length === 0}
+          >
             <Upload size={17} aria-hidden="true" />
-            <span>{upload.isPending ? "正在上传" : "上传资料"}</span>
+            <span>{upload.isPending ? "正在上传" : `上传 ${files.length || ""} 个文件`}</span>
           </button>
         </form>
       </section>

@@ -17,3 +17,16 @@ export function validateDocument(file: File | null): string | null {
   }
   return null;
 }
+
+export function validateDocuments(files: File[]): string | null {
+  if (files.length === 0) {
+    return "请选择资料文件。";
+  }
+  for (const file of files) {
+    const error = validateDocument(file);
+    if (error) {
+      return `${file.name}：${error}`;
+    }
+  }
+  return null;
+}

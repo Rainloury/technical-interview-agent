@@ -14,13 +14,19 @@ from app.api.dependencies import (
     verify_write_security,
 )
 from app.errors import AppError
-from app.schemas.documents import DocumentAccepted, DocumentItem, DocumentPage
+from app.schemas.documents import (
+    DocumentAccepted,
+    DocumentBatchAccepted,
+    DocumentItem,
+    DocumentPage,
+)
 from app.services.documents import (
     DocumentUpload,
     delete_document,
     get_document,
     list_documents,
     upload_document,
+    upload_documents,
 )
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -59,6 +65,37 @@ async def upload(
             content=content,
             title=title,
         ),
+        idempotency_key=idempotency_key,
+        settings=settings,
+    )
+
+
+@router.post("/batch", response_model=DocumentBatchAccepted, status_code=status.HTTP_202_ACCEPTED)
+async def upload_batch(
+    request: Request,
+    auth: AuthDependency,
+    session: SessionDependency,
+    idempotency_key: IdempotencyKeyDependency,
+    files: Annotated[list[UploadFile], File()],
+) -> DocumentBatchAccepted:
+    verify_write_security(request, auth)
+    settings = request.app.state.settings
+    uploads = []
+    for file in files:
+        content = await _read_bounded(file, settings.document_max_bytes)
+        uploads.append(
+            DocumentUpload(
+                filename=file.filename or "",
+                declared_mime=file.content_type,
+                content=content,
+                title=None,
+            )
+        )
+    return await upload_documents(
+        session,
+        request.app.state.resume_storage,
+        auth.user,
+        uploads,
         idempotency_key=idempotency_key,
         settings=settings,
     )
