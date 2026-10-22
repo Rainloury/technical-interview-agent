@@ -852,7 +852,21 @@ class ResumeWorker:
                     )
                 ).scalars()
             )
+            documents = list(
+                (
+                    await session.execute(
+                        select(UserDocument)
+                        .where(
+                            UserDocument.retention_expires_at <= now,
+                            UserDocument.state != "deleted",
+                        )
+                        .with_for_update()
+                    )
+                ).scalars()
+            )
             object_keys = [source.object_key for source in sources]
+            object_keys.extend(document.object_key for document in documents)
+            document_ids = [document.id for document in documents]
         for object_key in object_keys:
             with suppress(FileNotFoundError):
                 await self._storage.delete(object_key)
@@ -875,6 +889,19 @@ class ResumeWorker:
                 .where(ResumeTask.expires_at <= now, ResumeTask.deleted_at.is_(None))
                 .values(deleted_at=now)
             )
+            if document_ids:
+                document_chunk_ids = select(UserDocumentChunk.id).where(
+                    UserDocumentChunk.document_id.in_(document_ids)
+                )
+                await session.execute(
+                    update(QaEvidence)
+                    .where(QaEvidence.user_document_chunk_id.in_(document_chunk_ids))
+                    .values(source_state="source_deleted")
+                )
+                await session.execute(
+                    delete(UserDocumentChunk).where(UserDocumentChunk.document_id.in_(document_ids))
+                )
+                await session.execute(delete(UserDocument).where(UserDocument.id.in_(document_ids)))
             await session.execute(
                 update(QaRequest)
                 .where(QaRequest.expires_at <= now, QaRequest.deleted_at.is_(None))

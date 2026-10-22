@@ -8,8 +8,10 @@ from typing import Any
 
 import pytest
 from app.db.models import AsyncJob, UserDocument
+from app.services.documents import DocumentUpload, upload_document
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.conftest import AppHarness
 from tests.test_account_api import _login, _write_headers
@@ -138,6 +140,135 @@ async def test_document_failed_reupload_reuses_record_and_requeues(
         assert documents[0].state == "uploaded"
         assert documents[0].failure_code is None
         assert len(jobs) >= 1
+
+
+async def test_document_ready_reupload_reuses_record_without_new_job(
+    app_client: AppHarness,
+    create_user: Any,
+) -> None:
+    await _owner(app_client, create_user, "doc-ready-reuse@example.com")
+    client = app_client.client
+    _login(client, "doc-ready-reuse@example.com")
+    content = b"# Ready\n\nAlready indexed."
+    accepted = _upload(client, content)
+    document_id = uuid.UUID(accepted.json()["document_id"])
+
+    async with app_client.session_factory() as session:
+        document = await session.get(UserDocument, document_id)
+        assert document is not None
+        document.state = "ready"
+        document.chunk_count = 1
+        job = (
+            await session.execute(select(AsyncJob).where(AsyncJob.resource_id == document_id))
+        ).scalar_one()
+        job.state = "succeeded"
+        await session.commit()
+
+    replay = _upload(client, content, key=str(uuid.uuid4()))
+    assert replay.status_code == 202
+    assert replay.json()["document_id"] == str(document_id)
+    async with app_client.session_factory() as session:
+        jobs = list(
+            (
+                await session.execute(select(AsyncJob).where(AsyncJob.resource_id == document_id))
+            ).scalars()
+        )
+        assert len(jobs) == 1
+        assert jobs[0].state == "succeeded"
+
+
+async def test_document_upload_rolls_back_record_when_storage_put_fails(
+    app_client: AppHarness,
+    settings: Any,
+    create_user: Any,
+) -> None:
+    owner = create_user("doc-storage-fail@example.com")
+    async with app_client.session_factory() as session:
+        session.add(owner)
+        await session.commit()
+
+    class FailingStorage:
+        async def put(self, _key: str, _content: bytes) -> None:
+            raise OSError("storage unavailable")
+
+        async def get(self, _key: str) -> bytes:
+            raise AssertionError("get should not be called")
+
+        async def delete(self, _key: str) -> None:
+            return None
+
+    async with app_client.session_factory() as session:
+        with pytest.raises(OSError):
+            await upload_document(
+                session,
+                FailingStorage(),
+                owner,
+                DocumentUpload(
+                    filename="notes.md",
+                    declared_mime="text/markdown",
+                    content=b"# notes\n\nprivate",
+                ),
+                idempotency_key="storage-failure-key",
+                settings=settings,
+            )
+
+    async with app_client.session_factory() as session:
+        documents = list(
+            (
+                await session.execute(
+                    select(UserDocument).where(UserDocument.owner_user_id == owner.id)
+                )
+            ).scalars()
+        )
+        assert documents == []
+
+
+async def test_document_upload_cleans_object_when_commit_fails(
+    app_client: AppHarness,
+    settings: Any,
+    create_user: Any,
+) -> None:
+    owner = create_user("doc-commit-fail@example.com")
+    async with app_client.session_factory() as session:
+        session.add(owner)
+        await session.commit()
+
+    class TrackingStorage:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        async def put(self, _key: str, _content: bytes) -> None:
+            return None
+
+        async def get(self, _key: str) -> bytes:
+            raise AssertionError("get should not be called")
+
+        async def delete(self, key: str) -> None:
+            self.deleted.append(key)
+
+    storage = TrackingStorage()
+
+    class FailingCommitSession(AsyncSession):
+        async def commit(self) -> None:
+            await super().commit()
+            raise RuntimeError("commit failed")
+
+    async with FailingCommitSession(bind=app_client.write_engine) as failing_session:
+        with pytest.raises(RuntimeError, match="commit failed"):
+            await upload_document(
+                failing_session,
+                storage,
+                owner,
+                DocumentUpload(
+                    filename="notes.md",
+                    declared_mime="text/markdown",
+                    content=b"# notes\n\nprivate",
+                ),
+                idempotency_key="commit-failure-key",
+                settings=settings,
+            )
+
+    assert storage.deleted
 
 
 @pytest.mark.parametrize(

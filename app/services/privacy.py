@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
@@ -15,11 +15,13 @@ from app.db.jobs import enqueue_job
 from app.db.models import (
     DataDeletionRequest,
     Interview,
+    QaEvidence,
     QaRequest,
     ResumeFile,
     ResumeTask,
     User,
     UserDocument,
+    UserDocumentChunk,
     WrongQuestion,
 )
 from app.errors import AppError
@@ -193,6 +195,16 @@ async def request_data_deletion(
         document.deletion_state = "pending"
         document.deleted_at = now
         document.updated_at = now
+    document_ids = [document.id for document in documents]
+    if document_ids:
+        chunk_ids = select(UserDocumentChunk.id).where(
+            UserDocumentChunk.document_id.in_(document_ids)
+        )
+        await session.execute(
+            update(QaEvidence)
+            .where(QaEvidence.user_document_chunk_id.in_(chunk_ids))
+            .values(source_state="source_deleted")
+        )
 
     await enqueue_job(
         session,

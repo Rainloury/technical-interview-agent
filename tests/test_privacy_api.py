@@ -13,6 +13,7 @@ from app.db.models import (
     AuditEvent,
     DataDeletionRequest,
     Interview,
+    QaEvidence,
     QaRequest,
     ResumeFile,
     ResumeTask,
@@ -161,8 +162,37 @@ async def test_delete_account_data_tombstones_immediately_and_worker_cleans_priv
                 embedding=[0.0] * 1024,
             )
         )
+        evidence_request = QaRequest(
+            owner_user_id=owner.id,
+            question_text="private document question",
+            state="completed",
+            model_name="test",
+            prompt_version="v1",
+            completed_at=datetime.now(UTC),
+            expires_at=datetime.now(UTC) + timedelta(days=90),
+        )
+        session.add(evidence_request)
+        await session.flush()
+        chunk = (
+            await session.execute(
+                select(UserDocumentChunk).where(UserDocumentChunk.document_id == document.id)
+            )
+        ).scalar_one()
+        session.add(
+            QaEvidence(
+                qa_request_id=evidence_request.id,
+                user_document_chunk_id=chunk.id,
+                source_kind="user_document",
+                source_title="Private notes",
+                section_path="正文 / 1",
+                snippet="private document bytes",
+                relevance_score=0.9,
+                position={"citation_id": "evidence-1"},
+            )
+        )
         await session.commit()
         document_id = document.id
+        evidence_request_id = evidence_request.id
     client = app_client.client
     _login(client, "privacy-owner@example.com")
 
@@ -189,9 +219,16 @@ async def test_delete_account_data_tombstones_immediately_and_worker_cleans_priv
         assert persisted_interview is not None and persisted_interview.deleted_at is not None
         assert persisted_document is not None and persisted_document.deleted_at is not None
         assert source.storage_state == "delete_pending"
+        evidence = (
+            await session.execute(
+                select(QaEvidence).where(QaEvidence.qa_request_id == evidence_request_id)
+            )
+        ).scalar_one()
+        assert evidence.source_state == "source_deleted"
 
     assert client.get("/api/v1/history?type=resume").json()["items"] == []
     assert client.get("/api/v1/history?type=qa").json()["items"] == []
+    assert client.get(f"/api/v1/qa/{evidence_request_id}").status_code == 404
 
     outcome = await _worker(app_client, settings).run_once()
     if outcome.outcome != "succeeded":
@@ -283,8 +320,64 @@ async def test_retention_cleanup_hides_expired_data_and_deletes_expired_audit(
             expires_at=now - timedelta(days=1),
         )
         session.add(expired_audit)
+        expired_document = UserDocument(
+            owner_user_id=owner.id,
+            title="Expired notes",
+            original_filename="expired-notes.md",
+            detected_mime="text/markdown",
+            size_bytes=10,
+            sha256="b" * 64,
+            object_key=f"{owner.id.hex}/expired-notes.md",
+            state="ready",
+            chunk_count=1,
+            retention_expires_at=now - timedelta(days=1),
+        )
+        session.add(expired_document)
+        await session.flush()
+        expired_chunk = UserDocumentChunk(
+            document_id=expired_document.id,
+            owner_user_id=owner.id,
+            chunk_index=0,
+            section_path="正文 / 1",
+            content="expired private document",
+            content_hash="b" * 64,
+            search_text="expired private document",
+            token_count=3,
+            embedding=[0.0] * 1024,
+        )
+        session.add(expired_chunk)
+        await session.flush()
+        evidence_request = QaRequest(
+            owner_user_id=owner.id,
+            question_text="expired document question",
+            state="completed",
+            model_name="test",
+            prompt_version="v1",
+            completed_at=now,
+            expires_at=now + timedelta(days=90),
+        )
+        session.add(evidence_request)
+        await session.flush()
+        session.add(
+            QaEvidence(
+                qa_request_id=evidence_request.id,
+                user_document_chunk_id=expired_chunk.id,
+                source_kind="user_document",
+                source_title="Expired notes",
+                section_path="正文 / 1",
+                snippet="expired private document",
+                relevance_score=0.9,
+                position={"citation_id": "evidence-1"},
+            )
+        )
         await session.commit()
         expired_audit_id = expired_audit.id
+        expired_document_id = expired_document.id
+        evidence_request_id = evidence_request.id
+    await LocalPrivateStorage(settings.resume_storage_dir).put(
+        expired_document.object_key,
+        b"expired demo",
+    )
 
     worker = _worker(app_client, settings)
     async with app_client.session_factory() as session:
@@ -313,9 +406,30 @@ async def test_retention_cleanup_hides_expired_data_and_deletes_expired_audit(
                 select(ResumeFile).where(ResumeFile.resume_task_id == expired_task.id)
             )
         ).scalar_one()
+        document = await session.get(UserDocument, expired_document_id)
+        chunks = list(
+            (
+                await session.execute(
+                    select(UserDocumentChunk).where(
+                        UserDocumentChunk.document_id == expired_document_id
+                    )
+                )
+            ).scalars()
+        )
+        evidence = (
+            await session.execute(
+                select(QaEvidence).where(QaEvidence.qa_request_id == evidence_request_id)
+            )
+        ).scalar_one()
+        expired_key = f"{owner.id.hex}/expired-notes.md"
+        storage_root = LocalPrivateStorage(settings.resume_storage_dir)._root
         assert task is not None and task.deleted_at is not None
         assert source.storage_state == "deleted"
         assert audit is None
+        assert document is None
+        assert chunks == []
+        assert evidence.source_state == "source_deleted"
+        assert not (storage_root / expired_key).exists()
 
 
 async def test_ops_metrics_requires_token_and_returns_only_aggregates(

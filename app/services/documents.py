@@ -252,6 +252,7 @@ async def upload_document(
         )
     ).scalar_one_or_none()
     object_key = f"{user.id.hex}/documents/{uuid.uuid4().hex}"
+    uploaded_object: str | None = None
     if stored_document is not None and stored_document.state in {"uploaded", "processing", "ready"}:
         return DocumentAccepted(
             document_id=stored_document.id,
@@ -273,6 +274,7 @@ async def upload_document(
         )
         session.add(document)
         await storage.put(object_key, upload.content)
+        uploaded_object = object_key
         await session.flush()
     else:
         document = stored_document
@@ -285,26 +287,33 @@ async def upload_document(
         document.error_message = None
         document.completed_at = None
         await storage.put(document.object_key, upload.content)
+        uploaded_object = document.object_key
     document.idempotency_key = stored_key
     document.updated_at = datetime.now(UTC)
-    await session.flush()
-    await enqueue_job(
-        session,
-        owner_user_id=user.id,
-        job_type="process_document",
-        resource_type="user_document",
-        resource_id=document.id,
-        idempotency_key=f"process-document:{document.id.hex}:{uuid.uuid4().hex}",
-        request_fingerprint=fingerprint,
-        max_attempts=settings.worker_max_attempts,
-    )
-    await session.commit()
-    await session.refresh(document)
-    return DocumentAccepted(
-        document_id=document.id,
-        state=document.state,
-        created_at=document.created_at,
-    )
+    try:
+        await session.flush()
+        await enqueue_job(
+            session,
+            owner_user_id=user.id,
+            job_type="process_document",
+            resource_type="user_document",
+            resource_id=document.id,
+            idempotency_key=f"process-document:{document.id.hex}:{uuid.uuid4().hex}",
+            request_fingerprint=fingerprint,
+            max_attempts=settings.worker_max_attempts,
+        )
+        await session.commit()
+        await session.refresh(document)
+        return DocumentAccepted(
+            document_id=document.id,
+            state=document.state,
+            created_at=document.created_at,
+        )
+    except Exception:
+        await session.rollback()
+        if uploaded_object is not None:
+            await storage.delete(uploaded_object)
+        raise
 
 
 async def list_documents(
