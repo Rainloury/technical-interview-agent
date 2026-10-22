@@ -105,16 +105,15 @@ test("uploads a private document, cites it, and marks it deleted in history", as
 
     await page.goto("/documents");
     await expect(page.getByRole("heading", { name: "内部资料" })).toBeVisible();
-    await page.getByLabel("资料标题").fill(documentTitle);
     await page.getByLabel("资料文件").setInputFiles({
       name: "private-retry.md",
       mimeType: "text/markdown",
       buffer: Buffer.from(documentContent),
     });
-    await page.getByRole("button", { name: "上传资料" }).click();
+    await page.getByRole("button", { name: "上传 1 个文件" }).click();
 
     try {
-      await expect(page.getByText(documentTitle, { exact: true })).toBeVisible();
+      await expect(page.getByText("private-retry.md", { exact: true })).toBeVisible();
       await expect(page.getByText("可检索", { exact: true })).toBeVisible({
         timeout: 30_000,
       });
@@ -142,10 +141,10 @@ test("uploads a private document, cites it, and marks it deleted in history", as
     }
 
     await page.goto("/documents");
-    await page.getByRole("button", { name: `删除 ${documentTitle}` }).click();
+    await page.getByRole("button", { name: "删除 private-retry.md" }).click();
     await page.getByRole("button", { name: "确认删除" }).click();
     await expect(
-      page.getByRole("main").getByText(documentTitle, { exact: true }),
+      page.getByRole("main").getByText("private-retry.md", { exact: true }),
     ).toHaveCount(0);
 
     await page.goto(qaUrl);
@@ -159,10 +158,10 @@ test("uploads a private document, cites it, and marks it deleted in history", as
     );
     expect(listing.status()).toBe(200);
     const listingPayload = (await listing.json()) as {
-      items: { title: string }[];
+      items: { original_filename: string }[];
     };
     expect(
-      listingPayload.items.some((item) => item.title === documentTitle),
+      listingPayload.items.some((item) => item.original_filename === "private-retry.md"),
     ).toBe(false);
 
     await page.goto("/qa");
