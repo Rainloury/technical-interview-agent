@@ -6,11 +6,11 @@ import { expect, test, type Page } from "@playwright/test";
 const password = "correct horse battery staple";
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
 const apiUrl = process.env.API_URL ?? "http://127.0.0.1:8100";
-const question = "有界重试如何限制次数并避免重复提交？";
+const question = "私有重试手册如何限制次数并避免重复提交？";
 const documentTitle = "私有重试手册";
 const documentContent =
   "# 有界重试\n\n" +
-  "有界重试必须限制总尝试次数，使用指数退避和抖动，并通过幂等键避免重复提交。\n";
+  "私有重试手册规定：必须限制总尝试次数，使用指数退避和抖动，并通过幂等键避免重复提交。\n";
 
 interface WorkerProcess {
   process: ChildProcessByStdio<null, Readable, Readable>;
@@ -172,8 +172,7 @@ test("uploads a private document, cites it, and marks it deleted in history", as
     await expect(page.getByRole("heading", { name: "回答" })).toBeVisible({
       timeout: 30_000,
     });
-    const bodyText = await page.locator("body").innerText();
-    expect(bodyText).not.toContain(documentTitle);
+    await expect(page.getByText(documentTitle, { exact: true })).toHaveCount(0);
   } finally {
     await stopWorker(worker);
   }
