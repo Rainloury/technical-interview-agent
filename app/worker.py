@@ -38,6 +38,8 @@ from app.db.models import (
     ResumeTask,
     ResumeText,
     ScoringAttempt,
+    SharedDocument,
+    SharedDocumentChunk,
     User,
     UserDocument,
     UserDocumentChunk,
@@ -200,6 +202,7 @@ class ResumeWorker:
             job_id = job.id
             job_type = job.job_type
             resource_id = job.resource_id
+            resource_type = job.resource_type
             fencing_token = job.fencing_token
             attempt_count = job.attempt_count
             max_attempts = job.max_attempts
@@ -236,17 +239,19 @@ class ResumeWorker:
                     owner_user_id=owner_user_id,
                 )
             elif job_type == "process_document":
-                await self._process_document(
+                await self._process_document_job(
                     job_id=job_id,
                     fencing_token=fencing_token,
                     resource_id=resource_id,
                     owner_user_id=owner_user_id,
+                    resource_type=resource_type,
                 )
             elif job_type == "delete_document":
                 await self._process_document_delete(
                     job_id=job_id,
                     fencing_token=fencing_token,
                     resource_id=resource_id,
+                    resource_type=resource_type,
                 )
             elif job_type == "score_open_interview_turn":
                 await self._process_interview_open(
@@ -311,6 +316,7 @@ class ResumeWorker:
                 fencing_token=fencing_token,
                 resource_id=resource_id,
                 job_type=job_type,
+                resource_type=resource_type,
                 code=code,
                 error_detail=detail,
                 retryable=retryable,
@@ -387,6 +393,7 @@ class ResumeWorker:
         fencing_token: int,
         resource_id: uuid.UUID,
         job_type: str,
+        resource_type: str,
         code: str,
         error_detail: str,
         retryable: bool,
@@ -470,17 +477,30 @@ class ResumeWorker:
                     code=code,
                 )
             elif job_type == "process_document":
-                document = await session.get(
-                    UserDocument,
-                    resource_id,
-                    with_for_update=True,
-                )
-                if document is not None and document.state != "deleted":
-                    document.state = "failed"
-                    document.failure_code = code
-                    document.error_message = "资料索引未完成，请重新上传"
-                    document.chunk_count = 0
-                    document.updated_at = datetime.now(UTC)
+                if resource_type == "shared_document":
+                    shared_document = await session.get(
+                        SharedDocument,
+                        resource_id,
+                        with_for_update=True,
+                    )
+                    if shared_document is not None and shared_document.state != "deleted":
+                        shared_document.state = "failed"
+                        shared_document.failure_code = code
+                        shared_document.error_message = "资料索引未完成，请重新上传"
+                        shared_document.chunk_count = 0
+                        shared_document.updated_at = datetime.now(UTC)
+                else:
+                    document = await session.get(
+                        UserDocument,
+                        resource_id,
+                        with_for_update=True,
+                    )
+                    if document is not None and document.state != "deleted":
+                        document.state = "failed"
+                        document.failure_code = code
+                        document.error_message = "资料索引未完成，请重新上传"
+                        document.chunk_count = 0
+                        document.updated_at = datetime.now(UTC)
             else:
                 task = await session.get(ResumeTask, resource_id)
                 if task is not None and task.state not in {"completed", "source_deleted"}:
@@ -1195,6 +1215,33 @@ class ResumeWorker:
             )
             await session.commit()
 
+    async def _process_document_job(
+        self,
+        *,
+        job_id: uuid.UUID,
+        fencing_token: int,
+        resource_id: uuid.UUID,
+        owner_user_id: uuid.UUID | None,
+        resource_type: str,
+    ) -> None:
+        if resource_type == "shared_document":
+            await self._process_shared_document(
+                job_id=job_id,
+                fencing_token=fencing_token,
+                resource_id=resource_id,
+                owner_user_id=owner_user_id,
+            )
+            return
+        if resource_type == "user_document":
+            await self._process_document(
+                job_id=job_id,
+                fencing_token=fencing_token,
+                resource_id=resource_id,
+                owner_user_id=owner_user_id,
+            )
+            return
+        raise ResumeWorkerError("invalid_resource_type", retryable=False)
+
     async def _process_document(
         self,
         *,
@@ -1272,14 +1319,98 @@ class ResumeWorker:
             document.updated_at = datetime.now(UTC)
             await session.commit()
 
+    async def _process_shared_document(
+        self,
+        *,
+        job_id: uuid.UUID,
+        fencing_token: int,
+        resource_id: uuid.UUID,
+        owner_user_id: uuid.UUID | None,
+    ) -> None:
+        """Index one shared document with bounded extraction and embeddings."""
+
+        del owner_user_id
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            document = await session.get(SharedDocument, resource_id, with_for_update=True)
+            if document is None or document.state in {"ready", "deleted", "failed"}:
+                return
+            document.state = "processing"
+            document.failure_code = None
+            document.error_message = None
+            object_key = document.object_key
+            filename = document.original_filename
+            declared_mime = document.detected_mime
+            expected_hash = document.sha256
+            await session.commit()
+
+        content = await self._storage.get(object_key)
+        if hashlib.sha256(content).hexdigest() != expected_hash:
+            raise ResumeWorkerError("document_hash_mismatch", retryable=False)
+        extracted = extract_document(
+            content,
+            filename=filename,
+            declared_mime=declared_mime,
+            settings=self._settings,
+        )
+        chunks = split_document(extracted.text, settings=self._settings)
+        if not chunks:
+            raise ResumeWorkerError("text_extraction_unsupported", retryable=False)
+        if self._embedding_client is None:
+            raise ResumeWorkerError("embedding_unavailable", retryable=True)
+        vectors = await self._embedding_client.embed([chunk.content for chunk in chunks])
+        if len(vectors) != len(chunks):
+            raise ResumeWorkerError("embedding_count_mismatch", retryable=False)
+
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            document = await session.get(SharedDocument, resource_id, with_for_update=True)
+            if document is None or document.state != "processing":
+                raise ResumeWorkerError("invalid_state_transition", retryable=False)
+            await session.execute(
+                delete(SharedDocumentChunk).where(SharedDocumentChunk.document_id == document.id)
+            )
+            for chunk, vector in zip(chunks, vectors, strict=True):
+                session.add(
+                    SharedDocumentChunk(
+                        document_id=document.id,
+                        chunk_index=chunk.index,
+                        section_path=chunk.section_path,
+                        content=chunk.content,
+                        content_hash=hashlib.sha256(chunk.content.encode()).hexdigest(),
+                        search_text=chunk.search_text,
+                        token_count=chunk.token_count,
+                        embedding=vector,
+                    )
+                )
+            document.state = "ready"
+            document.chunk_count = len(chunks)
+            document.index_version = "rag-v1"
+            document.embedding_model = self._settings.ollama_embedding_model
+            document.embedding_dimensions = self._settings.ollama_embedding_dimensions
+            document.completed_at = datetime.now(UTC)
+            document.updated_at = datetime.now(UTC)
+            await session.commit()
+
     async def _process_document_delete(
         self,
         *,
         job_id: uuid.UUID,
         fencing_token: int,
         resource_id: uuid.UUID,
+        resource_type: str,
     ) -> None:
         """Delete chunks and the private object after the visible tombstone."""
+
+        if resource_type == "shared_document":
+            await self._process_shared_document_delete(
+                job_id=job_id,
+                fencing_token=fencing_token,
+                resource_id=resource_id,
+            )
+            return
+        if resource_type != "user_document":
+            raise ResumeWorkerError("invalid_resource_type", retryable=False)
 
         async with self._sessions() as session:
             await self._current_job(session, job_id, fencing_token)
@@ -1295,6 +1426,32 @@ class ResumeWorker:
         async with self._sessions() as session:
             await self._current_job(session, job_id, fencing_token)
             document = await session.get(UserDocument, resource_id, with_for_update=True)
+            if document is not None:
+                document.deletion_state = "deleted"
+                document.updated_at = datetime.now(UTC)
+                await session.commit()
+
+    async def _process_shared_document_delete(
+        self,
+        *,
+        job_id: uuid.UUID,
+        fencing_token: int,
+        resource_id: uuid.UUID,
+    ) -> None:
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            document = await session.get(SharedDocument, resource_id, with_for_update=True)
+            if document is None:
+                return
+            object_key = document.object_key
+            await session.execute(
+                delete(SharedDocumentChunk).where(SharedDocumentChunk.document_id == document.id)
+            )
+            await session.commit()
+        await self._storage.delete(object_key)
+        async with self._sessions() as session:
+            await self._current_job(session, job_id, fencing_token)
+            document = await session.get(SharedDocument, resource_id, with_for_update=True)
             if document is not None:
                 document.deletion_state = "deleted"
                 document.updated_at = datetime.now(UTC)

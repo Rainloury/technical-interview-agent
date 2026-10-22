@@ -8,7 +8,13 @@ from typing import Any
 
 import pytest
 from app.config import Settings
-from app.db.models import AsyncJob, UserDocument, UserDocumentChunk
+from app.db.models import (
+    AsyncJob,
+    SharedDocument,
+    SharedDocumentChunk,
+    UserDocument,
+    UserDocumentChunk,
+)
 from app.prompts.loader import PromptLoader
 from app.rag.ollama import OllamaEmbeddingError
 from app.storage import LocalPrivateStorage
@@ -282,3 +288,164 @@ async def test_document_retention_expiry_hides_document(
     listing = client.get("/api/v1/documents")
     assert listing.status_code == 200
     assert all(item["id"] != str(document_id) for item in listing.json()["items"])
+
+
+async def _upload_shared_document(
+    app_client: AppHarness,
+    create_user: Any,
+    *,
+    email: str = "shared-worker-admin@example.com",
+    filename: str = "shared.md",
+    content: bytes = b"# Shared\n\nShared retry guidance.",
+) -> uuid.UUID:
+    async with app_client.session_factory() as session:
+        session.add(create_user(email, role="admin"))
+        await session.commit()
+    client = app_client.client
+    _login(client, email)
+    response = client.post(
+        "/api/v1/shared-documents",
+        files={"file": (filename, content, "text/markdown")},
+        data={"title": "Shared worker notes"},
+        headers={**_write_headers(client), "Idempotency-Key": str(uuid.uuid4())},
+    )
+    assert response.status_code == 202, response.text
+    return uuid.UUID(response.json()["document_id"])
+
+
+async def test_worker_indexes_shared_document_into_shared_chunks(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    document_id = await _upload_shared_document(app_client, create_user)
+    result = await _worker(app_client, settings).run_once()
+    assert result.outcome == "succeeded"
+    async with app_client.session_factory() as session:
+        document = await session.get(SharedDocument, document_id)
+        chunks = list(
+            (
+                await session.execute(
+                    select(SharedDocumentChunk).where(
+                        SharedDocumentChunk.document_id == document_id
+                    )
+                )
+            ).scalars()
+        )
+    assert document is not None
+    assert document.state == "ready"
+    assert document.chunk_count == len(chunks)
+    assert chunks
+
+
+async def test_worker_delete_shared_document_removes_object_and_chunks(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    document_id = await _upload_shared_document(
+        app_client,
+        create_user,
+        email="shared-delete-worker@example.com",
+    )
+    assert (await _worker(app_client, settings).run_once()).outcome == "succeeded"
+    client = app_client.client
+    deleted = client.delete(
+        f"/api/v1/shared-documents/{document_id}",
+        headers={**_write_headers(client), "Idempotency-Key": str(uuid.uuid4())},
+    )
+    assert deleted.status_code == 204
+    async with app_client.session_factory() as session:
+        job = (
+            await session.execute(
+                select(AsyncJob).where(
+                    AsyncJob.resource_id == document_id,
+                    AsyncJob.job_type == "delete_document",
+                    AsyncJob.resource_type == "shared_document",
+                )
+            )
+        ).scalar_one()
+        job.next_run_at = datetime.now(UTC) - timedelta(seconds=1)
+        await session.commit()
+    result = await _worker(
+        app_client,
+        settings,
+        worker_id="shared-delete-worker-2",
+    ).run_once()
+    assert result.outcome == "succeeded"
+    async with app_client.session_factory() as session:
+        document = await session.get(SharedDocument, document_id)
+        chunks = list(
+            (
+                await session.execute(
+                    select(SharedDocumentChunk).where(
+                        SharedDocumentChunk.document_id == document_id
+                    )
+                )
+            ).scalars()
+        )
+    assert document is not None
+    assert document.deletion_state == "deleted"
+    assert chunks == []
+
+
+async def test_shared_document_embedding_failure_writes_no_partial_chunks(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    document_id = await _upload_shared_document(
+        app_client,
+        create_user,
+        email="shared-fail-worker@example.com",
+    )
+    async with app_client.session_factory() as session:
+        job = (
+            await session.execute(select(AsyncJob).where(AsyncJob.resource_id == document_id))
+        ).scalar_one()
+        job.max_attempts = 1
+        await session.commit()
+    result = await _worker(app_client, settings, FakeEmbedding(failures=10)).run_once()
+    assert result.outcome == "dead_letter"
+    async with app_client.session_factory() as session:
+        document = await session.get(SharedDocument, document_id)
+        chunks = list(
+            (
+                await session.execute(
+                    select(SharedDocumentChunk).where(
+                        SharedDocumentChunk.document_id == document_id
+                    )
+                )
+            ).scalars()
+        )
+    assert document is not None
+    assert document.state == "failed"
+    assert chunks == []
+
+
+async def test_account_deletion_keeps_shared_documents(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    admin = create_user("shared-account-delete@example.com", role="admin")
+    async with app_client.session_factory() as session:
+        session.add(admin)
+        await session.commit()
+    client = app_client.client
+    _login(client, "shared-account-delete@example.com")
+    response = client.post(
+        "/api/v1/shared-documents",
+        files={"file": ("keep.md", b"# Keep me", "text/markdown")},
+        headers={**_write_headers(client), "Idempotency-Key": str(uuid.uuid4())},
+    )
+    document_id = uuid.UUID(response.json()["document_id"])
+    deletion = client.delete(
+        "/api/v1/me/data",
+        headers={**_write_headers(client), "Idempotency-Key": str(uuid.uuid4())},
+    )
+    assert deletion.status_code == 202
+    async with app_client.session_factory() as session:
+        document = await session.get(SharedDocument, document_id)
+    assert document is not None
+    assert document.created_by_user_id == admin.id
