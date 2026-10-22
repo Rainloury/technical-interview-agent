@@ -13,7 +13,7 @@ from pydantic import ValidationError
 def test_rag_defaults_are_explicit() -> None:
     settings = Settings(app_env="test", _env_file=None)
 
-    assert settings.ollama_embedding_model == "bge-m3"
+    assert settings.ollama_embedding_model == "mxbai-embed-large:latest"
     assert settings.ollama_embedding_dimensions == 1024
     assert settings.document_max_bytes == 10_485_760
     assert settings.document_max_characters == 200_000

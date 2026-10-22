@@ -43,7 +43,7 @@ async def test_ollama_embedding_validates_dimension_and_retries_transient() -> N
         await client.aclose()
 
     assert len(calls) == 2
-    assert calls[0]["model"] == "bge-m3"
+    assert calls[0]["model"] == "mxbai-embed-large:latest"
     assert vectors[0][0] == 0.0
     assert len(vectors[0]) == 1024
 

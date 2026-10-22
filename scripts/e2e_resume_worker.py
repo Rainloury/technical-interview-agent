@@ -39,7 +39,7 @@ DIFFICULTIES = ("easy",) * 3 + ("medium",) * 5 + ("hard",) * 2
 QA_SOURCE_ID = uuid.UUID("1f4b4e3e-2f59-4a15-9a71-2fa3d7b94001")
 QA_VERSION_ID = uuid.UUID("1f4b4e3e-2f59-4a15-9a71-2fa3d7b94002")
 QA_SECTION_ID = uuid.UUID("1f4b4e3e-2f59-4a15-9a71-2fa3d7b94003")
-QA_CONTENT = "有界重试应限制次数，使用指数退避、抖动和幂等键来避免重复提交。"
+QA_CONTENT = "系统知识：技术问答只接受带证据的当前账号问题。"
 QA_ANSWER = "有界重试应设置次数上限，使用指数退避与抖动，并通过幂等键避免重复提交。"
 
 

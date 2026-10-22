@@ -191,5 +191,31 @@ def test_local_compose_builds_application_image_once_for_all_backend_roles() -> 
     assert backend_services.count("image: technical-interview-agent-api:local") == 3
     assert "args:\n        PIP_INDEX_URL:" in backend_services
     assert backend_services.count("args:") == 1
-    assert 'name: technical-interview-agent-local' in compose
-    assert '127.0.0.1:8080:80' in compose
+    assert "name: technical-interview-agent-local" in compose
+    assert "127.0.0.1:8080:80" in compose
+
+
+def test_deployment_uses_pgvector_and_ollama_configuration() -> None:
+    production = _read("deploy/production.compose.yaml")
+    local = _read("deploy/local.compose.yaml")
+    env_example = _read(".env.example")
+
+    assert "pgvector/pgvector:pg16" in production
+    assert "pgvector/pgvector:pg16" in local
+    assert "OLLAMA_BASE_URL" in env_example
+    assert "OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest" in env_example
+    assert "OLLAMA_EMBEDDING_DIMENSIONS=1024" in env_example
+
+
+def test_ci_initializes_pgvector_extension() -> None:
+    workflow = _read(".github/workflows/ci.yml")
+    migration = _read("migrations/versions/7f3a9c2d1b40_add_user_rag.py")
+
+    assert "pgvector/pgvector:pg16" in workflow
+    assert workflow.count("image: pgvector/pgvector:pg16") == 2
+    assert "uv run alembic downgrade base" in workflow
+    assert "uv run alembic upgrade head" in workflow
+    assert "uv run alembic check" in workflow
+    assert "CREATE EXTENSION IF NOT EXISTS vector" in migration
+    assert 'postgresql_using="hnsw"' in migration
+    assert 'postgresql_ops={"embedding": "vector_cosine_ops"}' in migration

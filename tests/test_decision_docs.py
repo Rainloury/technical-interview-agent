@@ -31,8 +31,8 @@ def _dr07_section() -> str:
     marker = "### DR-07 首个用户可见切片与前端工程"
     _, separator, remainder = register.partition(marker)
     assert separator, "DR-07 section is missing"
-    section, _, _ = remainder.partition("\n## ")
-    return section
+    next_heading = re.search(r"\n## ", remainder)
+    return remainder[: next_heading.start()] if next_heading else remainder
 
 
 def _dr07_status() -> str:
@@ -227,6 +227,37 @@ def test_release_runbook_documents_redacted_production_config_evidence() -> None
         "Worker 心跳在 30 秒内",
     ):
         assert fragment in runbook, f"{fragment} missing from {RELEASE_RUNBOOK}"
+
+
+def test_private_rag_decision_and_public_contract_are_documented() -> None:
+    adr = _read(ROOT / "docs" / "adr" / "0009-hybrid-rag-for-private-documents.md")
+    adr_index = _read(ROOT / "docs" / "adr" / "README.md")
+    api_contract = _read(API_CONTRACT)
+    data_model = _read(DATA_MODEL)
+    technical_design = _read(TECHNICAL_DESIGN)
+    threat_model = _read(THREAT_MODEL)
+    decision_register = _read(DECISION_REGISTER)
+    readme = _read(README)
+
+    assert "| 状态 | `accepted` |" in adr
+    assert "| 审批日期 | 2026-10-21 |" in adr
+    assert "ADR-0009" in adr_index and "已接受" in adr_index
+    for fragment in (
+        "POST /api/v1/documents",
+        "GET /api/v1/documents",
+        "GET /api/v1/documents/{document_id}",
+        "DELETE /api/v1/documents/{document_id}",
+        "不提供资料选择器",
+    ):
+        assert fragment in api_contract, fragment
+    for fragment in ("user_documents", "user_document_chunks", "vector(1024)", "search_vector"):
+        assert fragment in data_model, fragment
+    for fragment in ("mxbai-embed-large:latest", "pgvector", "RRF", "降级", "BM25"):
+        assert fragment in technical_design, fragment
+    for fragment in ("个人资料", "owner", "Prompt", "<untrusted>"):
+        assert fragment in threat_model, fragment
+    assert "DR-08" in decision_register
+    assert "内部资料" in readme and "mxbai-embed-large:latest" in readme
 
 
 def test_production_config_signoff_requires_platform_evidence() -> None:

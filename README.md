@@ -2,7 +2,7 @@
 
 技术面试问答与模拟面试智能体服务。项目规则见 `AGENTS.md`，需求与技术基线见 `docs/`。
 
-当前阶段：**发布候选（release candidate）；P0 业务切片、质量门禁、隐私与可观测门禁、G4A 行为矩阵、本地恢复/回滚和告警送达演练已通过；生产环境复核、发布 SHA 冻结与发布批准待完成**。`web/` 已实现注册、登录、找回/重置密码、工作台、四类历史分页、桌面/移动导航、简历闭环、检索问答、模拟面试、终态报告、复习中心和账号数据删除确认。后端已接通账号、会话、工作台、历史、异步 Worker、检索问答、面试评分/追问/报告、隐私删除、保留清理与运维聚合指标。技术设计与流程基线分别为 `docs/technical-design.md` v0.21、`docs/development-flow.md` v3.7。真实 provider 三档单轮 eval 已通过；G4A 行为矩阵已通过，整场成本 P95 为 ¥0.83908；生产 DirectMail/OSS 和 GitHub Actions WebKit 均已通过。
+当前阶段：**发布候选（release candidate）；P0 业务切片、质量门禁、隐私与可观测门禁、G4A 行为矩阵、本地恢复/回滚和告警送达演练已通过；生产环境复核、发布 SHA 冻结与发布批准待完成**。`web/` 已实现注册、登录、找回/重置密码、工作台、四类历史分页、桌面/移动导航、简历闭环、内部资料库、检索问答、模拟面试、终态报告、复习中心和账号数据删除确认。后端已接通账号、会话、工作台、历史、异步 Worker、私有内部资料 RAG、检索问答、面试评分/追问/报告、隐私删除、保留清理与运维聚合指标。技术设计与流程基线分别为 `docs/technical-design.md` v0.22、`docs/development-flow.md` v3.7。真实 provider 三档单轮 eval 已通过；G4A 行为矩阵已通过，整场成本 P95 为 ¥0.83908；生产 DirectMail/OSS 和 GitHub Actions WebKit 均已通过。
 
 登录签发服务端会话 Cookie `interview_session`（`HttpOnly`、`Secure`、`SameSite=Lax`），同时签发前端可读的 `interview_csrf`；写请求通过 `X-CSRF-Token` 校验，数据库在 `auth_sessions.csrf_token_hash` 保存 CSRF 哈希，历史接口返回 `{items, next_cursor}`。
 
@@ -29,6 +29,32 @@ uv run technical-interview-agent worker
 ```
 
 Worker 启动时会执行生产配置校验、注册 `SIGINT`/`SIGTERM` 停止信号，并按 `WORKER_CONCURRENCY`、`WORKER_MAX_RUNTIME_SECONDS`、`WORKER_IDLE_SECONDS` 有界轮询。生产必须使用 OSS，不能改用 E2E 的确定性 Worker 脚本。
+
+## 内部资料 RAG
+
+登录后可进入 `/documents` 上传 PDF、DOCX、TXT 或 Markdown，单文件最大 10 MB。上传后 Worker 异步提取、分块、embedding 和索引；只有状态为 `ready` 的资料会自动参与当前账号的问答，系统不提供资料选择器，也不会把个人资料加入系统知识源 allowlist。列表、详情和删除均按 owner 隔离；删除后资料立即停止检索，历史证据标记 `source_deleted`，原文与 chunks 由 Worker 异步清理。默认保留期为 90 天。
+
+检索由独立 Ollama 提供 embedding，默认模型 `mxbai-embed-large:latest`、1024 维。配置项：
+
+```text
+OLLAMA_BASE_URL=http://100.88.158.91:11434
+OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest
+OLLAMA_EMBEDDING_DIMENSIONS=1024
+RAG_EMBEDDING_BATCH_SIZE=16
+```
+
+内部资料检索使用 pgvector 余弦候选和 PostgreSQL `ts_rank_cd` 的 BM25 风格词法候选，两者各取 Top 20，通过 RRF（`k=60`、等权）融合后取 Top 5。Ollama 超时或不可用时问答降级为词法召回并记录降级状态；资料索引不会写入部分向量，重试耗尽后进入 `failed`。
+
+PostgreSQL 使用 `pgvector/pgvector:pg16` 镜像；`uv run alembic upgrade head` 会先执行 `CREATE EXTENSION IF NOT EXISTS vector`。Ollama 作为独立服务部署，生产 Compose 只配置内部地址，不打包模型文件。
+
+四个 owner-scoped 接口：
+
+```text
+POST   /api/v1/documents
+GET    /api/v1/documents
+GET    /api/v1/documents/{document_id}
+DELETE /api/v1/documents/{document_id}
+```
 
 前端位于 `web/`：
 

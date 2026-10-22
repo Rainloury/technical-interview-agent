@@ -18,6 +18,10 @@ const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
 const workerHealthFile =
   process.env.WORKER_HEALTH_FILE ??
   "/private/tmp/technical-interview-agent-e2e-worker-health";
+const testArgs = (process.env.PLAYWRIGHT_ARGS ?? "")
+  .match(/(?:[^\s"]+|"[^"]*")+/g)
+  ?.map((value) => value.replace(/^"|"$/g, ""))
+  .filter(Boolean);
 const serverEnvironment = {
   ...process.env,
   DATA_ENCRYPTION_KEY: dataEncryptionKey,
@@ -110,7 +114,7 @@ const waitForExit = async (child, timeoutMs) => {
 
 const run = async () => {
   await waitForReady();
-  tests = spawn("npx", ["playwright", "test"], {
+  tests = spawn("npx", ["playwright", "test", ...testArgs], {
     detached: process.platform !== "win32",
     env: {
       ...process.env,

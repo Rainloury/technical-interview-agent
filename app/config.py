@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     tool_result_ttl_seconds: int = Field(default=3600, ge=1)
 
     ollama_base_url: str | None = None
-    ollama_embedding_model: str = "bge-m3"
+    ollama_embedding_model: str = "mxbai-embed-large:latest"
     ollama_embedding_dimensions: int = Field(default=1024, gt=0)
     ollama_connect_timeout_seconds: float = Field(default=5, gt=0)
     ollama_request_timeout_seconds: float = Field(default=30, gt=0)

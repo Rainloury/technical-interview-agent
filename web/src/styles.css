@@ -2821,7 +2821,13 @@ h1 {
   }
 
   .document-meta {
+    flex: 1 1 calc(100% - 96px);
+    flex-wrap: wrap;
     margin-left: 48px;
+  }
+
+  .document-meta .state-pill {
+    display: inline-block;
   }
 
   .document-row .icon-button {
@@ -4338,6 +4344,10 @@ h1 {
 
   .state-pill {
     display: none;
+  }
+
+  .document-meta .state-pill {
+    display: inline-block;
   }
 
   .interview-confirm {

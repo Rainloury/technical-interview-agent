@@ -72,8 +72,7 @@ async def backfill_system_embeddings(
     pending = [
         section
         for section in sections
-        if section.embedding is None
-        or section.embedding_index_version != BACKFILL_INDEX_VERSION
+        if section.embedding is None or section.embedding_index_version != BACKFILL_INDEX_VERSION
     ]
     skipped = len(sections) - len(pending)
     processed = 0

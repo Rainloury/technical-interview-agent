@@ -2,9 +2,9 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.8 |
-| 文档状态 | 隐私删除、保留清理与运维指标契约已落地 |
-| 更新日期 | 2026-10-18 |
+| 文档版本 | v0.9 |
+| 文档状态 | 私有内部资料 RAG 契约已落地 |
+| 更新日期 | 2026-10-22 |
 | 基础路径 | `/api/v1` |
 | 数据格式 | JSON UTF-8；文件上传使用 `multipart/form-data` |
 
@@ -382,9 +382,93 @@ Idempotency-Key: <uuid>
 
 响应 `202 Accepted` 或 `204 No Content`。原始文件立即不可访问，衍生数据按审批后的证据规则处理。
 
-## 5. 检索问答
+## 5. 私有内部资料
 
-### 5.1 创建问答
+私有资料接口依据 `DR-08` 和 ADR-0009。所有接口要求登录；资源按当前 owner 隔离。用户资料不会写入 `knowledge_sources` allowlist，也不会跨账号共享。
+
+```text
+POST   /api/v1/documents
+GET    /api/v1/documents
+GET    /api/v1/documents/{document_id}
+DELETE /api/v1/documents/{document_id}
+```
+
+### 5.1 上传资料
+
+```http
+POST /api/v1/documents
+Content-Type: multipart/form-data
+Idempotency-Key: <uuid>
+X-CSRF-Token: <csrf>
+```
+
+表单字段：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `file` | 是 | PDF、DOCX、TXT 或 Markdown，最大 10 MB |
+| `title` | 否 | 展示标题；省略时使用清理后的文件名 |
+
+响应 `202 Accepted`：
+
+```json
+{
+  "document_id": "uuid",
+  "state": "uploaded",
+  "created_at": "2026-10-22T01:00:00Z"
+}
+```
+
+上传后 Worker 异步解析、分块和 embedding。状态依次为 `uploaded`、`processing`、`ready`；重试耗尽后为 `failed`。同 owner 相同内容在未删除时复用既有记录；相同幂等键但文件或标题不同返回 `409 idempotency_conflict`。
+
+### 5.2 列表与详情
+
+```http
+GET /api/v1/documents?limit=20&cursor=<opaque>
+GET /api/v1/documents/{document_id}
+```
+
+列表返回稳定游标：
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "title": "重试设计笔记",
+      "original_filename": "retry.md",
+      "state": "ready",
+      "chunk_count": 3,
+      "failure_code": null,
+      "error_message": null,
+      "index_version": "rag-v1",
+      "created_at": "2026-10-22T01:00:00Z",
+      "updated_at": "2026-10-22T01:00:05Z",
+      "completed_at": "2026-10-22T01:00:05Z",
+      "retention_expires_at": "2027-01-20T01:00:00Z"
+    }
+  ],
+  "next_cursor": null
+}
+```
+
+响应不返回对象键、owner ID、向量、完整正文或 chunk ID。其他账号的资源统一返回 `404 resource_not_found`。
+
+### 5.3 删除资料
+
+```http
+DELETE /api/v1/documents/{document_id}
+Idempotency-Key: <uuid>
+X-CSRF-Token: <csrf>
+```
+
+成功返回 `204 No Content`。删除在同一事务中写墓碑、排队清理私有对象和 chunks，并把引用该资料的 `qa_evidence.source_state` 更新为 `source_deleted`。删除立即影响列表、详情和后续问答；历史证据只保留允许的摘要字段。
+
+私有资料默认保留 90 天。账号数据删除和保留到期同样必须停止检索、清理对象并标记历史来源。
+
+## 6. 检索问答
+
+### 6.1 创建问答
 
 ```http
 POST /api/v1/qa
@@ -414,8 +498,10 @@ Idempotency-Key: <uuid>
 - 空输入、超长输入和非技术输入返回可理解结果。
 - 用户文本中的 URL 不作为知识源；任意 URL 返回 `422 unsupported_source`。
 - 用户输入不能扩大方向知识源白名单。
+- 问答自动检索当前 owner 已就绪的私有资料，以及现有系统 allowlist 中最新已发布知识源；不提供资料选择器。
+- Ollama embedding 不可用时，检索降级为 PostgreSQL 词法召回，回答仍可完成；用户私有资料不会因降级进入系统 allowlist。
 
-### 5.2 SSE 流
+### 6.2 SSE 流
 
 ```http
 GET /api/v1/qa/{qa_request_id}/stream
@@ -463,7 +549,7 @@ data: {"answer":{...},"evidence":[],"extended_questions":[]}
 - 客户端断开不取消服务端已完成的结构化保存；客户端按事件 `id` 去重。
 - 流结束后仍可通过 `GET /api/v1/qa/{id}` 获取最终结果。
 
-### 5.3 查询最终问答
+### 6.3 查询最终问答
 
 ```http
 GET /api/v1/qa/{qa_request_id}
@@ -471,9 +557,9 @@ GET /api/v1/qa/{qa_request_id}
 
 未完成时返回状态；已完成时返回与 `completed` 一致的最终结构。是否进入历史由 P1 保存语义决定，P0 不把临时问答自动写入错题。
 
-## 6. 模拟面试
+## 7. 模拟面试
 
-### 6.1 创建面试
+### 7.1 创建面试
 
 ```http
 POST /api/v1/interviews
@@ -506,7 +592,7 @@ Idempotency-Key: <uuid>
 
 创建时生成内部蓝图，但不在公开响应中返回参考答案、评分标准或完整随机化计划。
 
-### 6.2 开始面试
+### 7.2 开始面试
 
 ```http
 POST /api/v1/interviews/{interview_id}/start
@@ -538,7 +624,7 @@ Idempotency-Key: <uuid>
 
 开始操作只允许一次；重复开始返回当前状态。`deadline_at` 只能由服务端写入。
 
-### 6.3 查询当前面试
+### 7.3 查询当前面试
 
 ```http
 GET /api/v1/interviews/{interview_id}
@@ -569,7 +655,7 @@ GET /api/v1/interviews/{interview_id}
 
 `current_follow_up_chain` 只允许中性流程枚举，例如 `awaiting_answer`、`scoring`、`generating_follow_up`、`completed`；不得暴露是否因高分触发追问、分数区间或关键错误。
 
-### 6.4 提交回答
+### 7.4 提交回答
 
 ```http
 POST /api/v1/interviews/{interview_id}/turns/{turn_id}/answer
@@ -609,7 +695,7 @@ Idempotency-Key: <uuid>
 - `now >= deadline_at` 返回 `409 interview_time_expired`。
 - 截断前已接收的回答继续评分；截止后不创建新轮次。
 
-### 6.5 跳过追问
+### 7.5 跳过追问
 
 ```http
 POST /api/v1/interviews/{interview_id}/turns/{turn_id}/skip
@@ -618,7 +704,7 @@ Idempotency-Key: <uuid>
 
 只允许当前追问的 `awaiting_answer`。已提交结果不变，当前链结束并进入下一主问题。响应只返回状态和下一动作。
 
-### 6.6 结束当前追问
+### 7.6 结束当前追问
 
 ```http
 POST /api/v1/interviews/{interview_id}/turns/{turn_id}/end-branch
@@ -633,7 +719,7 @@ Idempotency-Key: <uuid>
 - 重复请求按幂等键返回首次结果；对主问题或不存在的追问返回明确的状态冲突。
 - 该端点不得取消整场面试、取消未展示的主问题或设置 `ended_at`。
 
-### 6.7 结束整场（P1，不包含在 P0）
+### 7.7 结束整场（P1，不包含在 P0）
 
 ```http
 POST /api/v1/interviews/{interview_id}/end
@@ -642,7 +728,7 @@ Idempotency-Key: <uuid>
 
 P1 才允许提供该端点，必须使用独立操作和二次确认，并把未完成轮次标记为 `unanswered` 或 `cancelled`。P0 不暴露该端点，也不在“结束当前追问”同一层级提供相似按钮。整场结束原因固定使用 `user_ended_interview`，不得复用跳过或结束追问链的原因。
 
-### 6.8 查询报告
+### 7.8 查询报告
 
 ```http
 GET /api/v1/interviews/{interview_id}/report
@@ -683,9 +769,9 @@ GET /api/v1/interviews/{interview_id}/report
 
 永久评分失败的已接收轮次必须转为可解释的 `scoring_failed`，不能无限停留在 `scoring`。此时可以返回已成功评分的内容，并把 `scoring_status` 标记为 `incomplete_scoring`，但不能返回失败轮次的中间分数、参考答案、失分原因或追问依据。后续恢复评分时，在同一面试终态内重新生成报告并更新状态。
 
-## 7. 错题与薄弱点
+## 8. 错题与薄弱点
 
-### 7.1 错题列表
+### 8.1 错题列表
 
 ```http
 GET /api/v1/wrong-questions?state=active&topic=...&limit=20&cursor=...
@@ -693,7 +779,7 @@ GET /api/v1/wrong-questions?state=active&topic=...&limit=20&cursor=...
 
 只返回当前用户数据，默认排除已删除和已过期内容。支持按日期、主题、难度和掌握状态筛选。
 
-### 7.2 错题详情
+### 8.2 错题详情
 
 ```http
 GET /api/v1/wrong-questions/{wrong_question_id}
@@ -701,7 +787,7 @@ GET /api/v1/wrong-questions/{wrong_question_id}
 
 整场面试结束后才返回原题、用户回答、参考答案、分项分数、失分原因和复习建议。面试进行中访问返回 `409 feedback_locked`，不返回任何隐藏内容。
 
-### 7.3 薄弱点
+### 8.3 薄弱点
 
 ```http
 GET /api/v1/weak-points?state=identified&limit=20&cursor=...
@@ -710,7 +796,7 @@ GET /api/v1/weak-points/{weak_point_id}
 
 返回聚合主题、严重程度、失败次数、最近时间、复习建议和来源错题摘要。不得输出人格、智力或胜任力定论。
 
-## 8. 删除与隐私
+## 9. 删除与隐私
 
 ```http
 DELETE /api/v1/me/data
@@ -756,7 +842,7 @@ Authorization: Bearer <ops_metrics_token>
 
 不得返回原文引用、页码、章节定位、原始文件名、可拼接上下文或任何可恢复正文的字段。摘要每条最多 200 个字符；删除时无法安全脱敏的证据必须删除或替换为不可恢复的通用摘要。
 
-## 9. 审计与权限测试矩阵
+## 10. 审计与权限测试矩阵
 
 | 场景 | 预期 |
 | --- | --- |
@@ -787,15 +873,18 @@ Authorization: Bearer <ops_metrics_token>
 | SSE 重连带旧事件 ID | 只从 PostgreSQL 补发后续事件，不重跑检索/模型、不重复扣费；Redis 清空后仍可恢复游标和终态 |
 | 任意 URL 检索 | `422 unsupported_source` |
 | 输出含内部 Prompt 或参考答案 | 默认 DTO 不允许，测试必须失败 |
+| 上传私有资料 | 返回 `202`；仅上传者本人可列表、查看和删除 |
+| 上传后自动参与问答 | 资料进入 `ready` 后，当前 owner 的问题自动检索，不需要资料选择器 |
+| 删除已引用资料 | 历史证据保留 200 字符摘要并标记 `source_deleted`，后续检索不再召回 |
 
-## 10. 契约版本与兼容
+## 11. 契约版本与兼容
 
 - 路径版本使用 `/api/v1`，删除字段或改变语义需要新路径版本或显式弃用期。
 - 新增可选字段可以保持 v1，但前端必须忽略未知字段。
 - 枚举新增值需要客户端兼容策略；公开枚举变更必须进入需求/接口评审。
 - 每次行为变化更新本文件版本、需求追踪和测试用例。
 
-## 11. 版本记录
+## 12. 版本记录
 
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
@@ -807,3 +896,4 @@ Authorization: Bearer <ops_metrics_token>
 | v0.6 | 2026-10-17 | 接受 ADR-0003、ADR-0006、ADR-0007、ADR-0008；冻结数据库时钟截止、持久 SSE 游标、评分失败终态和 `incomplete_scoring` 报告语义 |
 | v0.7 | 2026-10-17 | 落实 `DR-07` 方案 A：补充 `interview_session`/`interview_csrf`、`X-CSRF-Token`、`csrf_token_hash` 和 `{items, next_cursor}` 历史分页契约 |
 | v0.8 | 2026-10-18 | 冻结账号数据删除、删除状态查询、30/90/365 天保留清理和 `ops_metrics_token` 运维指标契约 |
+| v0.9 | 2026-10-22 | 增加私有内部资料上传、列表、详情和删除契约；问答自动检索 owner 资料与系统 allowlist，embedding 不可用时词法降级 |
