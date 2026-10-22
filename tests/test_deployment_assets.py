@@ -75,6 +75,11 @@ def test_production_nginx_is_the_public_entry_and_serves_spa() -> None:
         "proxy_set_header X-Forwarded-Proto $scheme;",
         "try_files $uri $uri/ /index.html;",
         "location = /healthz",
+        r"favicon(?:-\d+)?\.(?:svg|ico|png)",
+        r"apple-touch-icon\.png|site\.webmanifest",
+        "location = /site.webmanifest",
+        "default_type application/manifest+json;",
+        "location /fonts/",
     ):
         assert fragment in nginx
 
@@ -104,6 +109,7 @@ def test_web_image_builds_static_assets_and_ships_nginx_healthcheck() -> None:
         "npm ci",
         "npm run build",
         "COPY index.html tokens.css tsconfig.json vite.config.ts ./",
+        "COPY public ./public",
         "FROM nginx:1.27-alpine",
         "COPY nginx.conf /etc/nginx/conf.d/default.conf",
         "COPY nginx-main.conf /etc/nginx/nginx.conf",

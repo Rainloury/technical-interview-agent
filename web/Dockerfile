@@ -8,6 +8,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY index.html tokens.css tsconfig.json vite.config.ts ./
+COPY public ./public
 COPY src ./src
 
 # The browser calls the API through the same-origin Nginx proxy.

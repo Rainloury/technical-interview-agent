@@ -54,7 +54,7 @@ export function AppShell() {
       <header className="mobile-header">
         <NavLink className="brand brand--mobile" to="/workspace">
           <span className="brand-mark" aria-hidden="true">
-            T/
+            <img src="/favicon.svg" alt="" width="24" height="24" />
           </span>
           <span>技术面试工作台</span>
         </NavLink>
@@ -78,7 +78,7 @@ export function AppShell() {
               onClick={() => setMobileOpen(false)}
             >
               <span className="brand-mark" aria-hidden="true">
-                T/
+                <img src="/favicon.svg" alt="" width="24" height="24" />
               </span>
               <span className="brand-copy">
                 技术面试工作台
