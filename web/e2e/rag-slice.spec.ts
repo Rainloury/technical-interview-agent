@@ -104,6 +104,8 @@ test("uploads a private document, cites it, and marks it deleted in history", as
 
     await page.goto("/documents");
     await expect(page.getByRole("heading", { name: "内部资料" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "共享资料" })).toBeVisible();
+    await expect(page.getByLabel("共享资料文件")).toHaveCount(0);
     await page.getByLabel("资料文件").setInputFiles({
       name: "private-retry.md",
       mimeType: "text/markdown",
@@ -172,4 +174,19 @@ test("uploads a private document, cites it, and marks it deleted in history", as
   } finally {
     await stopWorker(worker);
   }
+});
+
+test("does not expose shared document write controls to a regular user", async ({
+  page,
+}, testInfo) => {
+  await registerAndLogin(page, emailFor(testInfo.project.name));
+  await page.goto("/documents");
+
+  await expect(page.getByRole("heading", { name: "共享资料" })).toBeVisible();
+  await expect(page.getByLabel("共享资料文件")).toHaveCount(0);
+
+  const response = await page.request.get(`${apiUrl}/api/v1/shared-documents?limit=20`, {
+    headers: { Origin: webUrl },
+  });
+  expect(response.status()).toBe(200);
 });

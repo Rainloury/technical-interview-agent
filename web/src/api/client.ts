@@ -565,8 +565,28 @@ export const api = {
       headers: { "Idempotency-Key": idempotencyKey },
     });
   },
+  sharedDocuments: (cursor?: string | null, limit = 20) =>
+    request<DocumentPage>("/api/v1/shared-documents", {
+      query: { cursor, limit },
+    }),
+  uploadSharedDocuments: (files: File[], idempotencyKey: string) => {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file);
+    }
+    return request<DocumentBatchAccepted>("/api/v1/shared-documents/batch", {
+      method: "POST",
+      formData,
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
+  },
   deleteDocument: (id: string, idempotencyKey: string) =>
     request<void>(`/api/v1/documents/${id}`, {
+      method: "DELETE",
+      headers: { "Idempotency-Key": idempotencyKey },
+    }),
+  deleteSharedDocument: (id: string, idempotencyKey: string) =>
+    request<void>(`/api/v1/shared-documents/${id}`, {
       method: "DELETE",
       headers: { "Idempotency-Key": idempotencyKey },
     }),
