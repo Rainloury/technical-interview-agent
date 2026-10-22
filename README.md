@@ -19,6 +19,7 @@ The application provides:
   writes;
 - resume upload, question answering, simulated interviews, reports, and review;
 - private internal-document libraries with PDF, DOCX, TXT, and Markdown upload;
+- administrator-managed shared documents visible to every signed-in account;
 - per-file asynchronous indexing and owner-isolated hybrid retrieval;
 - pgvector cosine search plus PostgreSQL lexical BM25-style ranking, fused with
   reciprocal rank fusion (RRF);
@@ -155,6 +156,20 @@ GET    /api/v1/documents
 GET    /api/v1/documents/{document_id}
 DELETE /api/v1/documents/{document_id}
 ```
+
+Administrators can also manage shared documents. Every signed-in user can read shared
+documents, but only administrators can upload or delete them:
+
+```text
+POST   /api/v1/shared-documents
+POST   /api/v1/shared-documents/batch
+GET    /api/v1/shared-documents
+GET    /api/v1/shared-documents/{document_id}
+DELETE /api/v1/shared-documents/{document_id}
+```
+
+Personal documents remain owner-scoped even for administrators. A shared document is
+retrieved by every signed-in account after it becomes ready.
 
 Only documents in the `ready` state participate in retrieval. Deleting a
 document removes it from future retrieval immediately; historical evidence is

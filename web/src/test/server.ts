@@ -4,7 +4,7 @@ import { setupServer } from "msw/node";
 import type { Dashboard, HistoryPage, Session } from "../api/types";
 
 export const demoSession: Session = {
-  user: { id: "user-1", display_name: "示例用户" },
+  user: { id: "user-1", display_name: "示例用户", role: "user" },
   session: { expires_at: "2026-10-24T08:30:00Z" },
 };
 

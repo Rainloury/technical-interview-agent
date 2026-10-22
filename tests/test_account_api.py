@@ -7,8 +7,9 @@ from typing import Any
 
 import pytest
 from app.config import Settings
-from app.db.models import AsyncJob, PasswordResetToken
+from app.db.models import AsyncJob, AuditEvent, PasswordResetToken, User
 from app.prompts.loader import PromptLoader
+from app.services.auth import set_user_role
 from app.worker import ResumeWorker
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -86,6 +87,7 @@ async def test_login_cookie_session_and_logout(app_client: AppHarness, create_us
     login = _login(client, "owner@example.com")
     body = login.json()
     assert body["user"]["display_name"] == "示例用户"
+    assert body["user"]["role"] == "user"
     assert "token" not in login.text.lower()
     assert "session_token" not in login.text
     cookies = _cookie_attributes(login)
@@ -111,6 +113,89 @@ async def test_login_cookie_session_and_logout(app_client: AppHarness, create_us
     logout = client.post("/api/v1/auth/logout", headers=_write_headers(client))
     assert logout.status_code == 204
     assert client.get("/api/v1/auth/session").status_code == 401
+
+
+async def test_session_and_dashboard_include_current_role(
+    app_client: AppHarness,
+    create_user: Any,
+) -> None:
+    async with app_client.session_factory() as session:
+        session.add(create_user("admin-role@example.com", role="admin"))
+        await session.commit()
+
+    client = app_client.client
+    login = _login(client, "admin-role@example.com")
+    assert login.json()["user"]["role"] == "admin"
+
+    session_response = client.get("/api/v1/auth/session")
+    assert session_response.status_code == 200
+    assert session_response.json()["user"]["role"] == "admin"
+
+    dashboard = client.get("/api/v1/dashboard")
+    assert dashboard.status_code == 200
+    assert dashboard.json()["user"]["role"] == "admin"
+
+
+async def test_set_role_updates_active_user_and_writes_audit(
+    app_client: AppHarness,
+    create_user: Any,
+) -> None:
+    async with app_client.session_factory() as session:
+        session.add(create_user("promote@example.com"))
+        await session.commit()
+
+    async with app_client.session_factory() as session:
+        result = await set_user_role(
+            session,
+            email=" PROMOTE@example.com ",
+            role="admin",
+            request_id="role-test",
+        )
+        await session.commit()
+
+    async with app_client.session_factory() as session:
+        user = (
+            await session.execute(
+                select(User).where(User.email_normalized == "promote@example.com")
+            )
+        ).scalar_one()
+        audit = (
+            await session.execute(
+                select(AuditEvent).where(AuditEvent.action == "user_role_changed")
+            )
+        ).scalar_one()
+    assert result.previous_role == "user"
+    assert result.current_role == "admin"
+    assert user.role == "admin"
+    assert audit.result == "success"
+    assert audit.request_id == "role-test"
+
+
+async def test_set_role_rejects_unknown_and_inactive_users(
+    app_client: AppHarness,
+    create_user: Any,
+) -> None:
+    inactive = create_user("inactive-role@example.com")
+    inactive.status = "suspended"
+    async with app_client.session_factory() as session:
+        session.add(inactive)
+        await session.commit()
+
+    async with app_client.session_factory() as session:
+        with pytest.raises(Exception, match="用户不存在"):
+            await set_user_role(
+                session,
+                email="missing@example.com",
+                role="admin",
+                request_id="role-missing",
+            )
+        with pytest.raises(Exception, match="用户不存在"):
+            await set_user_role(
+                session,
+                email="inactive-role@example.com",
+                role="admin",
+                request_id="role-inactive",
+            )
 
 
 async def test_cross_origin_write_is_rejected(app_client: AppHarness) -> None:

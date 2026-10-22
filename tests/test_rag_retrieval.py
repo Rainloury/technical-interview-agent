@@ -11,6 +11,8 @@ from app.db.models import (
     KnowledgeSource,
     KnowledgeSourceSection,
     KnowledgeSourceVersion,
+    SharedDocument,
+    SharedDocumentChunk,
     UserDocument,
     UserDocumentChunk,
 )
@@ -171,3 +173,129 @@ async def test_hybrid_lexical_retrieval_is_owner_scoped_and_skips_not_ready(
     assert any(item.source_kind == "system" for item in result.evidence)
     assert all(item.title != "Stranger notes" for item in result.evidence)
     assert all(item.title != "Pending notes" for item in result.evidence)
+
+
+async def _shared_document(
+    session: Any,
+    admin: Any,
+    *,
+    title: str,
+    text: str,
+    sha: str,
+) -> SharedDocument:
+    document = SharedDocument(
+        created_by_user_id=admin.id,
+        title=title,
+        original_filename=f"{title}.md",
+        detected_mime="text/markdown",
+        size_bytes=len(text),
+        sha256=sha,
+        object_key=f"shared/{uuid.uuid4().hex}",
+        state="ready",
+        chunk_count=1,
+    )
+    session.add(document)
+    await session.flush()
+    session.add(
+        SharedDocumentChunk(
+            document_id=document.id,
+            chunk_index=0,
+            section_path="正文 / 1",
+            content=text,
+            content_hash=uuid.uuid4().hex,
+            search_text=text,
+            token_count=3,
+            embedding=[0.0] * 1024,
+        )
+    )
+    return document
+
+
+async def test_shared_document_is_retrievable_by_a_different_user(
+    app_client: AppHarness,
+    create_user: Any,
+) -> None:
+    admin = create_user("shared-retrieval-admin@example.com", role="admin")
+    reader = create_user("shared-retrieval-reader@example.com")
+    async with app_client.session_factory() as session:
+        session.add_all([admin, reader])
+        await session.flush()
+        await _shared_document(
+            session,
+            admin,
+            title="Shared retry guide",
+            text="shareddistinctive Redis retry guidance",
+            sha="7" * 64,
+        )
+        await session.commit()
+
+    async with app_client.session_factory() as session:
+        result = await hybrid_retrieve(
+            session,
+            owner_user_id=reader.id,
+            question="shareddistinctive Redis retry",
+            embedding_client=None,
+        )
+    assert any(
+        item.title == "Shared retry guide" and item.source_kind == "shared_document"
+        for item in result.evidence
+    )
+
+
+async def test_private_and_deleted_shared_documents_stay_hidden_from_retrieval(
+    app_client: AppHarness,
+    create_user: Any,
+) -> None:
+    admin = create_user("shared-hidden-admin@example.com", role="admin")
+    owner = create_user("shared-hidden-owner@example.com")
+    reader = create_user("shared-hidden-reader@example.com")
+    async with app_client.session_factory() as session:
+        session.add_all([admin, owner, reader])
+        await session.flush()
+        shared = await _shared_document(
+            session,
+            admin,
+            title="Deleted shared",
+            text="deletedshared Redis retry",
+            sha="8" * 64,
+        )
+        shared.state = "deleted"
+        shared.deleted_at = datetime.now(UTC)
+        private = UserDocument(
+            owner_user_id=owner.id,
+            title="Private only",
+            original_filename="private.md",
+            detected_mime="text/markdown",
+            size_bytes=10,
+            sha256="9" * 64,
+            object_key=f"{owner.id.hex}/private.md",
+            state="ready",
+            chunk_count=1,
+            retention_expires_at=datetime.now(UTC) + timedelta(days=90),
+        )
+        session.add(private)
+        await session.flush()
+        session.add(
+            UserDocumentChunk(
+                document_id=private.id,
+                owner_user_id=owner.id,
+                chunk_index=0,
+                section_path="正文 / 1",
+                content="privateonly Redis retry",
+                content_hash=uuid.uuid4().hex,
+                search_text="privateonly Redis retry",
+                token_count=3,
+                embedding=[0.0] * 1024,
+            )
+        )
+        await session.commit()
+
+    async with app_client.session_factory() as session:
+        result = await hybrid_retrieve(
+            session,
+            owner_user_id=reader.id,
+            question="deletedshared privateonly Redis retry",
+            embedding_client=None,
+        )
+    assert all(item.title != "Deleted shared" for item in result.evidence)
+    assert all(item.title != "Private only" for item in result.evidence)

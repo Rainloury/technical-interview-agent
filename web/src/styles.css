@@ -2810,6 +2810,34 @@ h1 {
   font-size: var(--text-2xs);
 }
 
+.document-scope {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  padding: 0.18rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  white-space: nowrap;
+}
+
+.document-scope--shared {
+  border-color: var(--color-accent-soft);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.document-scope--private {
+  background: var(--color-paper-2);
+  color: var(--muted);
+}
+
+.shared-documents-form {
+  border-top: 1px solid var(--line);
+  margin-bottom: var(--space-lg);
+  padding-top: var(--space-lg);
+}
+
 .state-pill--ready {
   background: var(--success-soft);
   color: var(--success);

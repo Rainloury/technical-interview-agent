@@ -109,7 +109,11 @@ async def login(
         expires_at=issued.expires_at,
     )
     return LoginResponse(
-        user=UserSummary(id=issued.user.id, display_name=issued.user.display_name),
+        user=UserSummary(
+            id=issued.user.id,
+            display_name=issued.user.display_name,
+            role=issued.user.role,
+        ),
         session=SessionSummary(expires_at=issued.expires_at),
     )
 
@@ -137,7 +141,11 @@ async def read_session(auth: AuthDependency) -> SessionResponse:
     """Return only safe user and expiry metadata."""
 
     return SessionResponse(
-        user=UserSummary(id=auth.user.id, display_name=auth.user.display_name),
+        user=UserSummary(
+            id=auth.user.id,
+            display_name=auth.user.display_name,
+            role=auth.user.role,
+        ),
         session=SessionSummary(expires_at=auth.session.expires_at),
     )
 

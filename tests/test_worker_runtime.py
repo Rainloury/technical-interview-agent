@@ -599,3 +599,41 @@ def test_cli_dispatches_migration(monkeypatch: pytest.MonkeyPatch) -> None:
     cli.main()
 
     assert seen == [["upgrade", "head"]]
+
+
+def test_cli_set_role_requires_email_and_valid_role(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    seen: list[tuple[str, str]] = []
+    dotenv = tmp_path / ".env"
+    dotenv.write_text("", encoding="utf-8")
+
+    class FakeParser:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+
+        def add_argument(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+
+        def parse_args(self, _argv: object = None) -> Namespace:
+            return Namespace(
+                command="set-role",
+                reload=False,
+                email="owner@example.com",
+                role="admin",
+            )
+
+        def error(self, message: str) -> None:
+            raise AssertionError(message)
+
+    async def fake_set_role(*, email: str, role: str) -> None:
+        seen.append((email, role))
+
+    monkeypatch.setattr("app.cli.argparse.ArgumentParser", FakeParser)
+    monkeypatch.setattr("app.cli.get_settings", lambda: Settings(_env_file=dotenv))
+    monkeypatch.setattr("app.cli._set_role", fake_set_role)
+
+    cli.main()
+
+    assert seen == [("owner@example.com", "admin")]

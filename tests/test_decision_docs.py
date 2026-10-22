@@ -265,6 +265,33 @@ def test_private_rag_decision_and_public_contract_are_documented() -> None:
     assert "mxbai-embed-large:latest" in chinese_readme
 
 
+def test_shared_document_and_admin_role_contract_is_documented() -> None:
+    api_contract = _read(API_CONTRACT)
+    data_model = _read(DATA_MODEL)
+    decision_register = _read(DECISION_REGISTER)
+    adr = _read(ROOT / "docs" / "adr" / "0010-shared-documents-and-admin-role.md")
+    adr_index = _read(ROOT / "docs" / "adr" / "README.md")
+    runbook = _read(RELEASE_RUNBOOK)
+    english_readme = _read(README)
+    chinese_readme = _read(README_ZH)
+
+    for fragment in (
+        "/api/v1/shared-documents",
+        "/api/v1/shared-documents/batch",
+        "/api/v1/shared-documents/{document_id}",
+        "admin_required",
+    ):
+        assert fragment in api_contract, fragment
+    for fragment in ("users.role", "shared_documents", "shared_document_chunks", "shared_document"):
+        assert fragment in data_model, fragment
+    assert "DR-09" in decision_register
+    assert "# ADR-0010" in adr
+    assert "ADR-0010" in adr_index and "已接受" in adr_index
+    assert "technical-interview-agent set-role" in runbook
+    assert "shared-document" in english_readme or "shared documents" in english_readme
+    assert "共享资料" in chinese_readme
+
+
 def test_production_config_signoff_requires_platform_evidence() -> None:
     runbook = _read(RELEASE_RUNBOOK)
     assert "- [ ] 生产配置核验通过，密钥未进入仓库或构建产物。" in runbook

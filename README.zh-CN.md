@@ -15,6 +15,7 @@
 - 账号注册、会话管理、密码重置和带 CSRF 防护的写请求；
 - 简历上传、技术问答、模拟面试、终态报告和复习中心；
 - 内部资料库，支持 PDF、DOCX、TXT 和 Markdown 文件；
+- 管理员维护的共享资料，所有登录账号可见；
 - 按文件异步索引，以及按 owner 隔离的混合检索；
 - pgvector 余弦检索与 PostgreSQL BM25 风格词法检索，并通过倒数排名融合
   （RRF）合并结果；
@@ -141,6 +142,19 @@ GET    /api/v1/documents
 GET    /api/v1/documents/{document_id}
 DELETE /api/v1/documents/{document_id}
 ```
+
+管理员还可以维护共享资料。所有登录账号都能查看共享资料，但只有管理员可以上传或删除：
+
+```text
+POST   /api/v1/shared-documents
+POST   /api/v1/shared-documents/batch
+GET    /api/v1/shared-documents
+GET    /api/v1/shared-documents/{document_id}
+DELETE /api/v1/shared-documents/{document_id}
+```
+
+个人资料仍然按 owner 隔离，即使管理员也不能读取他人的个人资料。共享资料进入
+`ready` 后会对所有登录账号自动参与检索。
 
 只有处于 `ready` 状态的资料参与检索。删除资料会立即停止后续检索；历史证据标记
 为 `source_deleted`，存储内容由 Worker 异步清理。

@@ -43,6 +43,7 @@ def _updated_at() -> Mapped[datetime]:
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
+        CheckConstraint("role IN ('user','admin')", name="role"),
         CheckConstraint(
             "status IN ('active','suspended','deletion_pending','deleted')",
             name="status",
@@ -54,6 +55,7 @@ class User(Base):
     email_normalized: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(120))
+    role: Mapped[str] = mapped_column(String(16), nullable=False, server_default="user")
     status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="active")
     created_at: Mapped[datetime] = _created_at()
     updated_at: Mapped[datetime] = _updated_at()
@@ -429,6 +431,10 @@ class QaEvidence(Base):
             "source_state IN ('available','source_deleted')",
             name="source_state",
         ),
+        CheckConstraint(
+            "source_kind IN ('system','user_document','shared_document')",
+            name="source_kind",
+        ),
         Index("ix_qa_evidence_qa_request_id", "qa_request_id"),
     )
 
@@ -441,6 +447,9 @@ class QaEvidence(Base):
     )
     user_document_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
         UUIDType, ForeignKey("user_document_chunks.id", ondelete="SET NULL")
+    )
+    shared_document_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUIDType, ForeignKey("shared_document_chunks.id", ondelete="SET NULL")
     )
     source_kind: Mapped[str] = mapped_column(String(32), nullable=False, server_default="system")
     source_title: Mapped[str] = mapped_column(Text, nullable=False)
@@ -541,6 +550,101 @@ class UserDocumentChunk(Base):
     )
     owner_user_id: Mapped[uuid.UUID] = mapped_column(
         UUIDType, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    section_path: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    search_text: Mapped[str] = mapped_column(Text, nullable=False)
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('simple', search_text)", persisted=True),
+        nullable=False,
+    )
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(1024), nullable=False)
+    created_at: Mapped[datetime] = _created_at()
+
+
+class SharedDocument(Base):
+    __tablename__ = "shared_documents"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('uploaded','processing','ready','failed','deleted')",
+            name="state",
+        ),
+        CheckConstraint(
+            "deletion_state IS NULL OR deletion_state IN ('pending','deleted','failed')",
+            name="deletion_state",
+        ),
+        CheckConstraint("size_bytes > 0 AND size_bytes <= 10485760", name="size_bytes"),
+        CheckConstraint("chunk_count >= 0", name="chunk_count"),
+        Index("ix_shared_documents_created", "created_at", "id"),
+        Index("ix_shared_documents_state_updated", "state", "updated_at"),
+        Index(
+            "uq_shared_documents_sha",
+            "sha256",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        Index(
+            "uq_shared_documents_idempotency",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUIDType, ForeignKey("users.id", ondelete="SET NULL")
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    original_filename: Mapped[str] = mapped_column(Text, nullable=False)
+    detected_mime: Mapped[str] = mapped_column(Text, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, server_default="uploaded")
+    failure_code: Mapped[str | None] = mapped_column(Text)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    index_version: Mapped[str | None] = mapped_column(Text)
+    embedding_model: Mapped[str | None] = mapped_column(Text)
+    embedding_dimensions: Mapped[int | None] = mapped_column(Integer)
+    idempotency_key: Mapped[str | None] = mapped_column(Text)
+    request_fingerprint: Mapped[str | None] = mapped_column(Text)
+    deletion_state: Mapped[str | None] = mapped_column(String(16))
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = _updated_at()
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+    deleted_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class SharedDocumentChunk(Base):
+    __tablename__ = "shared_document_chunks"
+    __table_args__ = (
+        UniqueConstraint("document_id", "chunk_index"),
+        CheckConstraint("chunk_index >= 0", name="chunk_index"),
+        CheckConstraint("token_count > 0", name="token_count"),
+        Index("ix_shared_document_chunks_document", "document_id"),
+        Index(
+            "ix_shared_document_chunks_search_vector",
+            "search_vector",
+            postgresql_using="gin",
+        ),
+        Index(
+            "ix_shared_document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _pk()
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUIDType, ForeignKey("shared_documents.id", ondelete="CASCADE"), nullable=False
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     section_path: Mapped[str] = mapped_column(Text, nullable=False)

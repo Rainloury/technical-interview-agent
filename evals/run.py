@@ -621,9 +621,18 @@ def _run_rag_hybrid_boundary_case(
         evidence=[
             MergedEvidence(
                 chunk_id=uuid.uuid4(),
-                user_document_chunk_id=uuid.uuid4(),
+                user_document_chunk_id=(
+                    uuid.uuid4()
+                    if str(item.get("source_kind", "system")) == "user_document"
+                    else None
+                ),
+                shared_document_chunk_id=(
+                    uuid.uuid4()
+                    if str(item.get("source_kind", "system")) == "shared_document"
+                    else None
+                ),
                 knowledge_source_version_id=None,
-                source_kind="user_document",
+                source_kind=str(item.get("source_kind", "system")),  # type: ignore[arg-type]
                 title=str(item.get("title", "")),
                 section_path=str(item.get("section_path", "")),
                 snippet=str(item.get("snippet", "")),
@@ -658,7 +667,16 @@ def _run_rag_hybrid_boundary_case(
             evidence=[
                 QaEvidence(
                     knowledge_source_version_id=uuid.uuid4(),
-                    user_document_chunk_id=uuid.uuid4(),
+                    user_document_chunk_id=(
+                        uuid.uuid4()
+                        if str(item.get("source_kind", "system")) == "user_document"
+                        else None
+                    ),
+                    shared_document_chunk_id=(
+                        uuid.uuid4()
+                        if str(item.get("source_kind", "system")) == "shared_document"
+                        else None
+                    ),
                     source_kind=str(item.get("source_kind", "system")),
                     source_title=str(item.get("title", "")),
                     section_path=str(item.get("section_path", "")),
