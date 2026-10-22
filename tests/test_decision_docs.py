@@ -292,6 +292,18 @@ def test_shared_document_and_admin_role_contract_is_documented() -> None:
     assert "共享资料" in chinese_readme
 
 
+def test_shared_document_spec_is_accepted_after_implementation_merge() -> None:
+    spec = _read(ROOT / "docs" / "superpowers" / "specs" / "2026-10-22-shared-documents-design.md")
+    plan = _read(ROOT / "docs" / "superpowers" / "plans" / "2026-10-22-shared-documents.md")
+
+    assert "`accepted`" in spec
+    assert "PR #6" in spec
+    assert "`DR-09`" in spec
+    assert "ADR-0010" in spec
+    assert "历史状态" in plan
+    assert "PR #6" in plan
+
+
 def test_production_config_signoff_requires_platform_evidence() -> None:
     runbook = _read(RELEASE_RUNBOOK)
     assert "- [ ] 生产配置核验通过，密钥未进入仓库或构建产物。" in runbook
