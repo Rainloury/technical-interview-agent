@@ -2,15 +2,18 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.0 |
-| 更新日期 | 2026-10-22 |
+| 文档版本 | v1.1 |
+| 更新日期 | 2026-10-23 |
 | 工程 | `ios/TechnicalInterviewAgent.xcodeproj` |
 | 共享 Scheme | `TechnicalInterviewAgent` |
 | 候选 Bundle ID | `top.rainstone.technicalinterviewagent` |
 | 生产站点 | `https://it.rainstone.top` |
 | 最低系统 | iOS 17.0 |
+| 设计规格 | [`docs/superpowers/specs/ios-release-design.md`](superpowers/specs/ios-release-design.md) |
+| 实施计划 | [`docs/superpowers/plans/ios-release.md`](superpowers/plans/ios-release.md) |
 
-> 本文件记录包装方案、可复现的本地构建步骤和商店发布所需的受控材料。
+> 本文件记录可复现的本地构建步骤和商店发布所需的受控材料；方案选择和实现状态由
+> Superpowers 规格与计划维护。
 > 当前仓库与构建产物中不得出现 Apple 私钥、`.p12`、`.mobileprovision`
 > 或 App Store Connect API Key。
 
@@ -21,10 +24,9 @@ Provisioning Profile 或 App Store Connect 配置。现有用户界面是
 `web/` 中的 React + TypeScript + Vite 单页应用，生产环境由 Nginx 同源
 托管 SPA 并代理 `/api`。
 
-本次采用原生 SwiftUI 风格的基础外壳加 `WKWebView`：UIKit 负责应用生命周期，
-`WKWebView` 直接加载现有生产站点。没有引入 Capacitor、Cordova 或第三方
-iOS 依赖。该方案保留现有路由、登录会话 Cookie、CSRF、SSE 事件流和
-同源认证语义。
+当前实现采用原生 SwiftUI 风格的基础外壳加 `WKWebView`：UIKit 负责应用生命周期，
+`WKWebView` 直接加载现有生产站点。没有引入 Capacitor、Cordova 或第三方 iOS 依赖。
+方案边界与替代选择见[设计规格](superpowers/specs/ios-release-design.md)。
 
 ## 2. 为什么不是离线静态包
 
@@ -279,3 +281,4 @@ Apple 对“网站封装”类应用存在 4.2 最低功能要求风险。当前
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
 | v1.0 | 2026-10-22 | 建立原生 WKWebView 包装工程、共享 Scheme、配置模板、发布预检脚本和阻塞项清单 |
+| v1.1 | 2026-10-23 | 将方案边界和实施记录迁入 Superpowers 规格与计划，本文件只保留构建、签名和发布操作 |

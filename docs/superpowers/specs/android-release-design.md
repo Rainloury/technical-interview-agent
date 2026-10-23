@@ -1,19 +1,26 @@
 # Android 发布接入设计
 
+| 项目 | 内容 |
+| --- | --- |
+| 文档版本 | v1.1 |
+| 文档状态 | `accepted`，按修订方案实现 |
+| 更新日期 | 2026-10-23 |
+| 实现修订 | 原设计选择原生 `WebView`；实际采用 Capacitor 8 壳 |
+
 ## 目标与范围
 
 为现有 React Web 应用增加可安装的 Android 客户端，在 `https://it.rainstone.top`
 同源生产站点上加载完整功能；交付可复现的 debug APK、签名 release APK/AAB、
-GitHub Actions 构建与 tag Release 流程，以及中英文构建、签名、安装和发布文档。
+GitHub Actions 构建与 tag Release 流程，以及中文构建、签名、安装和发布文档。
 
 本设计不修改 Web 业务行为，不引入离线 Web 副本，不提交签名私钥或密码。Google Play
 Console 提交、商店审核与生产签名密钥生成只能在受控账户中由人工完成。
 
 ## 架构决策
 
-采用稳定的 Android 原生 `WebView` 壳，而不是 Capacitor。这是对现有 iOS 壳的最小对标：
-应用只有一个 HTTPS 同源站点，不需要插件桥接、离线资源同步或原生路由。
-Android 原生层负责以下职责：
+原设计选择稳定的 Android 原生 `WebView` 壳，而不是 Capacitor；实施阶段为复用现有
+Web 构建链、导航和文件选择能力，改为 Capacitor 8 壳。应用仍只加载
+`https://it.rainstone.top`，不引入离线 Web 副本。当前实现由 Capacitor 与原生配置共同负责：
 
 - 只加载 `https://it.rainstone.top`；拒绝非 HTTPS 页面、非应用域名和外部 scheme。
 - 保留默认 CookieManager，允许 WebView 持久化 HttpOnly 会话 Cookie 与可读 CSRF Cookie。
@@ -22,6 +29,12 @@ Android 原生层负责以下职责：
 - 将应用域名内的链接留在 WebView；其他 HTTP(S) 链接交给系统浏览器。
 - 处理 `https://it.rainstone.top/...` 深链接：站点内路径直接导航，非站点路径拒绝。
 - 使用 `WebViewAssetLoader`？不采用：资产加载器会制造第二个源，破坏 Cookie/CSRF 同源边界。
+
+本次实施修订的原因是：Capacitor 8 提供可维护的 WebView 生命周期、文件选择和构建集成，
+同时保留同源 HTTPS 加载、默认 Cookie 语义和 App Link。代价是增加 `@capacitor/android`
+依赖和 Gradle 同步步骤；安全边界仍由应用域名 allowlist、HTTPS-only 清单、CSRF 和
+签发 Cookie 的浏览器语义保证。当前实现与验收以 [Android 发布](../../android-release.md)
+和 `tests/test_android_release_assets.py` 为准。
 
 站点由后端和 Nginx 共同提供 SPA fallback，因此 `/workspace`、`/history`、
 `/documents` 等深链接不需要额外 Web 路由改动。生产 Nginx 已把 `/api/*` 与 Web 放在同一
@@ -85,8 +98,7 @@ URL 策略和文件选择 MIME/多选策略。构建集成验证使用 Gradle �
 
 ## 文档与验收
 
-更新 `README.md`、`README.zh-CN.md`、`docs/android-release.md` 与
-`docs/android-release.zh-CN.md`。文档覆盖本地 debug 安装、临时/生产 keystore 创建、
+更新 `docs/android-release.md`。文档覆盖本地 debug 安装、临时/生产 keystore 创建、
 GitHub Secrets 名称、tag 发布、版本号同步、产物校验及 Google Play Console 的人工步骤。
 
 验收证据必须包含：
@@ -104,3 +116,8 @@ GitHub Secrets 名称、tag 发布、版本号同步、产物校验及 Google Pl
   App Link，链接仍会在浏览器打开，Web 行为不变。
 - Google Play 要求 AAB、隐私表单、内容分级、签名密钥和商店素材，这些账户级步骤无法由
   代码仓库自动提交。
+
+## 实现状态
+
+Capacitor 8 Android 工程、debug/release 构建、签名变量模板、GitHub Actions 和资产契约
+测试已经落地。Google Play Console 提交仍需由账号持有人在受控环境中完成。

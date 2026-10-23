@@ -15,12 +15,14 @@ TECHNICAL_DESIGN = ROOT / "docs" / "technical-design.md"
 THREAT_MODEL = ROOT / "docs" / "threat-model.md"
 DATA_MODEL = ROOT / "docs" / "data-model.md"
 RELEASE_RUNBOOK = ROOT / "docs" / "release-runbook.md"
-RESTORE_DRILL = ROOT / "docs" / "database-restore-drill-2026-10-18.md"
-ROLLBACK_DRILL = ROOT / "docs" / "application-rollback-drill-2026-10-18.md"
-ALERT_DRILL = ROOT / "docs" / "alert-delivery-drill-2026-10-19.md"
+RESTORE_DRILL = ROOT / "docs" / "database-restore-drill.md"
+ROLLBACK_DRILL = ROOT / "docs" / "application-rollback-drill.md"
+ALERT_DRILL = ROOT / "docs" / "alert-delivery-drill.md"
 README = ROOT / "README.md"
 README_ZH = ROOT / "README.zh-CN.md"
 DOCS_README = ROOT / "docs" / "README.md"
+SOLUTION_MAP = ROOT / "docs" / "solution-map.md"
+SUPERPOWERS_README = ROOT / "docs" / "superpowers" / "README.md"
 
 
 def _read(path: Path) -> str:
@@ -293,8 +295,8 @@ def test_shared_document_and_admin_role_contract_is_documented() -> None:
 
 
 def test_shared_document_spec_is_accepted_after_implementation_merge() -> None:
-    spec = _read(ROOT / "docs" / "superpowers" / "specs" / "2026-10-22-shared-documents-design.md")
-    plan = _read(ROOT / "docs" / "superpowers" / "plans" / "2026-10-22-shared-documents.md")
+    spec = _read(ROOT / "docs" / "superpowers" / "specs" / "shared-documents-design.md")
+    plan = _read(ROOT / "docs" / "superpowers" / "plans" / "shared-documents.md")
 
     assert "`accepted`" in spec
     assert "PR #6" in spec
@@ -346,6 +348,104 @@ def test_docs_readme_references_current_document_versions() -> None:
     assert "### 10. 模拟面试（已完成）" in _read(DEVELOPMENT_FLOW)
     assert "### 11. 报告与复习（已完成）" in _read(DEVELOPMENT_FLOW)
     assert "### 13. 全量验收与发布评审（已完成）" in _read(DEVELOPMENT_FLOW)
+
+
+def test_solution_map_indexes_every_adr_spec_and_plan() -> None:
+    solution_map = _read(SOLUTION_MAP)
+    docs_index = _read(DOCS_README)
+
+    assert "方案总览" in docs_index
+    assert not re.search(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)", SOLUTION_MAP.name)
+    assert "新文档文件名使用主题命名，不写日期" in docs_index
+    assert "DR-01" in solution_map and "DR-09" in solution_map
+    assert "ADR-0001" in solution_map and "ADR-0010" in solution_map
+    assert "1b5d8e3f7a20" in solution_map
+    assert "7e2b4c6d8f10" in solution_map
+    assert "v1.6" in solution_map
+    for document in sorted((ROOT / "docs" / "adr").glob("0*.md")):
+        assert document.name in solution_map, document.name
+    superpowers_index = _read(SUPERPOWERS_README)
+    for directory in ("specs", "plans"):
+        for document in sorted((ROOT / "docs" / "superpowers" / directory).glob("*.md")):
+            assert document.name in solution_map, document.name
+            assert document.name in superpowers_index, document.name
+
+    requirements = _read(ROOT / "docs" / "requirements.md")
+    product_design = _read(ROOT / "docs" / "product-design.md")
+    checklist = _read(TECHNICAL_REVIEW)
+    assert "| D-38 |" in requirements and "| D-39 |" in requirements
+    assert "已由 `DR-08` 取代" in requirements
+    assert "任意 URL 仍不接受" in requirements
+    assert "| DR-08 |" in product_design and "| DR-09 |" in product_design
+    assert "`DR-01` 至 `DR-09`" in checklist
+
+
+def test_solution_map_matches_implemented_mobile_choices() -> None:
+    solution_map = _read(SOLUTION_MAP)
+    android_spec = _read(ROOT / "docs" / "superpowers" / "specs" / "android-release-design.md")
+    android_tests = _read(ROOT / "tests" / "test_android_release_assets.py")
+    ios_tests = _read(ROOT / "tests" / "test_ios_release_assets.py")
+
+    assert "Capacitor 8" in solution_map
+    assert "原生 `WKWebView`" in solution_map
+    assert "原设计选择原生 `WebView`" in android_spec
+    assert "实际采用 Capacitor 8" in android_spec
+    assert "中文构建、签名、安装和发布文档" in android_spec
+    assert "中英文构建" not in android_spec
+    assert "@capacitor/android" in android_tests
+    assert "WKWebView" in ios_tests
+    assert "签名、TestFlight 与商店提交未完成" in solution_map
+
+
+def test_superpowers_directory_owns_specs_plans_and_mobile_status() -> None:
+    powers_index = _read(SUPERPOWERS_README)
+    solution_map = _read(SOLUTION_MAP)
+    ios_spec = _read(ROOT / "docs" / "superpowers" / "specs" / "ios-release-design.md")
+    ios_plan = _read(ROOT / "docs" / "superpowers" / "plans" / "ios-release.md")
+
+    for fragment in (
+        "`specs/` 记录设计规格",
+        "`plans/` 记录实施计划",
+        "文件名不写日期",
+        "中文方案是默认版本",
+        "ios-release-design.md",
+        "ios-release.md",
+    ):
+        assert fragment in powers_index
+    assert "Superpowers 方案目录" in solution_map
+    assert "iOS 发布接入" in solution_map
+    assert "原设计选择原生" not in ios_spec
+    assert "原生 `WKWebView`" in ios_spec
+    assert "**规格：** `docs/superpowers/specs/ios-release-design.md`" in ios_plan
+    assert "签名、真机、TestFlight 和 App Store 提交" in ios_plan
+
+
+def test_current_baselines_reference_closed_decision_scope() -> None:
+    documents = (
+        DOCS_README,
+        NEXT_STEPS,
+        DEVELOPMENT_FLOW,
+        TECHNICAL_REVIEW,
+        TECHNICAL_DESIGN,
+        DATA_MODEL,
+        API_CONTRACT,
+        THREAT_MODEL,
+    )
+    for path in documents:
+        text = _read(path)
+        current_text = text.rsplit("版本记录", 1)[0]
+        assert "`DR-01` 至 `DR-07`" not in current_text, path
+        assert "`DR-01` 至 `DR-06`" not in current_text, path
+        assert "ADR-0001 至 ADR-0008" not in current_text, path
+
+
+def test_document_file_names_do_not_contain_dates() -> None:
+    dated_names = [
+        path.relative_to(ROOT)
+        for path in (ROOT / "docs").rglob("*.md")
+        if re.search(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)", path.name)
+    ]
+    assert not dated_names, f"document file names contain dates: {dated_names}"
 
 
 def test_database_restore_drill_keeps_auditable_evidence() -> None:

@@ -18,7 +18,7 @@ RRF 检索能力；问答证据增加共享分块引用，检索时合并“当�
 PostgreSQL 16 + pgvector、Alembic、React 19 + TypeScript、pytest、Vitest、
 Playwright。
 
-**规格：** `docs/superpowers/specs/2026-10-22-shared-documents-design.md`
+**规格：** `docs/superpowers/specs/shared-documents-design.md`
 
 ## 全局约束
 

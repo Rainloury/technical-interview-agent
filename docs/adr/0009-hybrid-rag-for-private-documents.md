@@ -76,4 +76,4 @@
 
 ## 审批
 
-本 ADR 与 `docs/superpowers/specs/2026-10-21-user-rag-design.md` 已于 2026-10-21 获项目负责人批准，状态为 `accepted`。
+本 ADR 与 `docs/superpowers/specs/user-rag-design.md` 已于 2026-10-21 获项目负责人批准，状态为 `accepted`。

@@ -228,13 +228,15 @@ docker build --pull -t technical-interview-agent-web:v0.1.0 web/
 Capacitor Android 工程位于 `web/android`，加载
 `https://it.rainstone.top` 的同源生产站点。本地构建、release 签名、
 GitHub Actions 与 Google Play Console 步骤见
-[`docs/android-release.zh-CN.md`](docs/android-release.zh-CN.md)。
+[`docs/android-release.md`](docs/android-release.md)。
 
 ## iOS
 
 原生 `WKWebView` 包装工程位于 `ios/`，保留现有同源认证、CSRF、上传和 SSE
-行为。Xcode、签名、归档和 App Store Connect 步骤见
-[`docs/ios-release.md`](docs/ios-release.md)。
+行为。方案与实施状态见
+[`docs/superpowers/specs/ios-release-design.md`](docs/superpowers/specs/ios-release-design.md)
+和 [`docs/superpowers/plans/ios-release.md`](docs/superpowers/plans/ios-release.md)；
+Xcode、签名、归档和 App Store Connect 步骤见 [`docs/ios-release.md`](docs/ios-release.md)。
 
 ## 参与贡献
 

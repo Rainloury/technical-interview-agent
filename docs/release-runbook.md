@@ -22,9 +22,9 @@
 | API 启动 | 已验证开发流程 | `uv run uvicorn app.main:app` |
 | 生产 Worker 入口 | 已提供 | `technical-interview-agent worker`；具备配置 fail-fast、信号停机、并发上限、运行时限和资源清理 |
 | 容器镜像与生产编排 | 已提供 | 非 root API 镜像、Nginx Web 镜像、独立 migrate/API/Worker/Web Compose、健康检查、只读根文件系统和 CI 双镜像构建门禁 |
-| 备份恢复演练 | 通过（本地隔离实例） | PostgreSQL 16.15 custom dump 恢复成功；迁移头 `3b7e1c9d4a20`、27 张 `public` 表行数和关键外键一致；详见[演练记录](./database-restore-drill-2026-10-18.md) |
-| 回滚演练 | 通过（本地隔离预发布编排） | API + Worker 从 `55a1053` 切到 `7b9ed7a`，健康检查通过；保留 `3b7e1c9d4a20` schema，Worker 租约测试任务完成；详见[演练记录](./application-rollback-drill-2026-10-18.md) |
-| 监控告警 | 通过（本地真实 webhook） | 五类告警 `alert_deliveries` 记录 5/5 delivered，接收器收到 5/5；详见[演练记录](./alert-delivery-drill-2026-10-19.md) |
+| 备份恢复演练 | 通过（本地隔离实例） | PostgreSQL 16.15 custom dump 恢复成功；迁移头 `3b7e1c9d4a20`、27 张 `public` 表行数和关键外键一致；详见[演练记录](./database-restore-drill.md) |
+| 回滚演练 | 通过（本地隔离预发布编排） | API + Worker 从 `55a1053` 切到 `7b9ed7a`，健康检查通过；保留 `3b7e1c9d4a20` schema，Worker 租约测试任务完成；详见[演练记录](./application-rollback-drill.md) |
+| 监控告警 | 通过（本地真实 webhook） | 五类告警 `alert_deliveries` 记录 5/5 delivered，接收器收到 5/5；详见[演练记录](./alert-delivery-drill.md) |
 | 密码重置投递 | 已提供 | 请求事务只保存加密投递密文和 `password_reset_delivery` 任务；Worker 异步发送、有限重试，终态失败清除密文 |
 
 ## 2. 上线阻断项

@@ -8,7 +8,7 @@
 
 **技术栈：** Android Gradle Plugin、Kotlin、AndroidX Activity/WebKit、Gradle wrapper、GitHub Actions、Python pytest 资产契约。
 
-**规格：** `docs/superpowers/specs/2026-10-22-android-release-design.md`
+**规格：** `docs/superpowers/specs/android-release-design.md`
 
 ## 全局约束
 
@@ -173,11 +173,10 @@ git add scripts/build_android_release.sh .github/workflows/android.yml android/k
 git commit -m "ci(android): build and release signed artifacts"
 ```
 
-### 任务 4：双语文档、品牌资产与版本同步
+### 任务 4：中文文档、品牌资产与版本同步
 
 **文件：**
 - 创建：`docs/android-release.md`
-- 创建：`docs/android-release.zh-CN.md`
 - 修改：`README.md`
 - 修改：`README.zh-CN.md`
 - 修改：`CHANGELOG.md`
@@ -187,7 +186,7 @@ git commit -m "ci(android): build and release signed artifacts"
 
 - [ ] **步骤 1：编写失败的文档契约测试**
 
-断言两份文档包含 Android 包名、站点 URL、本地 debug、release 签名环境变量、GitHub
+断言中文文档包含 Android 包名、站点 URL、本地 debug、release 签名环境变量、GitHub
 Actions tag 发布、Google Play Console 人工步骤、版本号与产物校验命令。
 
 - [ ] **步骤 2：运行测试验证失败**
@@ -197,8 +196,8 @@ Actions tag 发布、Google Play Console 人工步骤、版本号与产物校验
 
 - [ ] **步骤 3：补齐文档与版本信息**
 
-写清 debug APK 安装、release AAB/APK 签名、secrets、安装、校验和商店提交；更新中英文
-README 导航与 README 发布段落，版本保持 `0.1.0 / 1`。
+写清 debug APK 安装、release AAB/APK 签名、secrets、安装、校验和商店提交；更新
+README 与中文 README 的发布段落，版本保持 `0.1.0 / 1`。
 
 - [ ] **步骤 4：运行测试验证通过**
 
@@ -208,7 +207,7 @@ README 导航与 README 发布段落，版本保持 `0.1.0 / 1`。
 - [ ] **步骤 5：Commit**
 
 ```bash
-git add README.md README.zh-CN.md CHANGELOG.md docs/android-release.md docs/android-release.zh-CN.md android/app tests/test_android_release_assets.py
+git add README.md README.zh-CN.md CHANGELOG.md docs/android-release.md android/app tests/test_android_release_assets.py
 git commit -m "docs(android): document build signing and release"
 ```
 

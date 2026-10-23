@@ -8,7 +8,7 @@
 
 **技术栈：** Python 3.11、FastAPI、Pydantic v2、SQLAlchemy 2.0 async、Alembic、PostgreSQL 16 + pgvector、Ollama `bge-m3`、httpx、React 19、TypeScript、Vite、TanStack Query、Vitest、Playwright。
 
-**规格：** `docs/superpowers/specs/2026-10-21-user-rag-design.md`
+**规格：** `docs/superpowers/specs/user-rag-design.md`
 
 ## 全局约束
 

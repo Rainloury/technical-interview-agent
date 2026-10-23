@@ -2,28 +2,28 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v3.9 |
+| 文档版本 | v4.0 |
 | 文档状态 | 发布候选；工程门禁、Worker、部署资产、密码重置异步投递、本地恢复/回滚和告警送达演练已通过，生产复核待补齐 |
-| 更新日期 | 2026-10-20 |
+| 更新日期 | 2026-10-23 |
 | 当前阶段 | 发布候选（release candidate）；生产复核与发布批准待完成，尚未上线 |
 | 当前目标 | 冻结生产发布 SHA，并补齐[发布运行手册](./release-runbook.md)中的生产复核，再取得发布批准 |
 | 后续目标 | 灰度观测稳定后完成正式发布与复盘 |
-| 审批依据 | `docs/decision-register.md` v0.8 |
+| 审批依据 | `docs/decision-register.md` v1.0 |
 
-> `DR-01` 至 `DR-07` 已批准，ADR-0001 至 ADR-0008 已接受。全部业务切片、隐私删除、保留清理和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95、生产依赖、生产 Worker 入口、部署资产和密码重置异步投递均通过。当前处于发布候选阶段；本地隔离恢复、回滚和五类告警送达演练已通过，生产灾备/镜像/网络/通知渠道复核仍须按[发布运行手册](./release-runbook.md)关闭。
+> `DR-01` 至 `DR-09` 已批准，ADR-0001 至 ADR-0010 已接受。全部业务切片、隐私删除、保留清理、私有与共享资料和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95、生产依赖、生产 Worker 入口、部署资产和密码重置异步投递均通过。当前处于发布候选阶段；本地隔离恢复、回滚和五类告警送达演练已通过，生产灾备/镜像/网络/通知渠道复核仍须按[发布运行手册](./release-runbook.md)关闭。跨方案索引见[方案总览](./solution-map.md)。
 
 ## 1. 当前完成度
 
 | 事项 | 状态 | 证据 | 是否阻塞下一步 |
 | --- | --- | --- | --- |
-| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.7 | 否 |
-| 需求基线 | 已完成 | `docs/requirements.md` v1.5 | 否 |
-| 产品方案 | 已完成 | `docs/product-design.md` v1.5 | 否 |
-| 需求决策 `DR-01` 至 `DR-07` | `approved` | `docs/decision-register.md` v0.8 | 否 |
-| 技术设计 | 已完成 | `docs/technical-design.md` v0.21 | 否 |
-| 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.7、`docs/state-machine.md` v0.5 | 否 |
-| 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.8、`docs/threat-model.md` v0.6 | 否 |
-| ADR-0001 至 ADR-0008 | 全部 `accepted` | `docs/adr/` | 否 |
+| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.8 | 否 |
+| 需求基线 | 已完成 | `docs/requirements.md` v1.6 | 否 |
+| 产品方案 | 已完成 | `docs/product-design.md` v1.6 | 否 |
+| 需求决策 `DR-01` 至 `DR-09` | `approved` | `docs/decision-register.md` v1.0 | 否 |
+| 技术设计 | 已完成 | `docs/technical-design.md` v0.23 | 否 |
+| 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.9、`docs/state-machine.md` v0.5 | 否 |
+| 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.10、`docs/threat-model.md` v0.7 | 否 |
+| ADR-0001 至 ADR-0010 | 全部 `accepted` | `docs/adr/` | 否 |
 | Python 工程 | 已完成 | `pyproject.toml`、`uv.lock`、`.python-version` | 否 |
 | 应用与数据库骨架 | 已完成 | FastAPI、SQLAlchemy async、Alembic、初始迁移和 Compose | 否 |
 | 可观测性与安全入口 | 已完成 | 请求 ID、结构化日志、脱敏、trace 契约和统一错误信封 | 否 |
@@ -36,7 +36,7 @@
 | 评分 Prompt 校准 | `passed` | `interview_scoring@1.1.0` 增加分数锚点、关键错误边界和受保护材料禁复述；同时修正矩阵锚点、跨题套话、部分答案覆盖度和矛盾题构念 | 否 |
 | 110 条真实模型行为矩阵 | `passed` | 完整运行 `108/110`（98.18%），backend/frontend/fullstack 均 `30/30`；两条契约修正后定向复验 `2/2`，合计 `110/110`；`release_ready=true` | 否 |
 | 完整面试成本 P95 | `passed` | 10 场真实完整面试均覆盖追问链；模型 P95 为 ¥0.83908，低于 ¥3.00；检索为数据库内词法排序，外部检索费用 ¥0，总计 P95 ¥0.83908；`release_ready=true` | 否 |
-| 首个用户可见切片 `DR-07` | `approved` | `docs/decision-register.md` v0.8；方案 A | 否 |
+| 首个用户可见切片 `DR-07` | `approved` | `docs/decision-register.md` v1.0；方案 A | 否 |
 | 前端工程与账号路径 | 已完成 | `web/`；注册、登录、找回/重置密码、空工作台和响应式导航 | 否 |
 | 历史分页 | 已完成 | `web/src/pages/HistoryPage.tsx`；`{items, next_cursor}`，每页 10 条 | 否 |
 | 浏览器 E2E | `passed` | Chromium 桌面与移动 `14 passed`，隐私专项 `2 passed`；GitHub Actions Ubuntu 24.04 托管 runner WebKit Desktop Safari + iPhone 13 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed` | 否 |
@@ -51,8 +51,11 @@
 | 生产 Worker 入口 | `passed` | `technical-interview-agent worker`；配置 fail-fast、信号停机、并发上限、运行时限和网络资源清理有测试 | 否 |
 | 部署资产 | `passed` | `Dockerfile`、`deploy/production.compose.yaml`、非 root 运行、只读根文件系统、迁移/API/Worker 分离、健康检查和 CI 镜像构建门禁 | 否 |
 | 密码重置异步投递 | `passed` | 请求事务只写入加密投递密文和持久任务；Worker 有限重试、死信和密文清理通过 | 否 |
-| 告警送达演练 | `passed` | 五类告警真实 webhook 送达 5/5；`alert_deliveries` 记录 5/5 delivered；详见[演练记录](./alert-delivery-drill-2026-10-19.md) | 否 |
-| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v1.2；本地恢复、回滚和告警演练通过，生产 SHA、环境、灾备、邮件、OSS、异步重置与通知渠道复核未补齐 | 是 |
+| 告警送达演练 | `passed` | 五类告警真实 webhook 送达 5/5；`alert_deliveries` 记录 5/5 delivered；详见[演练记录](./alert-delivery-drill.md) | 否 |
+| 私有与共享资料 | `passed` | `user_documents`、`shared_documents`、管理员角色、RAG 检索、证据冻结与删除边界已实现；ADR-0009、ADR-0010 已接受 | 否 |
+| Android 发布接入 | `implemented` | Capacitor 8 壳、签名模板、GitHub Actions 和资产契约测试已落地；Play Console 提交待人工完成 | 否 |
+| iOS 发布接入 | `preflight_passed` | 原生 `WKWebView` 工程、共享 Scheme、隐私 Manifest 和预检脚本已落地；签名、TestFlight 与商店提交待完成 | 否 |
+| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v1.6；本地恢复、回滚和告警演练通过，生产 SHA、环境、灾备、邮件、OSS、异步重置与通知渠道复核未补齐 | 是 |
 
 隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS、部署资产、密码重置异步投递和 GitHub Actions WebKit 均已关闭。当前处于发布候选阶段，本地恢复、回滚和告警送达演练已通过；生产环境与通知渠道复核仍阻断灰度上线。
 
@@ -247,8 +250,8 @@ flowchart TD
 “下一步工作完成”需要同时满足：
 
 - 工程骨架和核心基座在干净环境可启动、迁移、测试和评测。
-- ADR-0003、ADR-0006、ADR-0007、ADR-0008 的实现约束有对应测试。
-- `DR-01` 至 `DR-06` 在需求、接口、数据、状态和安全测试中一致。
+- ADR-0003、ADR-0006、ADR-0007、ADR-0008、ADR-0009、ADR-0010 的实现约束有对应测试。
+- `DR-01` 至 `DR-09` 在需求、接口、数据、状态和安全测试中一致。
 - 账号、简历、检索问答、模拟面试与报告切片通过接口、权限、安全、质量和文档门禁。
 - 开发全流程的当前阶段、阻塞和下一步与仓库实际状态一致。
 - 110 条真实模型行为矩阵达到发布门槛（已满足）。
@@ -293,3 +296,4 @@ flowchart TD
 | v3.3 | 2026-10-18 | 补齐生产 Dockerfile、非 root 运行、migrate/API/Worker Compose、Worker 心跳和 CI 镜像构建门禁；关闭部署资产阻断项 |
 | v3.4 | 2026-10-18 | 密码重置改为加密密文 + 持久任务异步投递，新增重试、死信和密文清理；关闭同步 SMTP 阻断项 |
 | v3.9 | 2026-10-20 | 同步发布运行手册 v1.2：明确生产 SHA、配置、灾备、邮件、OSS、异步重置、通知渠道和发布批准八类未关闭门禁 |
+| v4.0 | 2026-10-23 | 同步 `DR-09`、ADR-0010、私有/共享资料、Android Capacitor 壳和 iOS 预检状态；补齐方案总览入口和当前文档版本 |

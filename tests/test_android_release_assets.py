@@ -180,10 +180,7 @@ def test_android_release_assets_have_brand_and_splash() -> None:
 
 
 def test_android_release_docs_cover_build_signing_install_and_store_steps() -> None:
-    documents = (
-        _read("docs/android-release.md"),
-        _read("docs/android-release.zh-CN.md"),
-    )
+    documents = (_read("docs/android-release.md"),)
 
     for document in documents:
         for fragment in (
@@ -206,7 +203,7 @@ def test_android_release_docs_cover_build_signing_install_and_store_steps() -> N
     assert "Android" in english
     assert "Android" in chinese
     assert "docs/android-release.md" in english
-    assert "docs/android-release.zh-CN.md" in chinese
+    assert "docs/android-release.md" in chinese
 
 
 def test_android_private_signing_material_is_ignored() -> None:

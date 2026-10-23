@@ -248,15 +248,16 @@ manager or deployment platform.
 
 The Capacitor Android shell is in `web/android` and targets the same-origin
 production site at `https://it.rainstone.top`. See
-[`docs/android-release.md`](docs/android-release.md) for local builds, release
-signing, GitHub Actions and Google Play Console steps.
+[`docs/android-release.md`](docs/android-release.md) for local
+builds, release signing, GitHub Actions and Google Play Console steps.
 
 ## iOS
 
 The native `WKWebView` wrapper is in `ios/` and keeps the existing same-origin
 authentication, CSRF, upload and SSE behavior. See
-[`docs/ios-release.md`](docs/ios-release.md) for Xcode, signing, archive and
-App Store Connect steps.
+[`docs/superpowers/specs/ios-release-design.md`](docs/superpowers/specs/ios-release-design.md)
+for the design and [`docs/superpowers/plans/ios-release.md`](docs/superpowers/plans/ios-release.md)
+for remaining work; build steps are in [`docs/ios-release.md`](docs/ios-release.md).
 
 ## Contributing
 
