@@ -2,12 +2,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v3.8 |
+| 文档版本 | v3.9 |
 | 文档状态 | 流程基线 |
 | 更新日期 | 2026-10-23 |
 | 需求依据 | `docs/requirements.md` v1.6 |
 | 产品依据 | `docs/product-design.md` v1.6 |
-| 技术依据 | `docs/technical-design.md` v0.23 |
+| 技术依据 | `docs/technical-design.md` v0.24 |
 | 审批依据 | `docs/decision-register.md` v1.0 |
 
 > 本文是项目从需求收集到上线迭代的快速入口。流程覆盖交付顺序、责任边界、阶段产物和门禁；具体业务规则以需求基线为准，页面与交互以产品方案为准。
@@ -32,11 +32,11 @@
 | --- | --- |
 | 需求基线 | `v1.6` 已确认，见[需求文档](./requirements.md) |
 | 产品方案 | `v1.6` 已确认，见[产品方案设计](./product-design.md) |
-| 技术基线 | 技术设计 v0.23，ADR-0001 至 ADR-0010 全部接受 |
+| 技术基线 | 技术设计 v0.24，ADR-0001 至 ADR-0010 全部接受 |
 | 工程骨架 | 已完成，应用、迁移、质量门禁和首次 eval 基线均已验证 |
 | 需求审批 | `DR-01` 至 `DR-09` 已批准；`DR-07` 选择方案 A |
-| 当前阶段 | 发布候选（release candidate）；P0 业务切片、质量门禁、G4A 行为矩阵、本地恢复/回滚和告警送达演练已通过；生产复核与发布批准待完成 |
-| 下一步 | 冻结发布 SHA，完成生产配置、灾备、邮件、OSS 与通知渠道复核，取得发布批准后执行灰度上线 |
+| 当前阶段 | `v0.1.0` 已正式发布并在线运行；最新 `main` 处于发布后后续迭代；隐私与可观测门禁已通过 |
+| 下一步 | 为后续迭代冻结新 SHA 与镜像，完成生产差异复核和灰度批准；iOS/Android 继续完成签名与商店提交 |
 
 ## 流程总览
 
@@ -64,7 +64,9 @@ flowchart TD
     class J completed;
     class K completed;
     class L completed;
-    class M current;
+    class M completed;
+    class N completed;
+    class O current;
 ```
 
 ## 阶段说明
@@ -142,14 +144,14 @@ flowchart TD
 
 交付物：
 
-- [技术设计](./technical-design.md) v0.23。
+- [技术设计](./technical-design.md) v0.24。
 - [数据模型](./data-model.md) v0.9。
 - [状态机与事务](./state-machine.md) v0.5。
 - [接口契约](./api-contract.md) v0.10。
 - [威胁模型](./threat-model.md) v0.7。
 - [ADR 索引](./adr/README.md)，ADR-0001 至 ADR-0010 均已接受。
 - [技术方案评审清单](./technical-review-checklist.md) v3.4。
-- [下一步执行计划](./next-steps.md) v4.0。
+- [下一步执行计划](./next-steps.md) v4.1。
 
 完成情况：
 
@@ -439,7 +441,7 @@ flowchart TD
 | 4 | 模拟面试（已完成） | 蓝图、逐轮作答、评分、追问 | 分数分段、单次提交、预算与恢复 | 核心基座、问答切片 |
 | 5 | 报告与复习（已完成） | 追问树、错题、薄弱点 | 统一解锁、幂等、证据追溯 | 账号、简历、面试 |
 | 6 | 上线质量（已完成） | 安全、性能、评测、观测 | P0 验收、行为评测、发布门禁 | 全部 P0 切片 |
-| 7 | 发布候选收尾（当前） | 生产复核、SHA 冻结、发布批准与灰度 | Go/No-Go 全绿、灰度指标稳定 | 全部 P0 切片与上线质量 |
+| 7 | 发布后后续迭代（当前） | 后续迭代 SHA 冻结、生产差异复核、移动端发布与灰度 | 新 tag/镜像一致、线上观测稳定 | 已发布 `v0.1.0` |
 
 切片原则：
 
@@ -613,18 +615,18 @@ flowchart TD
 
 1. Playwright Chromium 桌面与移动项目通过 `14 passed`，GitHub Actions Ubuntu 24.04 托管 runner WebKit Desktop Safari + iPhone 13 通过 `14 passed`（2.4 min）；覆盖账号、历史、简历、问答、模拟面试、受保护报告、复习入口和账号数据删除。
 2. 前端 typecheck、Vitest `12 files / 37 tests`、ESLint 和生产构建通过。
-3. 后端 ruff、格式检查、mypy（112 files）、默认测试 `166 passed, 51 skipped`、`RUN_INTEGRATION=1 pytest`（`206 passed`）和 `alembic check` 通过；新增告警测试后迁移头为 `7e2b4c6d8f10`。
+3. 后端 ruff、格式检查、mypy（144 files）、默认测试 `242 passed, 106 skipped` 和 `alembic check` 通过；数据库告警测试在临时 pgvector 实例上定向 `4 passed`；迁移头为 `1b5d8e3f7a20`。
 4. `interview_session` 的 `HttpOnly` 边界、`interview_csrf`/`X-CSRF-Token` 写请求保护和 `csrf_token_hash` 仅保存哈希均有自动化验证。
 5. 历史接口的 `{items, next_cursor}`、问答历史重开、持久 SSE 游标和公开证据字段边界均已验证。
 
-全部业务切片已关闭。技术质量门禁已通过：三档单轮、110 条行为矩阵和整场成本 P95 ¥0.83908 均达标。生产依赖已验证：阿里云 DirectMail TLS/登录/实际发送、阿里云 OSS 私有桶上传/读取/删除、GitHub Actions Ubuntu WebKit `14 passed`。当前处于发布候选；生产 Worker、部署资产和密码重置异步投递已提供，本地备份恢复、回滚和五类告警送达演练已通过，生产环境与通知渠道复核仍按[发布运行手册](./release-runbook.md)阻断上线。
+全部业务切片已关闭。`v0.1.0` 已正式发布并部署到 `https://it.rainstone.top`，线上 `/health/live` 与 `/health/ready` 均返回 200，PostgreSQL 和 Redis 均为 `ok`。最新 `main` 已包含共享资料管理和移动端发布工程，处于发布后后续迭代；若要替换线上 `v0.1.0`，需按[发布运行手册](./release-runbook.md)重新冻结 SHA、复核生产差异并取得灰度批准。
 
 建议执行顺序：
 
-1. 按[发布运行手册](./release-runbook.md)冻结生产发布 SHA，并让质量、容器与 WebKit CI 对同一 SHA 全绿。
-2. 完成生产配置、密钥、灾备、邮件 DNS、OSS 权限与生命周期、异步密码重置和生产通知渠道复核。
-3. 确认回滚负责人、灰度范围、观察窗口和 No-Go 阈值，取得发布批准。
-4. 执行灰度上线并观察任务成功率、延迟、失败率、成本与删除任务。
+1. 为最新 `main` 选择后续迭代 SHA，冻结 tag 和 API/Web 镜像，并确认与线上 `v0.1.0` 的差异。
+2. 完成后续迭代的生产配置、密钥、灾备、邮件 DNS、OSS 权限与生命周期、异步密码重置和生产通知渠道复核。
+3. 确认回滚负责人、灰度范围、观察窗口和 No-Go 阈值，取得后续迭代发布批准。
+4. 执行灰度并观察任务成功率、延迟、失败率、成本与删除任务。
 
 ## 版本记录
 
@@ -658,3 +660,4 @@ flowchart TD
 | v3.4 | 2026-10-18 | 同步 Worker 入口验收后的默认质量证据：`138 passed, 49 skipped`、mypy 104 files；保留部署编排、恢复与告警阻断项 |
 | v3.5 | 2026-10-18 | 补齐非 root 生产镜像、migrate/API/Worker Compose、Worker 心跳和 CI 镜像构建门禁；关闭部署资产阻断项 |
 | v3.6 | 2026-10-18 | 密码重置改为加密密文 + 持久任务异步投递，增加重试、死信和密文清理；关闭同步 SMTP 阻断项 |
+| v3.9 | 2026-10-23 | 同步 `v0.1.0` 正式发布与线上健康事实；当前阶段切换为发布后后续迭代，更新 SHA 冻结、生产差异复核和移动端后续目标 |

@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
+import pytest
 from app.alerts import (
     AlertObservation,
     database_observations,
@@ -78,6 +79,7 @@ async def test_readiness_alert_handles_degraded_and_transport_failure() -> None:
     assert "HTTP 0" in failed.message
 
 
+@pytest.mark.integration
 async def test_database_observations_cover_dead_letter_scoring_and_deletion(
     db_session: AsyncSession,
     create_user: object,
@@ -145,6 +147,7 @@ async def test_database_observations_cover_dead_letter_scoring_and_deletion(
     assert by_code["deletion_failed"].observed_count == 1
 
 
+@pytest.mark.integration
 async def test_webhook_delivery_records_success_and_failure(
     db_session: AsyncSession,
     tmp_path: Path,

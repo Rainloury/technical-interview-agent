@@ -5,13 +5,13 @@ English | [Chinese](README.zh-CN.md) | [Live site](https://it.rainstone.top)
 A self-hostable technical interview platform with a bounded answer agent,
 private document retrieval, and an async worker.
 
-> Current status: release candidate. Privacy and observability gates, the
-> three-tier single-turn provider eval, the G4A behavior matrix, the full-session
-> cost gate, local restore/rollback drills, and alert delivery drills have all
-> passed. Production environment review, release SHA freeze, and release
-> approval remain. See [`docs/README.md`](docs/README.md) and
-> [`docs/release-runbook.md`](docs/release-runbook.md) for detailed release
-> evidence and internal acceptance records.
+> Current status: **v0.1.0 is officially released and live at
+> [it.rainstone.top](https://it.rainstone.top)**. The latest `main` branch is in
+> post-release iteration and includes shared-document administration and mobile
+> release work added after the `v0.1.0` tag. See
+> [`docs/README.md`](docs/README.md), [`CHANGELOG.md`](CHANGELOG.md), and
+> [`docs/release-runbook.md`](docs/release-runbook.md) for release facts,
+> verification evidence, and the next rollout boundary.
 
 The application provides:
 

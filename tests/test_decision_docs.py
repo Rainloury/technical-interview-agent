@@ -79,17 +79,12 @@ def test_first_slice_assets_are_present_after_approval() -> None:
         assert (ROOT / relative_path).is_file(), f"{relative_path} is missing"
 
 
-def test_phase_docs_describe_the_release_candidate_stage() -> None:
+def test_phase_docs_describe_the_published_v010_and_post_release_iteration() -> None:
     documents = (DOCS_README, NEXT_STEPS, DEVELOPMENT_FLOW, TECHNICAL_REVIEW, TECHNICAL_DESIGN)
     for path in documents:
         text = _read(path)
-        assert "发布候选" in text, path
-        assert (
-            "待发布批准" in text
-            or "发布批准与上线执行" in text
-            or "发布批准待完成" in text
-            or "发布批准与上线执行待完成" in text
-        ), path
+        assert "v0.1.0" in text and "已正式发布" in text, path
+        assert "后续迭代" in text or "发布后迭代" in text, path
         assert "隐私与可观测门禁" in text and "已通过" in text, path
         assert (
             "真实 provider 三档单轮 eval 已通过" in text or "真实 provider FAST eval 已通过" in text
@@ -102,20 +97,21 @@ def test_phase_docs_describe_the_release_candidate_stage() -> None:
         ), path
         assert "0.83908" in text, path
         assert "12 files / 37 tests" in text, path
-        assert "198 passed" in text or "206 passed" in text, path
-        assert "166 passed, 51 skipped" in text, path
+        assert "242 passed, 106 skipped" in text or "346 passed" in text or "206 passed" in text, (
+            path
+        )
         assert "14 passed" in text, path
-        assert "109 files" in text or "112 files" in text, path
-        assert "7e2b4c6d8f10" in text, path
+        assert "144 files" in text or "112 files" in text, path
+        assert "1b5d8e3f7a20" in text or "7e2b4c6d8f10" in text, path
         assert "7/7" in text, path
         assert "WebKit" in text and "14 passed" in text, path
 
     readme = _read(README)
     chinese_readme = _read(README_ZH)
-    assert "release candidate" in readme
-    assert "release" in readme and "approval" in readme
-    assert "发布候选" in chinese_readme
-    assert "发布批准待完成" in chinese_readme
+    assert "v0.1.0" in readme and "released" in readme
+    assert "post-release" in readme or "post-release" in readme.lower()
+    assert "v0.1.0" in chinese_readme and "已正式发布" in chinese_readme
+    assert "后续迭代" in chinese_readme
 
     implementation_docs = (
         README,
@@ -159,19 +155,22 @@ def test_release_candidate_docs_do_not_reopen_closed_launch_gates() -> None:
         assert "发布评审待确认" not in current_text, path
 
 
-def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() -> None:
+def test_release_runbook_keeps_published_baseline_and_followup_gates_explicit() -> None:
     assert RELEASE_RUNBOOK.is_file()
     runbook = _read(RELEASE_RUNBOOK)
 
     for fragment in (
-        "生产 SHA 冻结",
-        "生产配置与密钥复核",
+        "正式发布基线",
+        "4e98038",
+        "v0.1.0",
+        "线上站点",
+        "后续迭代门禁",
+        "后续迭代 SHA 冻结",
         "生产灾备与回滚复核",
-        "DirectMail DNS 验证和真实投递人工确认",
-        "OSS 私有、加密、权限与生命周期复核",
-        "密码重置投递由持久 Worker 任务完成",
+        "邮件与生产投递演练",
+        "OSS 权限与生命周期复核",
         "生产通知渠道复核",
-        "发布审批",
+        "后续迭代灰度审批",
         "生产 Worker 入口",
         "部署资产",
         "密码重置投递",
@@ -196,24 +195,24 @@ def test_release_runbook_keeps_launch_blockers_and_recovery_evidence_explicit() 
 def test_release_baseline_is_bound_to_the_recorded_ci_sha() -> None:
     runbook = _read(RELEASE_RUNBOOK)
     match = re.search(
-        r"^\| (?:已验证基线|候选发布基线) \| `([0-9a-f]{7,40})` \|$",
+        r"^\| (?:正式发布基线|已验证基线|候选发布基线) \| `([0-9a-f]{7,40})`(?:（[^）]+）)? \|$",
         runbook,
         re.MULTILINE,
     )
     assert match, "release baseline SHA is missing"
     baseline = match.group(1)
-    current_facts = runbook.partition("## 2. 上线阻断项")[0]
-    assert "39136496514" not in current_facts
+    current_facts = runbook.partition("## 2. 后续迭代门禁")[0]
+    assert "39398687660" not in current_facts
+    assert "4e98038" in runbook
     assert "19cd750" in runbook
     assert f"`{baseline}`" in runbook
 
 
-def test_frozen_release_candidate_is_recorded_in_the_go_no_go_checklist() -> None:
+def test_published_release_is_recorded_before_followup_go_no_go() -> None:
     runbook = _read(RELEASE_RUNBOOK)
-    assert (
-        "- [x] 发布 SHA `19cd750` 已创建 `v0.1.0-rc.1` annotated tag；"
-        "质量、容器与 WebKit CI 对同一 SHA 全绿。"
-    ) in runbook
+    assert "## 7. 后续迭代 Go/No-Go" in runbook
+    assert "- [ ] 后续迭代 SHA、tag 和 API/Web 镜像标签已冻结。" in runbook
+    assert "GitHub Release `v0.1.0` 于 2026-10-22 公开" in runbook
 
 
 def test_release_runbook_documents_redacted_production_config_evidence() -> None:
@@ -226,7 +225,7 @@ def test_release_runbook_documents_redacted_production_config_evidence() -> None
         "生产 env 文件 SHA-256",
         "OPS_METRICS_TOKEN` 至少 32 字符",
         "不存在 localhost 或 `http://`",
-        "镜像、迁移、API 与 Worker 使用同一个 `v0.1.0-rc.1` 标签",
+        "镜像、迁移、API 与 Worker 使用同一个版本标签",
         "Worker 心跳在 30 秒内",
     ):
         assert fragment in runbook, f"{fragment} missing from {RELEASE_RUNBOOK}"
@@ -308,7 +307,8 @@ def test_shared_document_spec_is_accepted_after_implementation_merge() -> None:
 
 def test_production_config_signoff_requires_platform_evidence() -> None:
     runbook = _read(RELEASE_RUNBOOK)
-    assert "- [ ] 生产配置核验通过，密钥未进入仓库或构建产物。" in runbook
+    assert "- [ ] 后续迭代 SHA、tag 和 API/Web 镜像标签已冻结。" in runbook
+    assert "- [ ] 生产配置差异核验通过，密钥未进入仓库或构建产物。" in runbook
     assert "生产 env 文件 SHA-256、生成人、复核人和 UTC 时间" in runbook
     assert "生产 env 文件由部署平台或密钥管理生成" in runbook
 
@@ -339,7 +339,7 @@ def test_docs_readme_references_current_document_versions() -> None:
 
     assert f"| {version(_read(DEVELOPMENT_FLOW))} 当前流程基线 |" in docs_index
     assert f"| {version(_read(TECHNICAL_DESIGN))} 当前基线 |" in docs_index
-    assert f"| {version(_read(RELEASE_RUNBOOK))} 发布候选；存在上线阻断项 |" in docs_index
+    assert f"| {version(_read(RELEASE_RUNBOOK))} 已发布 v0.1.0；后续迭代边界见正文 |" in docs_index
     assert f"| {version(_read(NEXT_STEPS))} " in docs_index
     assert version(_read(DEVELOPMENT_FLOW)) in _read(NEXT_STEPS)
     assert version(_read(TECHNICAL_DESIGN)) in _read(NEXT_STEPS)

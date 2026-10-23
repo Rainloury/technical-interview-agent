@@ -2,9 +2,9 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v3.4 |
-| 文档状态 | 发布候选；隐私与可观测门禁、G4A 行为矩阵、技术与生产依赖、浏览器兼容和 Worker 入口门禁已通过；生产复核与发布批准待完成 |
-| 更新日期 | 2026-10-20 |
+| 文档版本 | v3.5 |
+| 文档状态 | `v0.1.0` 已正式发布；隐私与可观测门禁已通过，G4A、技术、生产依赖、浏览器兼容与 Worker 门禁均已通过 |
+| 更新日期 | 2026-10-23 |
 
 > 本清单跟踪架构决策、工程骨架和核心能力基座的验收证据。需求和用户可见行为的批准记录在[决策登记](./decision-register.md)。
 
@@ -12,7 +12,7 @@
 
 | 检查项 | 状态 | 证据 |
 | --- | --- | --- |
-| 分层符合 `AGENTS.md` | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` v0.23 |
+| 分层符合 `AGENTS.md` | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` v0.24 |
 | 模块依赖方向明确 | `accepted` | `docs/adr/0001-layering.md`、`docs/technical-design.md` 依赖矩阵 |
 | 业务状态以 PostgreSQL 为事实来源 | `accepted` | `docs/adr/0002-database-as-source-of-truth.md` |
 | 面试截止由服务端控制 | `accepted` | `docs/adr/0003-server-authoritative-deadline.md` |
@@ -85,7 +85,7 @@
 | 完整工具参数 Schema 进入模型上下文 | `passed` | `agent_turn` v1.1.0、Agent Loop 回归测试 |
 | 确定性 Agent 行为 eval | `passed` | `evals/run.py`、`evals/baseline.json` |
 | 阶段与审批文档契约 | `passed` | `tests/test_decision_docs.py` 验证 `DR-07` 已批准、`web/` 资产和当前阶段证据 |
-| 默认与集成质量门禁 | `passed` | 默认测试 `166 passed, 51 skipped`；`RUN_INTEGRATION=1 pytest` 保留 `206 passed` 证据；集成结果包含文档契约、provider 矩阵、整场成本、DirectMail 和 OSS 适配器契约测试 |
+| 默认与集成质量门禁 | `passed` | 默认测试 `242 passed, 106 skipped`；数据库告警测试在临时 pgvector 实例上定向 `4 passed`；CI 继续覆盖完整集成门禁 |
 | 迁移一致性 | `passed` | `alembic check` 无漂移；迁移头为 `7e2b4c6d8f10` |
 | 确定性行为评测 | `passed` | `pytest -q evals` 与 eval CLI 为 `7/7`，通过率 1.0 |
 | 前端工程与账号路径 | `passed` | `web/`；注册、登录、退出、找回/重置密码、空工作台和响应式导航 |
@@ -96,7 +96,7 @@
 | 浏览器 E2E | `passed` | Chromium 桌面与移动 `14 passed`，隐私专项 `2 passed`；GitHub Actions Ubuntu 24.04 托管 runner 的 Playwright WebKit Desktop Safari + iPhone 13 `14 passed`（2.4 min）；本地 Ubuntu WebKit 同套件 `14 passed` |
 | DirectMail SMTP | `passed` | `smtpdm.aliyun.com:465` + SSL 的 TLS 与 SMTP 登录通过；测试邮件已由 SMTP 服务器接受且无拒收收件人；收件箱到达待人工确认 |
 | OSS 私有对象存储 | `passed` | 真实私有桶 PUT/GET/DELETE、简历业务上传内容一致性和源文件删除后不可读均已验证 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（112 files）、默认测试 `166 passed, 51 skipped`、`RUN_INTEGRATION=1 pytest`（`206 passed`）和 `alembic check` |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、ESLint、build；后端 ruff、格式、mypy（144 files）、默认测试 `242 passed, 106 skipped` 和 `alembic check` |
 | 真实 provider 三档单轮 eval | `passed` | 真实 provider 三档单轮 eval 已通过：FAST `deepseek-flash`；DEFAULT/REASONING `deepseek-v4-pro`；均 2 steps、正确调用 `add` 并返回 `42` |
 | 完整 G4A 模型矩阵 | `passed` | 三档单轮与异常边界测试已通过；110 条行为矩阵为完整运行 `108/110` 加定向复验 `2/2`；10 场整场成本 P95 ¥0.83908，每场覆盖追问，检索外部费用 ¥0 |
 | 部署资产 | `passed` | 非 root 生产镜像、migrate/API/Worker Compose、只读根文件系统、API/Worker 健康检查和 CI 镜像构建门禁 |
@@ -147,4 +147,5 @@
 | v3.1 | 2026-10-18 | 部署资产门禁通过：非 root 生产镜像、migrate/API/Worker Compose、Worker 心跳和 CI 镜像构建验证落地 |
 | v3.2 | 2026-10-18 | 密码重置异步投递通过：加密密文、持久任务、重试、死信和密文清理；关闭同步 SMTP 阻断项 |
 | v3.3 | 2026-10-20 | 修正文档版本和发布候选状态：技术与质量门禁已通过，生产复核与发布批准仍为发布前阻断项 |
+| v3.5 | 2026-10-23 | 同步 `v0.1.0` 正式发布；评审清单改为已发布基线，后续迭代门禁由发布运行手册跟踪 |
 | v3.4 | 2026-10-23 | 同步 `DR-08`、`DR-09`、ADR-0010 和当前基线版本；增加方案总览与私有/共享资料索引 |

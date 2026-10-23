@@ -2,20 +2,24 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v1.6 |
-| 文档状态 | 发布候选；候选 SHA 已冻结，生产复核、发布批准与上线执行待完成 |
-| 更新日期 | 2026-10-20 |
-| 候选发布基线 | `19cd750` |
+| 文档版本 | v1.7 |
+| 文档状态 | `v0.1.0` 已正式发布并在线运行；最新 `main` 处于后续迭代 |
+| 更新日期 | 2026-10-23 |
+| 正式发布基线 | `4e98038`（`v0.1.0`） |
+| 历史候选基线 | `19cd750`（`v0.1.0-rc.1`） |
 | 迁移头 | `7e2b4c6d8f10` |
 
-> 本手册区分“已验证”和“上线前必须补齐”。未关闭的阻断项不得通过口头豁免进入生产。
+> 本手册区分“已验证”“已正式发布”和“后续迭代待确认”。未关闭的后续迭代门禁不得通过口头豁免替换线上 `v0.1.0`。
 
 ## 1. 当前发布事实
 
 | 项目 | 当前状态 | 证据或限制 |
 | --- | --- | --- |
-| 代码质量 | 通过 | 候选 SHA CI run `39398687660` 的 `quality` 与 `container` job 成功 |
-| WebKit 兼容 | 通过 | 同一候选 SHA CI run `39398687660` 的 WebKit Desktop Safari + iPhone 13 job 成功（3m13s） |
+| 正式发布 | 已发布 | GitHub Release `v0.1.0` 于 2026-10-22 公开，tag 指向 `4e98038` |
+| 线上站点 | 健康 | `https://it.rainstone.top` 首页 200；`/health/live` 与 `/health/ready` 均为 200，PostgreSQL 和 Redis 为 `ok` |
+| 最新 main CI | 通过 | `e26c9f9` 的 run `39885346709`：quality、container、WebKit E2E、secret scan 和 license check 全部成功 |
+| 代码质量 | 通过 | 正式发布提交的 CI 成功；最新 main 的完整 CI 同样成功 |
+| WebKit 兼容 | 通过 | 正式发布与最新 main 均覆盖 Desktop Safari + iPhone 13 |
 | 生产邮件 | 部分验证 | DirectMail `smtpdm.aliyun.com:465` + SSL 已通过 TLS、登录和 SMTP 接受 |
 | 生产对象存储 | 通过 | 阿里云 OSS 私有桶 PUT/GET/DELETE 已通过 |
 | 生产配置 fail-fast | 本次新增 | `staging` / `production` 启动时校验 LLM、SMTP、OSS、HTTPS 和 Cookie/CORS 安全项 |
@@ -27,18 +31,17 @@
 | 监控告警 | 通过（本地真实 webhook） | 五类告警 `alert_deliveries` 记录 5/5 delivered，接收器收到 5/5；详见[演练记录](./alert-delivery-drill.md) |
 | 密码重置投递 | 已提供 | 请求事务只保存加密投递密文和 `password_reset_delivery` 任务；Worker 异步发送、有限重试，终态失败清除密文 |
 
-## 2. 上线阻断项
+## 2. 后续迭代门禁
 
-以下任一未关闭，Go/No-Go 结论必须为 `NO-GO`：
+以下事项不再阻断已发布的 `v0.1.0`，但会阻断最新 `main` 替换当前线上版本：
 
-1. **生产 SHA 冻结**：候选 SHA `19cd750` 的三个 CI job 已全绿，`v0.1.0-rc.1` annotated tag 已创建并推送，冻结完成。
-2. **生产配置与密钥复核**：生产环境变量、密钥管理、HTTPS 来源、Secure Cookie 和 Worker 参数尚未逐项签字。
-3. **生产灾备与回滚复核**：本地恢复与回滚演练已通过，但生产备份存储、镜像、网络和负责人尚未确认。
-4. **DirectMail DNS 验证和真实投递人工确认**：SPF、DKIM、DMARC 与生产环境密码重置邮件到达尚未闭环。
-5. **OSS 私有、加密、权限与生命周期复核**：真实私有桶读写已通过，但生产 IAM、加密和保留策略仍需确认。
-6. **密码重置投递由持久 Worker 任务完成**：自动化链路已通过，生产 SMTP 成功与失败分支仍需发布演练。
-7. **生产通知渠道复核**：五类告警本地 webhook 已通过，生产通知渠道的凭据、路由和接收演练尚未完成。
-8. **发布审批**：项目负责人明确批准灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
+1. **后续迭代 SHA 冻结**：为最新 `main` 选择候选 SHA，创建后续版本 tag，并让 API/Web 镜像绑定同一 SHA。
+2. **生产配置差异复核**：确认新版本所需变量、密钥轮换、HTTPS 来源、Cookie 和 Worker 参数。
+3. **生产灾备与回滚复核**：为后续迭代更新备份、镜像、网络和回滚负责人证据。
+4. **邮件与生产投递演练**：在后续迭代上重新验证 DNS、SMTP 成功/失败分支和密码重置到达。
+5. **OSS 权限与生命周期复核**：确认新版本仍使用私有桶、最小 IAM、加密和保留策略。
+6. **生产通知渠道复核**：确认后续迭代的告警凭据、路由和接收演练。
+7. **后续迭代灰度审批**：明确灰度范围、观察窗口、回滚负责人和 No-Go 阈值。
 
 ## 3. 发布前配置
 
@@ -86,18 +89,18 @@ uv run python -m scripts.check_production_config \
   > /secure/path/production-config-check.json
 ```
 
-预期 `status` 为 `PASS`，且报告只包含环境、协议、域名、非敏感连接参数和密钥存在性；不得包含密码、Token、Access Key、完整数据库 URL 或密钥值。随后使用候选镜像以同一 env 文件启动 API 和 Worker，确认应用内 fail-fast 也通过：
+预期 `status` 为 `PASS`，且报告只包含环境、协议、域名、非敏感连接参数和密钥存在性；不得包含密码、Token、Access Key、完整数据库 URL 或密钥值。随后使用已发布镜像以同一 env 文件启动 API 和 Worker，确认应用内 fail-fast 也通过：
 
 ```bash
 IMAGE_REPOSITORY=<registry>/technical-interview-agent \
 WEB_IMAGE_REPOSITORY=<registry>/technical-interview-agent-web \
-IMAGE_TAG=v0.1.0-rc.1 \
+IMAGE_TAG=v0.1.0 \
 PRODUCTION_ENV_FILE=/secure/path/production.env \
 docker compose -f deploy/production.compose.yaml config --quiet
 
 IMAGE_REPOSITORY=<registry>/technical-interview-agent \
 WEB_IMAGE_REPOSITORY=<registry>/technical-interview-agent-web \
-IMAGE_TAG=v0.1.0-rc.1 \
+IMAGE_TAG=v0.1.0 \
 PRODUCTION_ENV_FILE=/secure/path/production.env \
 docker compose -f deploy/production.compose.yaml up -d migrate api worker web
 ```
@@ -109,7 +112,7 @@ docker compose -f deploy/production.compose.yaml up -d migrate api worker web
 - `OPS_METRICS_TOKEN` 至少 32 字符，未出现在仓库、镜像、日志、工单或截图中。
 - `APP_ALLOWED_ORIGINS`、`CSRF_ALLOWED_ORIGINS` 与生产 HTTPS 域名完全一致；不存在 localhost 或 `http://`。
 - `DATABASE_URL` 不指向开发库或共享测试库，数据库连接池与 `WORKER_CONCURRENCY` 匹配。
-- 镜像、迁移、API 与 Worker 使用同一个 `v0.1.0-rc.1` 标签和同一生产 env 文件。
+- 镜像、迁移、API 与 Worker 使用同一个版本标签和同一生产 env 文件；当前线上基线为 `v0.1.0`。
 - `/health/ready` 返回 PostgreSQL 与 Redis 均为 `ok`，Worker 心跳在 30 秒内。
 
 ### 3.3 OSS 复核
@@ -257,20 +260,18 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 
 运维聚合接口：`GET /api/v1/ops/metrics`，使用 `Authorization: Bearer <OPS_METRICS_TOKEN>`。不得在浏览器、日志或截图里暴露该令牌。
 
-## 7. Go/No-Go
+## 7. 后续迭代 Go/No-Go
 
-进入发布前逐项签字：
+以下清单用于判断最新 `main` 是否可以替换线上 `v0.1.0`；不再用于回判已经完成的正式发布：
 
-- [x] 发布 SHA `19cd750` 已创建 `v0.1.0-rc.1` annotated tag；质量、容器与 WebKit CI 对同一 SHA 全绿。
-- [ ] 生产配置核验通过，密钥未进入仓库或构建产物。
-- [ ] 镜像和编排已补齐，CI 构建门禁通过，API 与 Worker 使用同一发布 SHA。
-- [x] 数据库备份完成，恢复演练通过（本地隔离实例；生产灾备存储仍需复核）。
-- [x] 上一版本回滚演练通过，数据库向前兼容策略明确（本地隔离环境；生产镜像与网络仍需复核）。
-- [x] `/health/live` 与 `/health/ready` 通过，五类告警可实际送达本地真实 webhook；生产通知渠道仍需复核。
-- [ ] DirectMail DNS 验证和真实投递人工确认通过。
+- [ ] 后续迭代 SHA、tag 和 API/Web 镜像标签已冻结。
+- [ ] 生产配置差异核验通过，密钥未进入仓库或构建产物。
+- [ ] 备份、恢复和回滚证据对应后续迭代版本。
+- [ ] DirectMail DNS 与生产投递人工确认通过。
 - [ ] OSS 私有、加密、权限与生命周期复核通过。
-- [ ] 密码重置投递由持久 Worker 任务完成，SMTP 失败不影响中性响应；待发布演练复核。
-- [ ] 灰度范围、观察窗口、回滚负责人和 No-Go 阈值已批准。
+- [ ] 密码重置投递在生产 Worker 上完成成功与失败演练。
+- [ ] 生产通知渠道复核通过。
+- [ ] 后续迭代灰度范围、观察窗口、回滚负责人和 No-Go 阈值已批准。
 
 ## 8. 回滚
 
@@ -317,3 +318,4 @@ curl --fail --silent --show-error https://<prod-domain>/health/ready
 | v1.3 | 2026-10-20 | 将候选发布基线更新为 `19cd750`，记录 CI run `39398687660` 的 quality、container 与 WebKit 三 job 全绿；待打 annotated tag 完成冻结 |
 | v1.4 | 2026-10-20 | 增加脱敏生产配置核对脚本；校验加密密钥长度、运维令牌强度、告警令牌和 HTTPS Origin；补齐镜像启动与签字证据 |
 | v1.5 | 2026-10-20 | 补齐 Docker Compose 完整栈部署：迁移/API/Worker/告警依赖顺序、Compose 变量模板、外部 TLS 边界和健康观察命令 |
+| v1.7 | 2026-10-23 | 同步 `v0.1.0` 正式发布与线上健康事实；将原发布阻断清单转为后续迭代 Go/No-Go，并更新镜像基线为 `v0.1.0` |

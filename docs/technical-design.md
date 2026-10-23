@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v0.23 |
-| 文档状态 | 发布候选；隐私与可观测门禁已通过，G4A 行为矩阵已通过，工程与生产依赖门禁已通过；生产复核与发布批准待完成 |
+| 文档版本 | v0.24 |
+| 文档状态 | `v0.1.0` 已正式发布并在线运行；最新 `main` 处于发布后后续迭代；隐私与可观测门禁已通过，G4A 行为矩阵已通过 |
 | 更新日期 | 2026-10-23 |
 | 需求依据 | `docs/requirements.md` v1.6 |
 | 产品依据 | `docs/product-design.md` v1.6 |
@@ -407,7 +407,7 @@ P0 不新增消息队列依赖，采用 PostgreSQL 任务表：
 - `staging`/`production` 在 API 和 Worker 装配入口执行配置 fail-fast：缺少 LLM、SMTP、私有 OSS 凭据、HTTPS 重置链接、Secure Cookie 或出现 localhost 来源时拒绝启动。
 - 生产 Worker 使用 `technical-interview-agent worker` 启动，注册 `SIGINT`/`SIGTERM`，按 `WORKER_CONCURRENCY` 并发轮询，并受 `WORKER_MAX_RUNTIME_SECONDS` 和 `WORKER_IDLE_SECONDS` 约束；退出时关闭 LLM、OSS 和数据库资源。
 - 生产镜像使用非 root UID/GID `10001`，根文件系统只读，`/tmp` 使用受限 tmpfs。`deploy/production.compose.yaml` 将迁移、API 和 Worker 拆为独立服务；Worker 通过心跳文件暴露健康状态。
-- 默认质量门禁为 `166 passed, 51 skipped`、mypy `112 files`；集成门禁的历史证据包含 `198 passed` 与后续 `206 passed`，两者均保留时点上下文。
+- 当前默认质量门禁为 `242 passed, 106 skipped`、mypy `144 files`；集成门禁的历史证据包含 `198 passed`、`206 passed` 与后续完整套件 `346 passed`，均保留时点上下文。
 - 当前数据库迁移头为 `7e2b4c6d8f10`，包含密码重置加密投递、持久任务类型和告警送达证据。
 - 原始简历使用阿里云 OSS 私有桶；适配器使用 OSS V1 签名，对象键统一加 `OSS_PREFIX`，删除对 404 幂等。真实桶已验收简历上传、读取与删除。
 - WebKit 兼容性由 GitHub Actions `ubuntu-latest` 的 Playwright WebKit 覆盖，项目为 Desktop Safari 与 iPhone 13；托管 runner 与本地 Ubuntu 24.04 容器均已实跑 `14 passed`。
@@ -492,3 +492,4 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 | v0.21 | 2026-10-20 | 修正发布候选状态表述：生产复核与发布批准待完成，避免把本地恢复/告警演练误写为未关闭 |
 | v0.22 | 2026-10-22 | 接受 ADR-0009：增加私有资料上传、pgvector + BM25 风格词法 + RRF、Ollama `mxbai-embed-large:latest`、BM25 降级、90 天保留和来源删除语义 |
 | v0.23 | 2026-10-23 | 同步 `DR-08`、`DR-09`、ADR-0010 和需求 v1.6；明确私有资料、共享资料与移动端状态统一由方案总览索引 |
+| v0.24 | 2026-10-23 | 同步 `v0.1.0` 正式发布与线上健康事实；将当前阶段改为发布后后续迭代 |

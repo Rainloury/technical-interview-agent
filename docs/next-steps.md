@@ -2,25 +2,25 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 文档版本 | v4.0 |
-| 文档状态 | 发布候选；工程门禁、Worker、部署资产、密码重置异步投递、本地恢复/回滚和告警送达演练已通过，生产复核待补齐 |
+| 文档版本 | v4.1 |
+| 文档状态 | `v0.1.0` 已正式发布；最新 `main` 处于发布后后续迭代；隐私与可观测门禁已通过，G4A 行为矩阵已通过 |
 | 更新日期 | 2026-10-23 |
-| 当前阶段 | 发布候选（release candidate）；生产复核与发布批准待完成，尚未上线 |
-| 当前目标 | 冻结生产发布 SHA，并补齐[发布运行手册](./release-runbook.md)中的生产复核，再取得发布批准 |
-| 后续目标 | 灰度观测稳定后完成正式发布与复盘 |
+| 当前阶段 | `v0.1.0` 已正式发布并在线运行；最新 `main` 处于发布后后续迭代 |
+| 当前目标 | 为最新 `main` 冻结后续迭代 SHA，完成生产差异复核，再取得后续灰度批准 |
+| 后续目标 | 后续迭代灰度稳定后推进下一版本，并完成移动端商店发布与复盘 |
 | 审批依据 | `docs/decision-register.md` v1.0 |
 
-> `DR-01` 至 `DR-09` 已批准，ADR-0001 至 ADR-0010 已接受。全部业务切片、隐私删除、保留清理、私有与共享资料和运维聚合指标已落地；隐私与可观测门禁已通过，G4A 行为矩阵已通过，真实 provider 三档单轮 eval、完整面试成本 P95、生产依赖、生产 Worker 入口、部署资产和密码重置异步投递均通过。当前处于发布候选阶段；本地隔离恢复、回滚和五类告警送达演练已通过，生产灾备/镜像/网络/通知渠道复核仍须按[发布运行手册](./release-runbook.md)关闭。跨方案索引见[方案总览](./solution-map.md)。
+> `DR-01` 至 `DR-09` 已批准，ADR-0001 至 ADR-0010 已接受。全部业务切片、隐私删除、保留清理、私有与共享资料和运维聚合指标已落地。`v0.1.0` 已于 2026-10-22 正式发布，线上 `https://it.rainstone.top` 的 live/ready 健康检查通过；最新 `main` 处于发布后后续迭代，若要替换线上版本仍须按[发布运行手册](./release-runbook.md)重新冻结 SHA 并完成生产差异复核。跨方案索引见[方案总览](./solution-map.md)。
 
 ## 1. 当前完成度
 
 | 事项 | 状态 | 证据 | 是否阻塞下一步 |
 | --- | --- | --- | --- |
-| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.8 | 否 |
+| 全流程与阶段门禁 | 已完成 | `docs/development-flow.md` v3.9 | 否 |
 | 需求基线 | 已完成 | `docs/requirements.md` v1.6 | 否 |
 | 产品方案 | 已完成 | `docs/product-design.md` v1.6 | 否 |
 | 需求决策 `DR-01` 至 `DR-09` | `approved` | `docs/decision-register.md` v1.0 | 否 |
-| 技术设计 | 已完成 | `docs/technical-design.md` v0.23 | 否 |
+| 技术设计 | 已完成 | `docs/technical-design.md` v0.24 | 否 |
 | 数据模型与状态机 | 已完成 | `docs/data-model.md` v0.9、`docs/state-machine.md` v0.5 | 否 |
 | 接口与安全基线 | 已完成 | `docs/api-contract.md` v0.10、`docs/threat-model.md` v0.7 | 否 |
 | ADR-0001 至 ADR-0010 | 全部 `accepted` | `docs/adr/` | 否 |
@@ -46,7 +46,7 @@
 | 检索问答切片 | `passed` | owner 鉴权、幂等、任意 URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放、终态互斥和前端历史重开通过 | 否 |
 | 模拟面试与报告切片 | `passed` | 数据库硬截止、操作幂等、202 中性响应、评分阈值、两层追问、跳过/结束分支、评分失败收口、报告解锁、错题与薄弱点、双视口 E2E 通过 | 否 |
 | 隐私与可观测门禁 | `passed` | 账号删除、对象清理、保留清理、审计保留、删除状态、ops metrics、确定性阈值和双视口隐私 E2E 通过 | 否 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（112 files）、`166 passed, 51 skipped` 默认测试和 `alembic check` | 否 |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（144 files）、`242 passed, 106 skipped` 默认测试和 `alembic check` | 否 |
 | 生产配置 fail-fast | `passed` | `staging`/`production` 启动校验 LLM、SMTP、OSS、HTTPS 重置链接、Secure Cookie 和非 localhost 来源 | 否 |
 | 生产 Worker 入口 | `passed` | `technical-interview-agent worker`；配置 fail-fast、信号停机、并发上限、运行时限和网络资源清理有测试 | 否 |
 | 部署资产 | `passed` | `Dockerfile`、`deploy/production.compose.yaml`、非 root 运行、只读根文件系统、迁移/API/Worker 分离、健康检查和 CI 镜像构建门禁 | 否 |
@@ -55,9 +55,10 @@
 | 私有与共享资料 | `passed` | `user_documents`、`shared_documents`、管理员角色、RAG 检索、证据冻结与删除边界已实现；ADR-0009、ADR-0010 已接受 | 否 |
 | Android 发布接入 | `implemented` | Capacitor 8 壳、签名模板、GitHub Actions 和资产契约测试已落地；Play Console 提交待人工完成 | 否 |
 | iOS 发布接入 | `preflight_passed` | 原生 `WKWebView` 工程、共享 Scheme、隐私 Manifest 和预检脚本已落地；签名、TestFlight 与商店提交待完成 | 否 |
-| 发布运行资产 | `blocked` | [发布与回滚运行手册](./release-runbook.md) v1.6；本地恢复、回滚和告警演练通过，生产 SHA、环境、灾备、邮件、OSS、异步重置与通知渠道复核未补齐 | 是 |
+| 正式发布 `v0.1.0` | `published` | GitHub Release 2026-10-22；tag `v0.1.0` 指向 `4e98038`；线上 live/ready 健康 | 否 |
+| 后续迭代部署 | `pending` | 最新 main 为 `e26c9f9`；需冻结后续 tag、镜像和生产差异，再批准灰度 | 是 |
 
-隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、生产 DirectMail/OSS、部署资产、密码重置异步投递和 GitHub Actions WebKit 均已关闭。当前处于发布候选阶段，本地恢复、回滚和告警送达演练已通过；生产环境与通知渠道复核仍阻断灰度上线。
+正式发布、隐私与可观测门禁、G4A 行为矩阵、完整面试成本 P95、部署资产、密码重置异步投递和 GitHub Actions WebKit 均已关闭。线上 `v0.1.0` 健康运行；最新 `main` 的后续迭代仍需冻结新 SHA、复核生产差异并取得灰度批准。
 
 ## 2. 执行顺序
 
@@ -77,9 +78,9 @@ flowchart TD
     N10 --> N11["简历纵向切片：验收通过"]
     N11 --> N12["检索问答切片：验收通过"]
     N12 --> N13["模拟面试与报告切片：验收通过"]
-    N13 --> N14["当前：发布候选"]
-    N14 --> N15["关闭发布运行阻断项"]
-    N15 --> N16["发布批准与灰度上线：待执行"]
+    N13 --> N14["v0.1.0 正式发布：已完成"]
+    N14 --> N15["后续迭代与移动端发布工程：进行中"]
+    N15 --> N16["后续迭代 SHA、生产差异复核与灰度：待执行"]
 ```
 
 原则：
@@ -297,3 +298,4 @@ flowchart TD
 | v3.4 | 2026-10-18 | 密码重置改为加密密文 + 持久任务异步投递，新增重试、死信和密文清理；关闭同步 SMTP 阻断项 |
 | v3.9 | 2026-10-20 | 同步发布运行手册 v1.2：明确生产 SHA、配置、灾备、邮件、OSS、异步重置、通知渠道和发布批准八类未关闭门禁 |
 | v4.0 | 2026-10-23 | 同步 `DR-09`、ADR-0010、私有/共享资料、Android Capacitor 壳和 iOS 预检状态；补齐方案总览入口和当前文档版本 |
+| v4.1 | 2026-10-23 | 同步 `v0.1.0` 正式发布与线上健康事实；将下一步从发布候选收尾改为后续迭代 SHA、生产差异和移动端发布 |

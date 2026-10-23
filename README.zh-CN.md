@@ -4,10 +4,10 @@
 
 一个可自托管的技术面试平台，包含有界回答智能体、私有资料检索和异步 Worker。
 
-> 当前状态：发布候选（release candidate）。隐私与可观测门禁、真实 provider
-> 三档单轮 eval、G4A 行为矩阵、整场成本门禁、本地恢复/回滚和告警送达演练均已
-> 通过；生产环境复核、发布 SHA 冻结与发布批准待完成。详细发布证据与内部验收
-> 记录见 [`docs/README.md`](docs/README.md) 和
+> 当前状态：**`v0.1.0` 已正式发布，线上站点为
+> [it.rainstone.top](https://it.rainstone.top)**。最新 `main` 处于发布后后续迭代，
+> 包含共享资料管理与移动端发布工程。发布事实、验证证据和下一步灰度边界见
+> [`docs/README.md`](docs/README.md)、[`CHANGELOG.md`](CHANGELOG.md) 和
 > [`docs/release-runbook.md`](docs/release-runbook.md)。
 
 应用提供：
