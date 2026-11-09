@@ -324,6 +324,18 @@ async def test_delete_source_removes_private_material_and_protected_answers(
         headers={**_write_headers(client), "Idempotency-Key": key},
     )
     assert replay.status_code == 204
+    assert (storage._root / source.object_key).exists()
+
+    worker = ResumeWorker(
+        settings=app_client.app.state.settings,
+        session_factory=app_client.session_factory,
+        storage=storage,
+        llm=StaticLlm(),
+        prompt_loader=PromptLoader("app/prompts"),
+        worker_id="delete-source-worker",
+    )
+    result = await worker.run_once()
+    assert result.outcome == "succeeded"
     assert not (storage._root / source.object_key).exists()
 
     async with app_client.session_factory() as session:

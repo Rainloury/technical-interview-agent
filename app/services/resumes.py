@@ -549,17 +549,3 @@ async def delete_resume_source(
         max_attempts=settings.worker_max_attempts,
     )
     await session.commit()
-
-    try:
-        await storage.delete(source.object_key)
-    except Exception:
-        async with session.begin():
-            persisted = await session.get(ResumeFile, source.id)
-            if persisted is not None:
-                persisted.storage_state = "delete_failed"
-        return None
-    async with session.begin():
-        persisted = await session.get(ResumeFile, source.id)
-        if persisted is not None:
-            persisted.storage_state = "deleted"
-            persisted.deleted_at = now

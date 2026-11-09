@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any, Self
 
 import pytest
 from app.config import Settings
@@ -122,18 +123,52 @@ async def db_session(settings: Settings) -> AsyncIterator[AsyncSession]:
         await engine.dispose()
 
 
+class TestRedisPipeline:
+    """按真实 redis pipeline 顺序返回 incr/expire 的结果。"""
+
+    def __init__(self, redis: Any) -> None:
+        self._redis = redis
+        self._commands: list[tuple[str, str, int]] = []
+
+    def incr(self, key: str) -> Self:
+        self._commands.append(("incr", key, 0))
+        return self
+
+    def expire(self, key: str, seconds: int) -> Self:
+        self._commands.append(("expire", key, seconds))
+        return self
+
+    async def execute(self) -> list[int | bool]:
+        results: list[int | bool] = []
+        for command, key, seconds in self._commands:
+            if command == "incr":
+                results.append(await self._redis.incr(key))
+            else:
+                results.append(await self._redis.set_expiration(key, seconds))
+        self._commands.clear()
+        return results
+
+    async def aclose(self) -> None:
+        return None
+
+
 class TestRedis:
     """供认证测试使用的小型确定性 Redis 表面。"""
 
     def __init__(self) -> None:
         self.counts: dict[str, int] = {}
+        self.expirations: dict[str, int] = {}
+
+    def pipeline(self, *, transaction: bool = True) -> TestRedisPipeline:
+        del transaction
+        return TestRedisPipeline(self)
 
     async def incr(self, key: str) -> int:
         self.counts[key] = self.counts.get(key, 0) + 1
         return self.counts[key]
 
-    async def expire(self, key: str, seconds: int) -> bool:
-        del key, seconds
+    async def set_expiration(self, key: str, seconds: int) -> bool:
+        self.expirations[key] = seconds
         return True
 
     async def aclose(self) -> None:

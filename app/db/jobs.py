@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select, text, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import AsyncJob
@@ -156,6 +157,18 @@ async def enqueue_job(
     if next_run_at is not None:
         values["next_run_at"] = next_run_at
     job = AsyncJob(**values)
-    session.add(job)
-    await session.flush()
+    try:
+        async with session.begin_nested():
+            session.add(job)
+            await session.flush()
+    except IntegrityError:
+        # 并发请求可能已插入同一幂等键;返回数据库里已存在的那一条。
+        existing = (
+            await session.execute(
+                select(AsyncJob).where(AsyncJob.idempotency_key == idempotency_key)
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            raise
+        return existing
     return job

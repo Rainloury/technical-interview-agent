@@ -33,6 +33,15 @@ QA_MODEL_NAME = "DEFAULT"
 QA_PROMPT_VERSION = "1.1.0"
 
 
+class QaContractError(Exception):
+    """问答事件与终态的确定性契约冲突,不可重试。"""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
 def _idempotency_key(owner_user_id: uuid.UUID, client_key: str) -> str:
     material = f"qa\0{owner_user_id.hex}\0{client_key}".encode()
     return hashlib.sha256(material).hexdigest()
@@ -89,7 +98,7 @@ async def append_event(
     """在锁定所属请求行时分配一个持久序列号。"""
 
     if event_type not in {"started", "delta", "evidence", "completed", "error"}:
-        raise ValueError("unsupported QA event type")
+        raise QaContractError("qa_event_type_invalid", "unsupported QA event type")
     terminal_event = (
         await session.execute(
             select(QaStreamEvent)
@@ -101,15 +110,19 @@ async def append_event(
         )
     ).scalar_one_or_none()
     if event_type in {"completed", "error"} and terminal_event is not None:
-        raise ValueError("terminal QA event already exists")
+        raise QaContractError("qa_terminal_conflict", "terminal QA event already exists")
     if request.state in {"completed", "failed"} and event_type not in {"completed", "error"}:
-        raise ValueError("terminal QA requests cannot append progress events")
+        raise QaContractError(
+            "qa_terminal_conflict", "terminal QA requests cannot append progress events"
+        )
     if event_type == "completed" and request.answer_json is None:
-        raise ValueError("completed QA event requires a persisted answer")
+        raise QaContractError("qa_answer_missing", "completed QA event requires a persisted answer")
     if event_type == "completed" and request.state != "completed":
-        raise ValueError("completed QA event requires completed request state")
+        raise QaContractError(
+            "qa_state_conflict", "completed QA event requires completed request state"
+        )
     if event_type == "error" and request.state != "failed":
-        raise ValueError("error QA event requires failed request state")
+        raise QaContractError("qa_state_conflict", "error QA event requires failed request state")
     seq = request.last_event_seq + 1
     event = QaStreamEvent(
         qa_request_id=request.id,
@@ -382,7 +395,7 @@ def completion_payload(
     """根据持久化回答和冻结证明构建最终 SSE 载荷。"""
 
     if request.answer_json is None:
-        raise ValueError("completed QA request is missing its answer")
+        raise QaContractError("qa_answer_missing", "completed QA request is missing its answer")
     return {
         "answer": request.answer_json,
         "evidence": [item.model_dump(mode="json") for item in public_evidence(evidence)],

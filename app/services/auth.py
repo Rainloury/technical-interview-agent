@@ -9,7 +9,9 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import Request
+from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import RedisError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +35,17 @@ from app.security import (
 )
 
 logger = get_logger("app.auth")
+
+
+def _is_unique_violation(exc: IntegrityError) -> bool:
+    """仅识别 PostgreSQL 唯一约束冲突(23505),不把其他约束失败当并发注册。"""
+
+    original = getattr(exc, "orig", None)
+    sqlstate = getattr(original, "sqlstate", None)
+    if sqlstate == "23505":
+        return True
+    constraint = getattr(getattr(original, "diag", None), "constraint_name", None)
+    return isinstance(constraint, str) and constraint == "uq_users_email_normalized"
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,19 +136,11 @@ async def _limited(request: Request, key: str, limit: int) -> None:
     bucket = f"auth:rate:{key}"
     redis = request.app.state.redis
     try:
-        count = await redis.incr(bucket)
-        if count == 1:
-            await redis.expire(bucket, 60)
-        if count > limit:
-            raise AppError(
-                status_code=429,
-                code="rate_limited",
-                message="请求过于频繁，请稍后重试",
-                retryable=True,
-            )
-    except AppError:
-        raise
-    except RedisError as exc:
+        pipe = redis.pipeline(transaction=True)
+        pipe.incr(bucket)
+        pipe.expire(bucket, 60)
+        count, _ = await pipe.execute()
+    except (RedisError, RedisConnectionError, RedisTimeoutError, OSError) as exc:
         logger.warning("auth rate limiter unavailable", error_code=type(exc).__name__)
         raise AppError(
             status_code=503,
@@ -143,6 +148,13 @@ async def _limited(request: Request, key: str, limit: int) -> None:
             message="认证服务暂时不可用",
             retryable=True,
         ) from exc
+    if count > limit:
+        raise AppError(
+            status_code=429,
+            code="rate_limited",
+            message="请求过于频繁，请稍后重试",
+            retryable=True,
+        )
 
 
 async def register_user(
@@ -176,9 +188,11 @@ async def register_user(
             user = User(email_normalized=normalized, password_hash=password_hash)
             session.add(user)
             await session.flush()
-    except IntegrityError:
-        # 并发注册与已存在账户具有相同的中性结果。
-        pass
+    except IntegrityError as exc:
+        # 只有 email_normalized 唯一冲突才对应"账户已存在"的中性结果;
+        # 其他约束失败必须上抛,不能静默返回 202。
+        if not _is_unique_violation(exc):
+            raise
     await audit(
         session,
         action="register",

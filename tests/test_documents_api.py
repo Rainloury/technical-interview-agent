@@ -390,6 +390,57 @@ async def test_document_upload_cleans_object_when_commit_fails(
     assert storage.deleted
 
 
+async def test_document_upload_cleans_object_when_flush_after_put_fails(
+    app_client: AppHarness,
+    settings: Any,
+    create_user: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner = create_user("doc-flush-fail@example.com")
+    async with app_client.session_factory() as session:
+        session.add(owner)
+        await session.commit()
+
+    class TrackingStorage:
+        def __init__(self) -> None:
+            self.put_keys: list[str] = []
+            self.deleted: list[str] = []
+
+        async def put(self, key: str, _content: bytes) -> None:
+            self.put_keys.append(key)
+
+        async def get(self, _key: str) -> bytes:
+            raise AssertionError("get should not be called")
+
+        async def delete(self, key: str) -> None:
+            self.deleted.append(key)
+
+    storage = TrackingStorage()
+
+    async def failing_enqueue(*args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise RuntimeError("enqueue failed after put")
+
+    monkeypatch.setattr("app.services.documents.enqueue_job", failing_enqueue)
+    async with app_client.session_factory() as session:
+        with pytest.raises(RuntimeError, match="enqueue failed after put"):
+            await upload_document(
+                session,
+                storage,
+                owner,
+                DocumentUpload(
+                    filename="notes.md",
+                    declared_mime="text/markdown",
+                    content=b"# notes\n\nprivate",
+                ),
+                idempotency_key="flush-after-put-key",
+                settings=settings,
+            )
+
+    assert storage.put_keys
+    assert storage.deleted == storage.put_keys
+
+
 @pytest.mark.parametrize(
     ("filename", "content", "mime", "status", "code"),
     [

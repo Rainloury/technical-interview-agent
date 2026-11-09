@@ -25,7 +25,7 @@ from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
 from app.qa_contracts import QaAnswerOutput, tokenize
 from app.rag.ollama import OllamaEmbeddingError
-from app.services.qa import append_event, public_evidence
+from app.services.qa import QaContractError, append_event, public_evidence
 from app.storage import LocalPrivateStorage
 from app.worker import ResumeWorker
 from fastapi.testclient import TestClient
@@ -757,7 +757,7 @@ async def test_terminal_state_event_mutual_exclusion_and_dirty_answer_shape(
             payload={"answer": request.answer_json},
         )
         request.state = "failed"
-        with pytest.raises(ValueError, match="terminal QA event already exists"):
+        with pytest.raises(QaContractError, match="terminal QA event already exists"):
             await append_event(
                 session,
                 request,

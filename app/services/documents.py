@@ -24,6 +24,12 @@ from app.schemas.documents import (
     DocumentItem,
     DocumentPage,
 )
+from app.services._storage_tx import (
+    UploadObjects,
+    put_object,
+    rollback_with_object_cleanup,
+    uploaded_object_keys,
+)
 from app.storage import ObjectStorage
 
 SUPPORTED_MIME_BY_SUFFIX = {
@@ -186,7 +192,8 @@ async def _store_document(
     *,
     idempotency_key: str,
     settings: Settings,
-) -> tuple[DocumentAccepted, str | None]:
+    uploaded: UploadObjects,
+) -> DocumentAccepted:
     """在不提交的情况下验证、私有存储并将一个文档入队。"""
 
     filename = safe_document_name(upload.filename)
@@ -219,13 +226,10 @@ async def _store_document(
                 message="该幂等键已用于其他资料",
             )
         existing_document = await _owned_document(session, user, existing_job.resource_id)
-        return (
-            DocumentAccepted(
-                document_id=existing_document.id,
-                state=existing_document.state,
-                created_at=existing_document.created_at,
-            ),
-            None,
+        return DocumentAccepted(
+            document_id=existing_document.id,
+            state=existing_document.state,
+            created_at=existing_document.created_at,
         )
 
     existing_by_key = (
@@ -244,13 +248,10 @@ async def _store_document(
                 code="idempotency_conflict",
                 message="该幂等键已用于其他资料",
             )
-        return (
-            DocumentAccepted(
-                document_id=existing_by_key.id,
-                state=existing_by_key.state,
-                created_at=existing_by_key.created_at,
-            ),
-            None,
+        return DocumentAccepted(
+            document_id=existing_by_key.id,
+            state=existing_by_key.state,
+            created_at=existing_by_key.created_at,
         )
 
     stored_document = (
@@ -265,15 +266,11 @@ async def _store_document(
         )
     ).scalar_one_or_none()
     object_key = f"{user.id.hex}/documents/{uuid.uuid4().hex}"
-    uploaded_object: str | None = None
     if stored_document is not None and stored_document.state in {"uploaded", "processing", "ready"}:
-        return (
-            DocumentAccepted(
-                document_id=stored_document.id,
-                state=stored_document.state,
-                created_at=stored_document.created_at,
-            ),
-            None,
+        return DocumentAccepted(
+            document_id=stored_document.id,
+            state=stored_document.state,
+            created_at=stored_document.created_at,
         )
     if stored_document is None:
         document = UserDocument(
@@ -289,8 +286,7 @@ async def _store_document(
             retention_expires_at=datetime.now(UTC) + timedelta(days=90),
         )
         session.add(document)
-        await storage.put(object_key, upload.content)
-        uploaded_object = object_key
+        await put_object(storage, object_key, upload.content, uploaded=uploaded)
         await session.flush()
     else:
         document = stored_document
@@ -302,8 +298,7 @@ async def _store_document(
         document.failure_code = None
         document.error_message = None
         document.completed_at = None
-        await storage.put(document.object_key, upload.content)
-        uploaded_object = document.object_key
+        await put_object(storage, document.object_key, upload.content, uploaded=uploaded)
     document.idempotency_key = stored_key
     document.updated_at = datetime.now(UTC)
     await session.flush()
@@ -317,13 +312,10 @@ async def _store_document(
         request_fingerprint=fingerprint,
         max_attempts=settings.worker_max_attempts,
     )
-    return (
-        DocumentAccepted(
-            document_id=document.id,
-            state=document.state,
-            created_at=document.created_at,
-        ),
-        uploaded_object,
+    return DocumentAccepted(
+        document_id=document.id,
+        state=document.state,
+        created_at=document.created_at,
     )
 
 
@@ -338,22 +330,21 @@ async def upload_document(
 ) -> DocumentAccepted:
     """验证、私有存储、入队并提交一个文档。"""
 
-    uploaded_object: str | None = None
+    uploaded = uploaded_object_keys()
     try:
-        accepted, uploaded_object = await _store_document(
+        accepted = await _store_document(
             session,
             storage,
             user,
             upload,
             idempotency_key=idempotency_key,
             settings=settings,
+            uploaded=uploaded,
         )
         await session.commit()
         return accepted
     except Exception:
-        await session.rollback()
-        if uploaded_object is not None:
-            await storage.delete(uploaded_object)
+        await rollback_with_object_cleanup(session, storage, uploaded)
         raise
 
 
@@ -384,27 +375,24 @@ async def upload_documents(
             message="同一批次不能重复上传相同文件",
         )
     accepted: list[DocumentAccepted] = []
-    uploaded_objects: list[str] = []
+    uploaded = uploaded_object_keys()
     try:
         for upload in uploads:
             content_hash = hashlib.sha256(upload.content).hexdigest()
             item_key = f"{idempotency_key}:{upload.filename}:{content_hash}"
-            accepted_item, uploaded_object = await _store_document(
+            accepted_item = await _store_document(
                 session,
                 storage,
                 user,
                 upload,
                 idempotency_key=item_key,
                 settings=settings,
+                uploaded=uploaded,
             )
             accepted.append(accepted_item)
-            if uploaded_object is not None:
-                uploaded_objects.append(uploaded_object)
         await session.commit()
     except Exception:
-        await session.rollback()
-        for object_key in uploaded_objects:
-            await storage.delete(object_key)
+        await rollback_with_object_cleanup(session, storage, uploaded)
         raise
     return DocumentBatchAccepted(
         documents=accepted,

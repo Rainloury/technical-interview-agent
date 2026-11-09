@@ -27,6 +27,12 @@ from app.schemas.documents import (
     DocumentItem,
     DocumentPage,
 )
+from app.services._storage_tx import (
+    UploadObjects,
+    put_object,
+    rollback_with_object_cleanup,
+    uploaded_object_keys,
+)
 from app.services.auth import audit
 from app.services.documents import (
     DocumentUpload,
@@ -109,7 +115,8 @@ async def _store_document(
     *,
     idempotency_key: str,
     settings: Settings,
-) -> tuple[DocumentAccepted, str | None]:
+    uploaded: UploadObjects,
+) -> DocumentAccepted:
     filename = safe_document_name(upload.filename)
     detected_mime = validate_document_identity(
         filename=filename,
@@ -135,13 +142,10 @@ async def _store_document(
                 message="该幂等键已用于其他共享资料",
             )
         existing = await _document(session, existing_job.resource_id)
-        return (
-            DocumentAccepted(
-                document_id=existing.id,
-                state=existing.state,
-                created_at=existing.created_at,
-            ),
-            None,
+        return DocumentAccepted(
+            document_id=existing.id,
+            state=existing.state,
+            created_at=existing.created_at,
         )
 
     existing_by_hash = (
@@ -155,13 +159,10 @@ async def _store_document(
         )
     ).scalar_one_or_none()
     if existing_by_hash is not None:
-        return (
-            DocumentAccepted(
-                document_id=existing_by_hash.id,
-                state=existing_by_hash.state,
-                created_at=existing_by_hash.created_at,
-            ),
-            None,
+        return DocumentAccepted(
+            document_id=existing_by_hash.id,
+            state=existing_by_hash.state,
+            created_at=existing_by_hash.created_at,
         )
 
     document = SharedDocument(
@@ -178,7 +179,7 @@ async def _store_document(
     )
     session.add(document)
     await session.flush()
-    await storage.put(document.object_key, upload.content)
+    await put_object(storage, document.object_key, upload.content, uploaded=uploaded)
     await enqueue_job(
         session,
         owner_user_id=user.id,
@@ -197,13 +198,10 @@ async def _store_document(
         result="success",
         request_id="shared-upload",
     )
-    return (
-        DocumentAccepted(
-            document_id=document.id,
-            state=document.state,
-            created_at=document.created_at,
-        ),
-        document.object_key,
+    return DocumentAccepted(
+        document_id=document.id,
+        state=document.state,
+        created_at=document.created_at,
     )
 
 
@@ -216,22 +214,21 @@ async def upload_document(
     idempotency_key: str,
     settings: Settings,
 ) -> DocumentAccepted:
-    uploaded_key: str | None = None
+    uploaded = uploaded_object_keys()
     try:
-        accepted, uploaded_key = await _store_document(
+        accepted = await _store_document(
             session,
             storage,
             user,
             upload,
             idempotency_key=idempotency_key,
             settings=settings,
+            uploaded=uploaded,
         )
         await session.commit()
         return accepted
     except Exception:
-        await session.rollback()
-        if uploaded_key is not None:
-            await storage.delete(uploaded_key)
+        await rollback_with_object_cleanup(session, storage, uploaded)
         raise
 
 
@@ -256,28 +253,25 @@ async def upload_documents(
             message="同一批次不能重复上传相同文件",
         )
     accepted: list[DocumentAccepted] = []
-    uploaded_keys: list[str] = []
+    uploaded = uploaded_object_keys()
     try:
         for upload in uploads:
             item_key = (
                 f"{idempotency_key}:{upload.filename}:{hashlib.sha256(upload.content).hexdigest()}"
             )
-            item, uploaded_key = await _store_document(
+            item = await _store_document(
                 session,
                 storage,
                 user,
                 upload,
                 idempotency_key=item_key,
                 settings=settings,
+                uploaded=uploaded,
             )
             accepted.append(item)
-            if uploaded_key is not None:
-                uploaded_keys.append(uploaded_key)
         await session.commit()
     except Exception:
-        await session.rollback()
-        for uploaded_key in uploaded_keys:
-            await storage.delete(uploaded_key)
+        await rollback_with_object_cleanup(session, storage, uploaded)
         raise
     return DocumentBatchAccepted(
         documents=accepted,

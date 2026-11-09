@@ -77,6 +77,7 @@ from app.rag.retrieval import hybrid_retrieve
 from app.resume_contracts import ResumeAnalysisOutput, ResumeQuestionsOutput
 from app.services.qa import (
     QA_PROMPT_VERSION,
+    QaContractError,
     append_event,
     apply_answer,
     completion_payload,
@@ -306,6 +307,9 @@ class ResumeWorker:
             elif isinstance(exc, PromptError):
                 retryable = False
                 code = "prompt_invalid"
+            elif isinstance(exc, QaContractError):
+                retryable = False
+                code = exc.code
             detail = (
                 _safe_prompt_detail(exc)
                 if isinstance(exc, PromptError)
