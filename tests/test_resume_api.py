@@ -27,6 +27,7 @@ from app.llm.models import ModelTier
 from app.prompts.loader import PromptLoader
 from app.qa_contracts import QaAnswerOutput
 from app.resume_contracts import ResumeAnalysisOutput, ResumeQuestionsOutput
+from app.services.resumes import ResumeUpload, upload_resume
 from app.storage import LocalPrivateStorage
 from app.worker import ResumeWorker, ResumeWorkerError, _safe_error_detail
 from fastapi.testclient import TestClient
@@ -199,6 +200,59 @@ async def test_upload_rejects_oversized_body_without_creating_a_job(
     assert response.json()["error"]["code"] == "file_too_large"
     async with app_client.session_factory() as session:
         assert (await session.execute(select(AsyncJob))).scalars().all() == []
+
+
+async def test_resume_upload_cleanup_failure_does_not_mask_original_error(
+    app_client: AppHarness,
+    settings: Any,
+    create_user: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner = create_user("resume-cleanup@example.com")
+    async with app_client.session_factory() as session:
+        session.add(owner)
+        await session.commit()
+
+    class TrackingStorage:
+        def __init__(self) -> None:
+            self.put_keys: list[str] = []
+            self.deleted: list[str] = []
+
+        async def put(self, key: str, _content: bytes) -> None:
+            self.put_keys.append(key)
+
+        async def get(self, _key: str) -> bytes:
+            raise AssertionError("get should not be called")
+
+        async def delete(self, key: str) -> None:
+            self.deleted.append(key)
+            raise OSError("cleanup unavailable")
+
+    async def failing_flush(self: Any) -> None:
+        raise RuntimeError("db flush failed after put")
+
+    monkeypatch.setattr(
+        "app.services.resumes.AsyncSession.flush",
+        failing_flush,
+    )
+    storage = TrackingStorage()
+    async with app_client.session_factory() as session:
+        with pytest.raises(RuntimeError, match="db flush failed after put"):
+            await upload_resume(
+                session,
+                storage,
+                owner,
+                ResumeUpload(
+                    filename="resume.pdf",
+                    declared_mime="application/pdf",
+                    content=make_pdf("Python backend engineer"),
+                ),
+                idempotency_key="cleanup-failure-key",
+                settings=settings,
+            )
+
+    assert storage.put_keys
+    assert storage.deleted == storage.put_keys
 
 
 async def test_docx_upload_and_retry_copy_source_to_new_object(

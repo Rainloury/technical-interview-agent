@@ -36,6 +36,11 @@ from app.schemas.resume import (
 )
 from app.services._idempotency import operation_key
 from app.services._ownership import get_owned
+from app.services._storage_tx import (
+    put_object,
+    rollback_with_object_cleanup,
+    uploaded_object_keys,
+)
 from app.storage import ObjectStorage
 
 DELETED_FILENAME = "已删除简历"
@@ -173,7 +178,8 @@ async def upload_resume(
         return await _accepted(session, existing, user)
 
     object_key = f"{user.id.hex}/{uuid.uuid4().hex}"
-    await storage.put(object_key, upload.content)
+    uploaded = uploaded_object_keys()
+    await put_object(storage, object_key, upload.content, uploaded=uploaded)
     now = datetime.now(UTC)
     try:
         task = ResumeTask(
@@ -228,8 +234,7 @@ async def upload_resume(
             created_at=task.created_at,
         )
     except Exception:
-        await session.rollback()
-        await storage.delete(object_key)
+        await rollback_with_object_cleanup(session, storage, uploaded)
         raise
 
 
@@ -365,7 +370,8 @@ async def retry_resume_task(
             message="原始简历内容不可用，无法重试",
         ) from exc
     copied_key = f"{user.id.hex}/{uuid.uuid4().hex}"
-    await storage.put(copied_key, content)
+    uploaded = uploaded_object_keys()
+    await put_object(storage, copied_key, content, uploaded=uploaded)
     now = datetime.now(UTC)
     try:
         task = ResumeTask(
@@ -421,8 +427,7 @@ async def retry_resume_task(
             created_at=task.created_at,
         )
     except Exception:
-        await session.rollback()
-        await storage.delete(copied_key)
+        await rollback_with_object_cleanup(session, storage, uploaded)
         raise
 
 
