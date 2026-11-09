@@ -50,6 +50,9 @@ function DocumentRow({
         <span>
           {document.original_filename} · {formatDate(document.updated_at)}
         </span>
+        {document.state === "failed" && document.failure_code && (
+          <span className="document-failure-code">{document.failure_code}</span>
+        )}
       </div>
       <div className="document-meta">
         <span className={`document-scope document-scope--${document.visibility}`}>

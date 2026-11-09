@@ -72,7 +72,7 @@ from app.prompts.loader import PromptError, PromptLoader
 from app.qa_contracts import QaAnswerOutput
 from app.rag.chunking import split_document
 from app.rag.extraction import extract_document
-from app.rag.ollama import EmbeddingClient, OllamaEmbeddingClient
+from app.rag.ollama import EmbeddingClient, OllamaEmbeddingClient, OllamaEmbeddingError
 from app.rag.retrieval import hybrid_retrieve
 from app.resume_contracts import ResumeAnalysisOutput, ResumeQuestionsOutput
 from app.services.qa import (
@@ -300,7 +300,7 @@ class ResumeWorker:
         except Exception as exc:
             retryable = not isinstance(exc, ResumeWorkerError) or exc.retryable
             code = exc.code if isinstance(exc, ResumeWorkerError) else "worker_error"
-            if isinstance(exc, LlmClientError):
+            if isinstance(exc, (LlmClientError, OllamaEmbeddingError)):
                 retryable = exc.retryable
                 code = exc.code
             elif isinstance(exc, PromptError):

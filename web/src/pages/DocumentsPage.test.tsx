@@ -172,6 +172,28 @@ describe("DocumentsPage", () => {
     await waitFor(() => expect(attempts).toBe(2));
   });
 
+  it("shows the stable failure code for a failed document", async () => {
+    server.use(
+      authenticatedSessionHandler(),
+      documentsHandler([
+        {
+          ...READY_DOCUMENT,
+          id: "document-failed",
+          title: "失败资料",
+          state: "failed",
+          failure_code: "embedding_timeout",
+          error_message: "资料索引未完成，请重新上传",
+        },
+      ]),
+      sharedDocumentsHandler([]),
+    );
+    renderApp("/documents");
+
+    expect(await screen.findByText("索引失败")).toBeInTheDocument();
+    expect(screen.getByText(/embedding_timeout/)).toBeInTheDocument();
+    expect(screen.queryByText("资料索引未完成，请重新上传")).not.toBeInTheDocument();
+  });
+
   it("deletes a document after confirmation with csrf", async () => {
     const user = userEvent.setup();
     let items = [READY_DOCUMENT];

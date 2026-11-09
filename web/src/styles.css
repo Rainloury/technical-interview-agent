@@ -2810,6 +2810,12 @@ h1 {
   font-size: var(--text-2xs);
 }
 
+.document-failure-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .document-scope {
   display: inline-flex;
   align-items: center;

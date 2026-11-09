@@ -39,6 +39,12 @@ class FakeEmbedding:
         return [[0.1] * 1024 for _ in texts]
 
 
+class TimedOutEmbedding:
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        del texts
+        raise OllamaEmbeddingError("embedding_timeout", retryable=True)
+
+
 def _worker(
     app_client: AppHarness,
     settings: Settings,
@@ -134,6 +140,55 @@ async def test_document_worker_retries_embedding_then_succeeds(
         worker_id="document-retry-worker-2",
     ).run_once()
     assert second.outcome == "succeeded"
+
+
+async def test_document_worker_preserves_embedding_timeout_code_for_retry(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    document_id = await _upload_document(
+        app_client,
+        create_user,
+        email="doc-timeout-worker@example.com",
+    )
+
+    result = await _worker(app_client, settings, TimedOutEmbedding()).run_once()
+    assert result.outcome == "retry_scheduled"
+    async with app_client.session_factory() as session:
+        job = (
+            await session.execute(select(AsyncJob).where(AsyncJob.resource_id == document_id))
+        ).scalar_one()
+        document = await session.get(UserDocument, document_id)
+        assert job.error_code == "embedding_timeout"
+        assert document is not None
+        assert document.state == "processing"
+
+
+async def test_document_worker_dead_letter_preserves_embedding_timeout_code(
+    app_client: AppHarness,
+    settings: Settings,
+    create_user: Any,
+) -> None:
+    document_id = await _upload_document(
+        app_client,
+        create_user,
+        email="doc-timeout-dead-letter@example.com",
+    )
+    async with app_client.session_factory() as session:
+        job = (
+            await session.execute(select(AsyncJob).where(AsyncJob.resource_id == document_id))
+        ).scalar_one()
+        job.max_attempts = 1
+        await session.commit()
+
+    result = await _worker(app_client, settings, TimedOutEmbedding()).run_once()
+    assert result.outcome == "dead_letter"
+    async with app_client.session_factory() as session:
+        document = await session.get(UserDocument, document_id)
+        assert document is not None
+        assert document.state == "failed"
+        assert document.failure_code == "embedding_timeout"
 
 
 async def test_document_worker_fails_without_partial_chunks(
