@@ -19,6 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
+from app.contracts.qa import QA_PROMPT_VERSION
 from app.crypto import decrypt_secret
 from app.db.jobs import finish_job, lease_next_job, renew_job_lease
 from app.db.models import (
@@ -76,7 +77,6 @@ from app.rag.ollama import EmbeddingClient, OllamaEmbeddingClient, OllamaEmbeddi
 from app.rag.retrieval import hybrid_retrieve
 from app.resume_contracts import ResumeAnalysisOutput, ResumeQuestionsOutput
 from app.services.qa import (
-    QA_PROMPT_VERSION,
     QaContractError,
     append_event,
     apply_answer,
@@ -1015,7 +1015,7 @@ class ResumeWorker:
                     },
                     unverified_items={"items": analysis_output.unverified_items},
                     gaps={"items": analysis_output.gaps},
-                    model_name="DEFAULT",
+                    model_name=str(ModelTier.DEFAULT),
                     prompt_version="1.0.0",
                     expires_at=datetime.now(UTC) + timedelta(days=90),
                 )
@@ -1702,7 +1702,7 @@ class ResumeWorker:
                 turn_id=turn.id,
                 attempt_no=attempt_no,
                 state="running",
-                model_name=self._settings.llm_reasoning_model or "REASONING",
+                model_name=self._settings.llm_reasoning_model or str(ModelTier.REASONING),
                 prompt_version=INTERVIEW_PROMPT_VERSION,
                 started_at=datetime.now(UTC),
             )

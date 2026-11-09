@@ -54,7 +54,7 @@ agent -> tools -> llm
 | 来源 | 允许依赖 | 禁止依赖 |
 | --- | --- | --- |
 | `app/api/` | `app/services/`、配置与 DTO | `app/agent/`、`app/llm/`、`app/tools/`、数据库直接写入 |
-| `app/services/` | `app/db/`、`app/schemas/`、`app/config`、`app/errors`、`app/storage`、`app/security`、`app/crypto`、`app/*_contracts`、同层 `_*.py` | `app/api/`、`app/agent/`、`app/tools/`、`app/llm/`、`app/worker`、跨 service 私有成员 |
+| `app/services/` | `app/db/`、`app/schemas/`、`app/contracts/`、`app/config`、`app/errors`、`app/storage`、`app/security`、`app/crypto`、`app/*_contracts`、同层 `_*.py` | `app/api/`、`app/agent/`、`app/tools/`、`app/llm/`、`app/worker`、跨 service 私有成员 |
 | `app/agent/` | `app/tools/`、基础设施接口、`llm` 公共类型 | `app/api/`、`app/services/`、具体路由 |
 | `app/tools/` | `app/llm/`、标准库和工具依赖 | `app/api/`、`app/agent/` |
 | `app/llm/` | 厂商 SDK、配置、日志与 trace 基础能力 | 业务模块、权限和资源所有权判断 |

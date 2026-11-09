@@ -9,6 +9,7 @@ APP = Path(__file__).resolve().parents[1] / "app"
 
 SERVICES_ALLOWED = (
     "app.config",
+    "app.contracts",
     "app.crypto",
     "app.db",
     "app.errors",

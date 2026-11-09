@@ -78,7 +78,7 @@ tests/
 
 **分层红线**：依赖方向只能是 `api → services → 基础设施`，以及 `agent → tools → llm`。  
 `services/` 承载用例编排（权限、幂等、事务、公开 DTO 裁剪），允许依赖 `db/`、`schemas/`、
-`storage.py`、`security.py`、`crypto.py`、`errors.py`、`config.py` 和各 `*_contracts.py`；
+`contracts/`、`storage.py`、`security.py`、`crypto.py`、`errors.py`、`config.py` 和各 `*_contracts.py`；
 禁止依赖 `api/`、`agent/`、`tools/`、`llm/`、`worker.py`。`agent/` 是有界循环的独立入口，
 与 `services/` 平级，两者互不 import。禁止反向 import，禁止跨层直调；
 `tools/` 不许 import `api/`，`llm/` 对上述各层一无所知。

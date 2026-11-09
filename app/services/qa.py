@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
+from app.contracts.qa import QA_MODEL_TIER, QA_PROMPT_VERSION, qa_stream_url
 from app.db.models import (
     AsyncJob,
     QaEvidence,
@@ -30,9 +31,6 @@ from app.schemas.qa import (
 )
 from app.services._idempotency import sha256_text
 from app.services._ownership import get_owned
-
-QA_MODEL_NAME = "DEFAULT"
-QA_PROMPT_VERSION = "1.1.0"
 
 
 class QaContractError(Exception):
@@ -163,7 +161,7 @@ async def create_qa_request(
             )
         return QaAccepted(
             qa_request_id=existing.id,
-            stream_url=f"/api/v1/qa/{existing.id}/stream",
+            stream_url=qa_stream_url(str(existing.id)),
             state=cast(Any, existing.state),
         )
 
@@ -174,7 +172,7 @@ async def create_qa_request(
         answer_preference=payload.answer_preference,
         idempotency_key=key,
         state="created",
-        model_name=QA_MODEL_NAME,
+        model_name=QA_MODEL_TIER,
         prompt_version=QA_PROMPT_VERSION,
         expires_at=now + timedelta(days=90),
     )
@@ -225,13 +223,13 @@ async def create_qa_request(
             ) from None
         return QaAccepted(
             qa_request_id=replay.id,
-            stream_url=f"/api/v1/qa/{replay.id}/stream",
+            stream_url=qa_stream_url(str(replay.id)),
             state=cast(Any, replay.state),
         )
     await session.refresh(request)
     return QaAccepted(
         qa_request_id=request.id,
-        stream_url=f"/api/v1/qa/{request.id}/stream",
+        stream_url=qa_stream_url(str(request.id)),
         state=cast(Any, request.state),
     )
 
