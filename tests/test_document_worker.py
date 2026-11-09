@@ -16,7 +16,7 @@ from app.db.models import (
     UserDocumentChunk,
 )
 from app.prompts.loader import PromptLoader
-from app.rag.ollama import OllamaEmbeddingError
+from app.rag.ollama import EmbeddingClient, OllamaEmbeddingError
 from app.storage import LocalPrivateStorage
 from app.worker import ResumeWorker
 from sqlalchemy import select
@@ -48,7 +48,7 @@ class TimedOutEmbedding:
 def _worker(
     app_client: AppHarness,
     settings: Settings,
-    embedding: FakeEmbedding | None = None,
+    embedding: EmbeddingClient | None = None,
     *,
     worker_id: str | None = None,
 ) -> ResumeWorker:

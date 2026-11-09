@@ -1,0 +1,9 @@
+node_modules
+dist
+android
+playwright-report
+test-results
+e2e
+scripts
+.mypy_cache
+.DS_Store

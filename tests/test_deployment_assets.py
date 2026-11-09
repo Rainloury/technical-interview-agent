@@ -202,6 +202,24 @@ def test_docker_context_excludes_secrets_and_nonproduction_assets() -> None:
     assert "migrations" not in dockerignore.splitlines()
 
 
+def test_web_build_context_excludes_local_dependencies_and_test_artifacts() -> None:
+    dockerignore = _read("web/.dockerignore")
+
+    for ignored in (
+        "node_modules",
+        "dist",
+        "android",
+        "playwright-report",
+        "test-results",
+        "e2e",
+        "scripts",
+        ".mypy_cache",
+    ):
+        assert ignored in dockerignore.splitlines()
+    for required in ("public", "src", "nginx.conf", "nginx-main.conf", "package.json"):
+        assert required not in dockerignore.splitlines()
+
+
 def test_local_compose_builds_application_image_once_for_all_backend_roles() -> None:
     compose = _read("deploy/local.compose.yaml")
     backend_services = compose.split("  postgres:", 1)[1].split("  web:", 1)[0]
