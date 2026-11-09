@@ -2800,6 +2800,35 @@ h1 {
   padding: var(--space-sm) 0;
 }
 
+.document-selection-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+.document-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.document-checkbox {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent-strong);
+}
+
+.document-selection-bar .secondary-button {
+  margin-left: auto;
+}
+
 .document-meta {
   display: flex;
   flex: 0 0 auto;
@@ -2923,6 +2952,11 @@ h1 {
 
   .document-row .record-copy {
     flex-basis: calc(100% - 48px);
+  }
+
+  .document-selection-bar .secondary-button {
+    width: 100%;
+    margin-left: 0;
   }
 
   .document-meta {

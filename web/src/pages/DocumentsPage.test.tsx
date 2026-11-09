@@ -46,6 +46,14 @@ function sharedDocumentsHandler(items = [SHARED_DOCUMENT]) {
 }
 
 describe("DocumentsPage", () => {
+  const adminSessionHandler = () =>
+    http.get("*/api/v1/auth/session", () =>
+      HttpResponse.json({
+        user: { id: "admin-1", display_name: "管理员", role: "admin" },
+        session: { expires_at: "2026-10-24T08:30:00Z" },
+      }),
+    );
+
   it("validates document format and size before upload", () => {
     expect(validateDocument(null)).toBe("请选择资料文件。");
     expect(validateDocument(new File(["x"], "notes.exe", { type: "text/plain" }))).toBe(
@@ -219,6 +227,152 @@ describe("DocumentsPage", () => {
     await waitFor(() => expect(screen.queryByText("Redis 设计笔记")).not.toBeInTheDocument());
   });
 
+  it("selects all loaded private documents and toggles the selection off", async () => {
+    const user = userEvent.setup();
+    server.use(
+      authenticatedSessionHandler(),
+      documentsHandler([
+        READY_DOCUMENT,
+        { ...READY_DOCUMENT, id: "document-2", title: "重试手册" },
+        { ...READY_DOCUMENT, id: "document-3", title: "索引手册" },
+      ]),
+      sharedDocumentsHandler([]),
+    );
+    renderApp("/documents");
+
+    expect(await screen.findByText("Redis 设计笔记")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "删除已选 0 份" })).toBeDisabled();
+    await user.click(screen.getByRole("checkbox", { name: "全选本页" }));
+
+    expect(screen.getByText("已选 3 份")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "删除已选 3 份" })).toBeEnabled();
+    expect(screen.getByRole("checkbox", { name: "选择 Redis 设计笔记" })).toBeChecked();
+
+    await user.click(screen.getByRole("checkbox", { name: "全选本页" }));
+
+    expect(screen.getByText("已选 0 份")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "删除已选 0 份" })).toBeDisabled();
+  });
+
+  it("bulk deletes only selected private documents with independent idempotency keys", async () => {
+    const user = userEvent.setup();
+    const deleted: { id: string | undefined; key: string | null; csrf: string | null }[] = [];
+    let items = [
+      READY_DOCUMENT,
+      { ...READY_DOCUMENT, id: "document-2", title: "重试手册" },
+      { ...READY_DOCUMENT, id: "document-3", title: "索引手册" },
+    ];
+    server.use(
+      authenticatedSessionHandler(),
+      http.get("*/api/v1/documents", () => HttpResponse.json({ items, next_cursor: null })),
+      sharedDocumentsHandler([]),
+      http.delete("*/api/v1/documents/:id", ({ request, params }) => {
+        const id = String(params.id);
+        deleted.push({
+          id,
+          key: request.headers.get("Idempotency-Key"),
+          csrf: request.headers.get("X-CSRF-Token"),
+        });
+        items = items.filter((item) => item.id !== id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    document.cookie = "interview_csrf=bulk-delete-csrf; path=/";
+    renderApp("/documents");
+
+    expect(await screen.findByText("Redis 设计笔记")).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "选择 Redis 设计笔记" }));
+    await user.click(screen.getByRole("checkbox", { name: "选择 索引手册" }));
+    await user.click(screen.getByRole("button", { name: "删除已选 2 份" }));
+
+    expect(screen.getByRole("heading", { name: "删除已选 2 份资料？" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+
+    await waitFor(() => expect(deleted).toHaveLength(2));
+    expect(deleted.map((entry) => entry.id).sort()).toEqual(["document-1", "document-3"]);
+    expect(new Set(deleted.map((entry) => entry.key)).size).toBe(2);
+    expect(deleted.every((entry) => entry.key && entry.csrf === "bulk-delete-csrf")).toBe(true);
+    await waitFor(() => {
+      expect(screen.queryByText("Redis 设计笔记")).not.toBeInTheDocument();
+      expect(screen.queryByText("索引手册")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("重试手册")).toBeInTheDocument();
+  });
+
+  it("selects only loaded documents when more pages are available", async () => {
+    const user = userEvent.setup();
+    let requests = 0;
+    server.use(
+      authenticatedSessionHandler(),
+      http.get("*/api/v1/documents", () => {
+        requests += 1;
+        if (requests === 1) {
+          return HttpResponse.json({
+            items: [
+              READY_DOCUMENT,
+              { ...READY_DOCUMENT, id: "document-2", title: "重试手册" },
+            ],
+            next_cursor: "next-page",
+          });
+        }
+        return HttpResponse.json({
+          items: [{ ...READY_DOCUMENT, id: "document-3", title: "索引手册" }],
+          next_cursor: null,
+        });
+      }),
+      sharedDocumentsHandler([]),
+    );
+    renderApp("/documents");
+
+    expect(await screen.findByText("Redis 设计笔记")).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "全选本页" }));
+    expect(screen.getByText("已选 2 份")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "删除已选 2 份" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "加载更多" }));
+    expect(await screen.findByText("索引手册")).toBeInTheDocument();
+    expect(screen.getByText("已选 2 份")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "选择 索引手册" })).not.toBeChecked();
+    await user.click(screen.getByRole("checkbox", { name: "全选本页" }));
+    expect(screen.getByText("已选 3 份")).toBeInTheDocument();
+  });
+
+  it("keeps failed documents selected after a partial bulk delete", async () => {
+    const user = userEvent.setup();
+    let items = [
+      READY_DOCUMENT,
+      { ...READY_DOCUMENT, id: "document-2", title: "重试手册" },
+    ];
+    server.use(
+      authenticatedSessionHandler(),
+      http.get("*/api/v1/documents", () => HttpResponse.json({ items, next_cursor: null })),
+      sharedDocumentsHandler([]),
+      http.delete("*/api/v1/documents/:id", ({ params }) => {
+        const id = String(params.id);
+        if (id === "document-2") {
+          return HttpResponse.json(
+            { error: { code: "request_failed", message: "删除失败", retryable: true } },
+            { status: 503 },
+          );
+        }
+        items = items.filter((item) => item.id !== id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderApp("/documents");
+
+    expect(await screen.findByText("Redis 设计笔记")).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "全选本页" }));
+    await user.click(screen.getByRole("button", { name: "删除已选 2 份" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+
+    expect(await screen.findByText("有 1 份资料删除失败，请重试。")).toBeInTheDocument();
+    expect(screen.queryByText("Redis 设计笔记")).not.toBeInTheDocument();
+    expect(screen.getByText("重试手册")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "选择 重试手册" })).toBeChecked();
+    expect(screen.getByText("已选 1 份")).toBeInTheDocument();
+  });
+
   it("shows shared documents to regular users without write controls", async () => {
     server.use(
       authenticatedSessionHandler(),
@@ -230,6 +384,143 @@ describe("DocumentsPage", () => {
     expect(await screen.findByText("共享重试手册")).toBeInTheDocument();
     expect(screen.queryByLabelText("共享资料文件")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "删除 共享重试手册" })).not.toBeInTheDocument();
+  });
+
+  it("does not show shared document selection controls to regular users", async () => {
+    server.use(
+      authenticatedSessionHandler(),
+      documentsHandler([]),
+      sharedDocumentsHandler([
+        SHARED_DOCUMENT,
+        { ...SHARED_DOCUMENT, id: "shared-document-2", title: "共享索引手册" },
+      ]),
+    );
+    renderApp("/documents");
+
+    expect(await screen.findByText("共享重试手册")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "全选共享资料" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "选择 共享重试手册" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /删除已选共享/ })).not.toBeInTheDocument();
+  });
+
+  it("lets administrators bulk delete selected shared documents with independent keys", async () => {
+    const user = userEvent.setup();
+    const deleted: { id: string | undefined; key: string | null; csrf: string | null }[] = [];
+    let sharedItems = [
+      SHARED_DOCUMENT,
+      { ...SHARED_DOCUMENT, id: "shared-document-2", title: "共享索引手册" },
+      { ...SHARED_DOCUMENT, id: "shared-document-3", title: "共享缓存手册" },
+    ];
+    server.use(
+      adminSessionHandler(),
+      documentsHandler([]),
+      http.get("*/api/v1/shared-documents", () =>
+        HttpResponse.json({ items: sharedItems, next_cursor: null }),
+      ),
+      http.delete("*/api/v1/shared-documents/:id", ({ request, params }) => {
+        const id = String(params.id);
+        deleted.push({
+          id,
+          key: request.headers.get("Idempotency-Key"),
+          csrf: request.headers.get("X-CSRF-Token"),
+        });
+        sharedItems = sharedItems.filter((item) => item.id !== id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    document.cookie = "interview_csrf=shared-bulk-delete-csrf; path=/";
+    renderApp("/documents");
+
+    expect(await screen.findByText("共享重试手册")).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "选择 共享重试手册" }));
+    await user.click(screen.getByRole("checkbox", { name: "选择 共享缓存手册" }));
+    await user.click(screen.getByRole("button", { name: "删除已选共享 2 份" }));
+
+    expect(
+      screen.getByRole("heading", { name: "删除已选 2 份共享资料？" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+
+    await waitFor(() => expect(deleted).toHaveLength(2));
+    expect(deleted.map((entry) => entry.id).sort()).toEqual([
+      "shared-document-1",
+      "shared-document-3",
+    ]);
+    expect(new Set(deleted.map((entry) => entry.key)).size).toBe(2);
+    expect(
+      deleted.every((entry) => entry.key && entry.csrf === "shared-bulk-delete-csrf"),
+    ).toBe(true);
+    await waitFor(() => {
+      expect(screen.queryByText("共享重试手册")).not.toBeInTheDocument();
+      expect(screen.queryByText("共享缓存手册")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("共享索引手册")).toBeInTheDocument();
+  });
+
+  it("keeps failed shared documents selected after a partial bulk delete", async () => {
+    const user = userEvent.setup();
+    let sharedItems = [
+      SHARED_DOCUMENT,
+      { ...SHARED_DOCUMENT, id: "shared-document-2", title: "共享索引手册" },
+    ];
+    server.use(
+      adminSessionHandler(),
+      documentsHandler([]),
+      http.get("*/api/v1/shared-documents", () =>
+        HttpResponse.json({ items: sharedItems, next_cursor: null }),
+      ),
+      http.delete("*/api/v1/shared-documents/:id", ({ params }) => {
+        const id = String(params.id);
+        if (id === "shared-document-2") {
+          return HttpResponse.json(
+            { error: { code: "request_failed", message: "删除失败", retryable: true } },
+            { status: 503 },
+          );
+        }
+        sharedItems = sharedItems.filter((item) => item.id !== id);
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderApp("/documents");
+
+    expect(await screen.findByText("共享重试手册")).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "全选共享资料" }));
+    await user.click(screen.getByRole("button", { name: "删除已选共享 2 份" }));
+    await user.click(screen.getByRole("button", { name: "确认删除" }));
+
+    expect(await screen.findByText("有 1 份共享资料删除失败，请重试。")).toBeInTheDocument();
+    expect(screen.queryByText("共享重试手册")).not.toBeInTheDocument();
+    expect(screen.getByText("共享索引手册")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "选择 共享索引手册" })).toBeChecked();
+    expect(screen.getByRole("button", { name: "删除已选共享 1 份" })).toBeEnabled();
+  });
+
+  it("keeps private and shared bulk selections independent", async () => {
+    const user = userEvent.setup();
+    server.use(
+      adminSessionHandler(),
+      documentsHandler([
+        READY_DOCUMENT,
+        { ...READY_DOCUMENT, id: "document-2", title: "重试手册" },
+      ]),
+      sharedDocumentsHandler([
+        SHARED_DOCUMENT,
+        { ...SHARED_DOCUMENT, id: "shared-document-2", title: "共享索引手册" },
+        { ...SHARED_DOCUMENT, id: "shared-document-3", title: "共享缓存手册" },
+      ]),
+    );
+    renderApp("/documents");
+
+    expect(await screen.findByText("Redis 设计笔记")).toBeInTheDocument();
+    const allCheckboxes = screen.getAllByRole("checkbox", { name: "全选本页" });
+    expect(allCheckboxes).toHaveLength(1);
+    await user.click(screen.getByRole("checkbox", { name: "选择 Redis 设计笔记" }));
+    await user.click(screen.getByRole("checkbox", { name: "全选共享资料" }));
+
+    expect(screen.getByRole("button", { name: "删除已选 1 份" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "删除已选共享 3 份" })).toBeEnabled();
+    expect(screen.getByRole("checkbox", { name: "选择 重试手册" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "选择 共享缓存手册" })).toBeChecked();
   });
 
   it("lets administrators upload and delete shared documents", async () => {

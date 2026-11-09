@@ -33,15 +33,31 @@ function DocumentRow({
   onDelete,
   deleting,
   canDelete = document.can_delete,
+  selected = false,
+  onSelect,
+  selectionDisabled = false,
 }: {
   document: DocumentItem;
   onDelete: () => void;
   deleting: boolean;
   canDelete?: boolean;
+  selected?: boolean;
+  onSelect?: (checked: boolean) => void;
+  selectionDisabled?: boolean;
 }) {
   const status = documentStates[document.state];
   return (
     <article className="document-row">
+      {onSelect && (
+        <input
+          className="document-checkbox"
+          type="checkbox"
+          aria-label={`选择 ${document.title}`}
+          checked={selected}
+          disabled={selectionDisabled}
+          onChange={(event) => onSelect(event.target.checked)}
+        />
+      )}
       <span className="record-type" aria-hidden="true">
         <FileText size={18} />
       </span>
@@ -90,6 +106,12 @@ export function DocumentsPage() {
   const [requestedSignature, setRequestedSignature] = useState("");
   const [pendingDelete, setPendingDelete] = useState<DocumentItem | null>(null);
   const [deleteKey, setDeleteKey] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [pendingBulkDelete, setPendingBulkDelete] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<number | null>(null);
+  const [selectedSharedIds, setSelectedSharedIds] = useState<Set<string>>(new Set());
+  const [pendingSharedBulkDelete, setPendingSharedBulkDelete] = useState(false);
+  const [sharedBulkDeleteError, setSharedBulkDeleteError] = useState<number | null>(null);
   const [pendingSharedDelete, setPendingSharedDelete] = useState<DocumentItem | null>(null);
   const [sharedDeleteKey, setSharedDeleteKey] = useState<string | null>(null);
 
@@ -180,6 +202,45 @@ export function DocumentsPage() {
     },
   });
 
+  const bulkRemove = useMutation({
+    mutationFn: async (documents: DocumentItem[]) => {
+      const results = await Promise.allSettled(
+        documents.map((document) => api.deleteDocument(document.id, newIdempotencyKey())),
+      );
+      const failedIds = documents
+        .filter((_, index) => results[index]?.status === "rejected")
+        .map((document) => document.id);
+      return failedIds;
+    },
+    onSuccess: (failedIds) => {
+      setBulkDeleteError(failedIds.length || null);
+      setSelectedIds(new Set(failedIds));
+      setPendingBulkDelete(false);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.documents,
+        predicate: (query) => query.queryKey.length === 1,
+      });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+    },
+  });
+
+  const bulkRemoveShared = useMutation({
+    mutationFn: async (documents: DocumentItem[]) => {
+      const results = await Promise.allSettled(
+        documents.map((document) => api.deleteSharedDocument(document.id, newIdempotencyKey())),
+      );
+      return documents
+        .filter((_, index) => results[index]?.status === "rejected")
+        .map((document) => document.id);
+    },
+    onSuccess: (failedIds) => {
+      setSharedBulkDeleteError(failedIds.length || null);
+      setSelectedSharedIds(new Set(failedIds));
+      setPendingSharedBulkDelete(false);
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.documents, "shared"] });
+    },
+  });
+
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
     const nextFiles = Array.from(event.target.files ?? []);
     setFiles(nextFiles);
@@ -227,6 +288,47 @@ export function DocumentsPage() {
     upload.error instanceof ApiError && upload.error.code === "idempotency_conflict";
   const items = documents.data?.pages.flatMap((page) => page.items) ?? [];
   const sharedItems = sharedDocuments.data?.pages.flatMap((page) => page.items) ?? [];
+  const selectedDocuments = items.filter((document) => selectedIds.has(document.id));
+  const selectedSharedDocuments = sharedItems.filter((document) =>
+    selectedSharedIds.has(document.id),
+  );
+  const allSelected = items.length > 0 && selectedDocuments.length === items.length;
+  const allSharedSelected =
+    sharedItems.length > 0 && selectedSharedDocuments.length === sharedItems.length;
+
+  const toggleDocument = (id: string, checked: boolean) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = (checked: boolean) => {
+    setSelectedIds(checked ? new Set(items.map((document) => document.id)) : new Set());
+  };
+
+  const toggleSharedDocument = (id: string, checked: boolean) => {
+    setSelectedSharedIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleAllShared = (checked: boolean) => {
+    setSelectedSharedIds(
+      checked ? new Set(sharedItems.map((document) => document.id)) : new Set(),
+    );
+  };
 
   return (
     <div className="page documents-page">
@@ -334,11 +436,40 @@ export function DocumentsPage() {
           />
         )}
         {items.length > 0 && (
+          <>
+          <div className="document-selection-bar">
+            <label className="document-select-all">
+              <input
+                type="checkbox"
+                aria-label="全选本页"
+                checked={allSelected}
+                disabled={bulkRemove.isPending}
+                onChange={(event) => toggleAll(event.target.checked)}
+              />
+              全选本页
+            </label>
+            <span aria-live="polite">已选 {selectedDocuments.length} 份</span>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setBulkDeleteError(null);
+                setPendingBulkDelete(true);
+              }}
+              disabled={selectedDocuments.length === 0 || bulkRemove.isPending}
+            >
+              <Trash2 size={16} aria-hidden="true" />
+              删除已选 {selectedDocuments.length} 份
+            </button>
+          </div>
           <div className="document-list">
             {items.map((document) => (
               <DocumentRow
                 key={document.id}
                 document={document}
+                selected={selectedIds.has(document.id)}
+                selectionDisabled={bulkRemove.isPending}
+                onSelect={(checked) => toggleDocument(document.id, checked)}
                 deleting={remove.isPending && pendingDelete?.id === document.id}
                 onDelete={() => {
                   setPendingDelete(document);
@@ -347,6 +478,14 @@ export function DocumentsPage() {
               />
             ))}
           </div>
+          </>
+        )}
+        {bulkDeleteError !== null && (
+          <ErrorNotice
+            message={`有 ${bulkDeleteError} 份资料删除失败，请重试。`}
+            compact
+            onRetry={() => setPendingBulkDelete(true)}
+          />
         )}
         {documents.hasNextPage && (
           <button
@@ -430,12 +569,47 @@ export function DocumentsPage() {
           />
         )}
         {sharedItems.length > 0 && (
-          <div className="document-list">
+          <>
+            {isAdmin && (
+              <div className="document-selection-bar">
+                <label className="document-select-all">
+                  <input
+                    type="checkbox"
+                    aria-label="全选共享资料"
+                    checked={allSharedSelected}
+                    disabled={bulkRemoveShared.isPending}
+                    onChange={(event) => toggleAllShared(event.target.checked)}
+                  />
+                  全选本页
+                </label>
+                <span aria-live="polite">已选 {selectedSharedDocuments.length} 份</span>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    setSharedBulkDeleteError(null);
+                    setPendingSharedBulkDelete(true);
+                  }}
+                  disabled={selectedSharedDocuments.length === 0 || bulkRemoveShared.isPending}
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                  删除已选共享 {selectedSharedDocuments.length} 份
+                </button>
+              </div>
+            )}
+            <div className="document-list">
             {sharedItems.map((document) => (
               <DocumentRow
                 key={document.id}
                 document={document}
                 canDelete={isAdmin}
+                selected={isAdmin && selectedSharedIds.has(document.id)}
+                selectionDisabled={bulkRemoveShared.isPending}
+                onSelect={
+                  isAdmin
+                    ? (checked) => toggleSharedDocument(document.id, checked)
+                    : undefined
+                }
                 deleting={removeShared.isPending && pendingSharedDelete?.id === document.id}
                 onDelete={() => {
                   setPendingSharedDelete(document);
@@ -443,7 +617,15 @@ export function DocumentsPage() {
                 }}
               />
             ))}
-          </div>
+            </div>
+          </>
+        )}
+        {sharedBulkDeleteError !== null && (
+          <ErrorNotice
+            message={`有 ${sharedBulkDeleteError} 份共享资料删除失败，请重试。`}
+            compact
+            onRetry={() => setPendingSharedBulkDelete(true)}
+          />
         )}
         {sharedDocuments.hasNextPage && (
           <button
@@ -498,6 +680,42 @@ export function DocumentsPage() {
         </div>
       )}
 
+      {pendingBulkDelete && (
+        <div className="modal-scrim" role="presentation">
+          <section
+            className="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-selected-documents-title"
+          >
+            <p className="eyebrow">DELETE / DOCUMENTS</p>
+            <h2 id="delete-selected-documents-title">
+              删除已选 {selectedDocuments.length} 份资料？
+            </h2>
+            <p>删除后不会继续参与检索，历史回答中的来源会标记为已删除。</p>
+            <div className="dialog-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setPendingBulkDelete(false)}
+                disabled={bulkRemove.isPending}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => bulkRemove.mutate(selectedDocuments)}
+                disabled={bulkRemove.isPending}
+              >
+                <Trash2 size={17} aria-hidden="true" />
+                <span>{bulkRemove.isPending ? "正在删除" : "确认删除"}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
       {pendingSharedDelete && (
         <div className="modal-scrim" role="presentation">
           <section
@@ -534,6 +752,42 @@ export function DocumentsPage() {
               >
                 <Trash2 size={17} aria-hidden="true" />
                 <span>{removeShared.isPending ? "正在删除" : "确认删除"}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {pendingSharedBulkDelete && (
+        <div className="modal-scrim" role="presentation">
+          <section
+            className="confirm-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-selected-shared-documents-title"
+          >
+            <p className="eyebrow">DELETE / SHARED DOCUMENTS</p>
+            <h2 id="delete-selected-shared-documents-title">
+              删除已选 {selectedSharedDocuments.length} 份共享资料？
+            </h2>
+            <p>删除后所有账号都将无法继续检索，历史回答中的来源会标记为已删除。</p>
+            <div className="dialog-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => setPendingSharedBulkDelete(false)}
+                disabled={bulkRemoveShared.isPending}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => bulkRemoveShared.mutate(selectedSharedDocuments)}
+                disabled={bulkRemoveShared.isPending}
+              >
+                <Trash2 size={17} aria-hidden="true" />
+                <span>{bulkRemoveShared.isPending ? "正在删除" : "确认删除"}</span>
               </button>
             </div>
           </section>
