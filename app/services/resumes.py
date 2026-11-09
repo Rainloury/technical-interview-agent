@@ -34,6 +34,8 @@ from app.schemas.resume import (
     ResumeAnalysisView,
     ResumeTaskView,
 )
+from app.services._idempotency import operation_key
+from app.services._ownership import get_owned
 from app.storage import ObjectStorage
 
 DELETED_FILENAME = "已删除简历"
@@ -50,25 +52,8 @@ class ResumeUpload:
     content: bytes
 
 
-def _owner_task(task: ResumeTask | None, user: User) -> ResumeTask:
-    if task is None or task.owner_user_id != user.id or task.deleted_at is not None:
-        raise AppError(
-            status_code=404,
-            code="resource_not_found",
-            message="简历任务不存在",
-        )
-    return task
-
-
-def _fingerprint(operation: str, owner_user_id: uuid.UUID, client_key: str) -> str:
-    """哈希所有幂等材料,不逐字存储调用方标识符。"""
-
-    material = f"{operation}\0{owner_user_id.hex}\0{client_key}".encode()
-    return hashlib.sha256(material).hexdigest()
-
-
 def _idempotency_key(operation: str, owner_user_id: uuid.UUID, client_key: str) -> str:
-    return f"resume:{_fingerprint(operation, owner_user_id, client_key)}"
+    return f"resume:{operation_key(operation, owner_user_id, client_key)}"
 
 
 async def _find_job(
@@ -124,7 +109,9 @@ async def _accepted(
     job: AsyncJob,
     user: User,
 ) -> ResumeAccepted:
-    task = _owner_task(await session.get(ResumeTask, job.resource_id), user)
+    task: ResumeTask = await get_owned(
+        session, ResumeTask, user, job.resource_id, message="简历任务不存在"
+    )
     return ResumeAccepted(resume_task_id=task.id, state=task.state, created_at=task.created_at)
 
 
@@ -253,7 +240,7 @@ async def get_resume_task(
 ) -> ResumeTaskView:
     """读取一个所属任务,不暴露私有源材料。"""
 
-    task = _owner_task(await session.get(ResumeTask, task_id), user)
+    task: ResumeTask = await get_owned(session, ResumeTask, user, task_id, message="简历任务不存在")
     analysis = (
         await session.execute(
             select(ResumeAnalysis).where(
@@ -318,7 +305,9 @@ async def retry_resume_task(
 ) -> ResumeAccepted:
     """将可用的失败源复制到新任务并加入队列。"""
 
-    original = _owner_task(await session.get(ResumeTask, task_id), user)
+    original: ResumeTask = await get_owned(
+        session, ResumeTask, user, task_id, message="简历任务不存在"
+    )
     if original.state != "failed":
         raise AppError(
             status_code=409,
@@ -480,7 +469,7 @@ async def delete_resume_source(
 ) -> None:
     """在删除私有对象前提交不可逆墓碑。"""
 
-    task = _owner_task(await session.get(ResumeTask, task_id), user)
+    task: ResumeTask = await get_owned(session, ResumeTask, user, task_id, message="简历任务不存在")
     operation_fingerprint = hashlib.sha256(f"delete-source\0{task.id.hex}".encode()).hexdigest()
     existing = await _find_job(
         session,

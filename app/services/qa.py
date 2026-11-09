@@ -28,6 +28,8 @@ from app.schemas.qa import (
     QaEvidenceView,
     QaRequestView,
 )
+from app.services._idempotency import sha256_text
+from app.services._ownership import get_owned
 
 QA_MODEL_NAME = "DEFAULT"
 QA_PROMPT_VERSION = "1.1.0"
@@ -43,8 +45,7 @@ class QaContractError(Exception):
 
 
 def _idempotency_key(owner_user_id: uuid.UUID, client_key: str) -> str:
-    material = f"qa\0{owner_user_id.hex}\0{client_key}".encode()
-    return hashlib.sha256(material).hexdigest()
+    return sha256_text(f"qa\0{owner_user_id.hex}\0{client_key}")
 
 
 def _raise_unsupported_source() -> None:
@@ -71,21 +72,14 @@ async def _owned_request(
     *,
     lock: bool = False,
 ) -> QaRequest:
-    statement = select(QaRequest).where(
-        QaRequest.id == request_id,
-        QaRequest.owner_user_id == user.id,
-        QaRequest.deleted_at.is_(None),
+    return await get_owned(
+        session,
+        QaRequest,
+        user,
+        request_id,
+        message="问答记录不存在",
+        lock=lock,
     )
-    if lock:
-        statement = statement.with_for_update()
-    request = (await session.execute(statement)).scalar_one_or_none()
-    if request is None:
-        raise AppError(
-            status_code=404,
-            code="resource_not_found",
-            message="问答记录不存在",
-        )
-    return request
 
 
 async def append_event(

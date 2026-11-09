@@ -8,7 +8,8 @@ from typing import Any
 
 import pytest
 from app.db.models import AsyncJob, UserDocument
-from app.services.documents import DocumentUpload, upload_document
+from app.schemas.documents import DocumentUpload
+from app.services.documents import upload_document
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

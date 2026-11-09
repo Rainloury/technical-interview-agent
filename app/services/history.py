@@ -2,61 +2,22 @@
 
 from __future__ import annotations
 
-import base64
-import json
 import re
 import uuid
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, func, or_, select, true
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.elements import ColumnElement, SQLColumnExpression
 
 from app.db.models import Interview, QaRequest, ResumeFile, ResumeTask, User, WrongQuestion
-from app.errors import AppError
 from app.schemas.history import HistoryItem, HistoryPage, HistoryType
+from app.services._pagination import (
+    Cursor,
+    cursor_condition,
+    encode_cursor,
+)
 
 _WHITESPACE = re.compile(r"\s+")
-
-
-@dataclass(frozen=True, slots=True)
-class HistoryCursor:
-    """稳定的时间戳与 UUID 决胜键。"""
-
-    updated_at: datetime
-    id: uuid.UUID
-
-
-def encode_cursor(cursor: HistoryCursor) -> str:
-    """编码一个 URL 安全的不透明分页游标。"""
-
-    payload = json.dumps(
-        {"updated_at": cursor.updated_at.astimezone(UTC).isoformat(), "id": str(cursor.id)},
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
-
-
-def decode_cursor(value: str) -> HistoryCursor:
-    """将格式错误或缺少时区的游标视为无效请求拒绝。"""
-
-    try:
-        padded = value + "=" * (-len(value) % 4)
-        payload = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
-        updated_at = datetime.fromisoformat(str(payload["updated_at"]))
-        if updated_at.tzinfo is None:
-            raise ValueError("cursor timestamp must include a timezone")
-        return HistoryCursor(
-            updated_at=updated_at.astimezone(UTC),
-            id=uuid.UUID(str(payload["id"])),
-        )
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise AppError(
-            status_code=400,
-            code="invalid_request",
-            message="分页游标不合法",
-        ) from exc
 
 
 def _short_title(value: str, fallback: str) -> str:
@@ -66,26 +27,13 @@ def _short_title(value: str, fallback: str) -> str:
     return normalized if len(normalized) <= 100 else f"{normalized[:97]}..."
 
 
-def _page_condition(
-    updated: SQLColumnExpression[datetime | None],
-    primary_id: SQLColumnExpression[uuid.UUID],
-    cursor: HistoryCursor | None,
-) -> ColumnElement[bool]:
-    if cursor is None:
-        return true()
-    return or_(
-        updated < cursor.updated_at,
-        and_(updated == cursor.updated_at, primary_id < cursor.id),
-    )
-
-
 async def list_history(
     session: AsyncSession,
     user: User,
     *,
     history_type: HistoryType,
     limit: int,
-    cursor: HistoryCursor | None,
+    cursor: Cursor | None,
 ) -> HistoryPage:
     """为单个历史集合返回稳定的降序分页。"""
 
@@ -108,7 +56,7 @@ async def list_history(
                 ResumeTask.owner_user_id == user.id,
                 ResumeTask.deleted_at.is_(None),
                 ResumeTask.expires_at > now,
-                _page_condition(updated, ResumeTask.id, cursor),
+                cursor_condition(updated, ResumeTask.id, cursor),
             )
             .order_by(updated.desc(), ResumeTask.id.desc())
             .limit(limit + 1)
@@ -131,7 +79,7 @@ async def list_history(
                 QaRequest.owner_user_id == user.id,
                 QaRequest.deleted_at.is_(None),
                 QaRequest.expires_at > now,
-                _page_condition(updated, QaRequest.id, cursor),
+                cursor_condition(updated, QaRequest.id, cursor),
             )
             .order_by(updated.desc(), QaRequest.id.desc())
             .limit(limit + 1)
@@ -154,7 +102,7 @@ async def list_history(
                 Interview.owner_user_id == user.id,
                 Interview.deleted_at.is_(None),
                 Interview.expires_at > now,
-                _page_condition(updated, Interview.id, cursor),
+                cursor_condition(updated, Interview.id, cursor),
             )
             .order_by(updated.desc(), Interview.id.desc())
             .limit(limit + 1)
@@ -180,7 +128,7 @@ async def list_history(
                 WrongQuestion.owner_user_id == user.id,
                 WrongQuestion.deleted_at.is_(None),
                 WrongQuestion.expires_at > now,
-                _page_condition(WrongQuestion.updated_at, WrongQuestion.id, cursor),
+                cursor_condition(WrongQuestion.updated_at, WrongQuestion.id, cursor),
             )
             .order_by(WrongQuestion.updated_at.desc(), WrongQuestion.id.desc())
             .limit(limit + 1)
@@ -201,7 +149,7 @@ async def list_history(
     next_cursor = None
     if has_more and page_rows:
         last_id, _, _, _, last_updated = page_rows[-1]
-        next_cursor = encode_cursor(HistoryCursor(updated_at=last_updated, id=last_id))
+        next_cursor = encode_cursor(Cursor(timestamp=last_updated, id=last_id), field="updated_at")
     return HistoryPage(
         items=[
             HistoryItem(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 from uuid import UUID
@@ -9,6 +10,16 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 UserDocumentState = Literal["uploaded", "processing", "ready", "failed", "deleted"]
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentUpload:
+    """进入私有文档事务的受限字节数。"""
+
+    filename: str
+    declared_mime: str | None
+    content: bytes
+    title: str | None = None
 
 
 class DocumentAccepted(BaseModel):

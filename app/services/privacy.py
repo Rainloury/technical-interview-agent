@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from sqlalchemy import select, update
@@ -26,6 +25,7 @@ from app.db.models import (
 )
 from app.errors import AppError
 from app.schemas.privacy import DataDeletionAccepted, DataDeletionStatus
+from app.services._idempotency import sha256_text
 
 DELETION_SCOPES = (
     "resume_tasks",
@@ -35,10 +35,6 @@ DELETION_SCOPES = (
     "weak_points",
     "user_documents",
 )
-
-
-def _hash(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _status(request: DataDeletionRequest) -> DataDeletionStatus:
@@ -80,8 +76,8 @@ async def request_data_deletion(
 ) -> DataDeletionAccepted:
     """标记可见业务数据墓碑,然后加入私有清理任务。"""
 
-    key = _hash(f"delete-account-data\0{user.id.hex}\0{idempotency_key}")
-    fingerprint = _hash(f"delete-account-data\0{user.id.hex}")
+    key = sha256_text(f"delete-account-data\0{user.id.hex}\0{idempotency_key}")
+    fingerprint = sha256_text(f"delete-account-data\0{user.id.hex}")
     existing = (
         await session.execute(
             select(DataDeletionRequest).where(
@@ -244,10 +240,3 @@ async def get_deletion_status(
             message="删除请求不存在",
         )
     return _status(request)
-
-
-def next_retention_run(now: datetime | None = None) -> datetime:
-    """返回下一次每日保留清理时间。"""
-
-    current = now or datetime.now(UTC)
-    return current + timedelta(days=1)

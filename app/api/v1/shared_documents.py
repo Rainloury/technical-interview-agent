@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile, status
 
+from app.api._uploads import read_bounded_upload
 from app.api.dependencies import (
     AuthDependency,
     IdempotencyKeyDependency,
@@ -14,14 +15,14 @@ from app.api.dependencies import (
     require_admin,
     verify_write_security,
 )
-from app.errors import AppError
+from app.errors import request_id_from
 from app.schemas.documents import (
     DocumentAccepted,
     DocumentBatchAccepted,
     DocumentItem,
     DocumentPage,
+    DocumentUpload,
 )
-from app.services.documents import DocumentUpload
 from app.services.shared_documents import (
     delete_document,
     get_document,
@@ -31,17 +32,6 @@ from app.services.shared_documents import (
 )
 
 router = APIRouter(prefix="/shared-documents", tags=["shared-documents"])
-
-
-async def _read_bounded(file: UploadFile, max_bytes: int) -> bytes:
-    chunks: list[bytes] = []
-    total = 0
-    while chunk := await file.read(64 * 1024):
-        total += len(chunk)
-        if total > max_bytes:
-            raise AppError(status_code=413, code="file_too_large", message="文件不能超过 10 MB")
-        chunks.append(chunk)
-    return b"".join(chunks)
 
 
 @router.post("", response_model=DocumentAccepted, status_code=status.HTTP_202_ACCEPTED)
@@ -56,7 +46,7 @@ async def upload(
     verify_write_security(request, auth)
     require_admin(auth)
     settings = request.app.state.settings
-    content = await _read_bounded(file, settings.document_max_bytes)
+    content = await read_bounded_upload(file, settings.document_max_bytes)
     return await upload_document(
         session,
         request.app.state.resume_storage,
@@ -69,6 +59,7 @@ async def upload(
         ),
         idempotency_key=idempotency_key,
         settings=settings,
+        request_id=request_id_from(request),
     )
 
 
@@ -87,7 +78,7 @@ async def upload_batch(
         DocumentUpload(
             filename=file.filename or "",
             declared_mime=file.content_type,
-            content=await _read_bounded(file, settings.document_max_bytes),
+            content=await read_bounded_upload(file, settings.document_max_bytes),
             title=None,
         )
         for file in files
@@ -99,6 +90,7 @@ async def upload_batch(
         uploads,
         idempotency_key=idempotency_key,
         settings=settings,
+        request_id=request_id_from(request),
     )
 
 
@@ -146,5 +138,6 @@ async def remove(
         document_id,
         idempotency_key=idempotency_key,
         settings=request.app.state.settings,
+        request_id=request_id_from(request),
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

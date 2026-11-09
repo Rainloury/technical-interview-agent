@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings
 from app.crypto import encrypt_secret
 from app.db.jobs import enqueue_job
-from app.db.models import AuditEvent, AuthSession, PasswordResetToken, User
+from app.db.models import AuthSession, PasswordResetToken, User
 from app.errors import AppError
 from app.logging import get_logger
 from app.security import (
@@ -33,6 +33,8 @@ from app.security import (
     validate_password,
     verify_password,
 )
+from app.services._audit import audit
+from app.services._idempotency import sha256_text
 
 logger = get_logger("app.auth")
 
@@ -68,28 +70,6 @@ class RoleChange:
     current_role: Literal["user", "admin"]
 
 
-async def audit(
-    session: AsyncSession,
-    *,
-    action: str,
-    resource_type: str = "user",
-    resource_id_hash: str,
-    result: str,
-    request_id: str,
-) -> None:
-    """追加一条最小化、不可逆的审计记录。"""
-
-    session.add(
-        AuditEvent(
-            action=action,
-            resource_type=resource_type,
-            resource_id_hash=resource_id_hash,
-            result=result,
-            request_id=request_id[:120] or uuid.uuid4().hex,
-        )
-    )
-
-
 async def set_user_role(
     session: AsyncSession,
     *,
@@ -119,7 +99,7 @@ async def set_user_role(
     await audit(
         session,
         action="user_role_changed",
-        resource_id_hash=hashlib.sha256(normalized.encode()).hexdigest(),
+        resource_id_hash=sha256_text(normalized),
         result="success",
         request_id=request_id,
     )
@@ -176,7 +156,7 @@ async def register_user(
         f"register:ip:{request.client.host if request.client else 'unknown'}",
         settings.auth_rate_limit_per_minute,
     )
-    account_key = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    account_key = sha256_text(normalized)
     await _limited(
         request,
         f"register:account:{account_key}",
@@ -196,7 +176,7 @@ async def register_user(
     await audit(
         session,
         action="register",
-        resource_id_hash=hashlib.sha256(normalized.encode()).hexdigest(),
+        resource_id_hash=sha256_text(normalized),
         result="success",
         request_id=request_id,
     )
@@ -221,7 +201,7 @@ async def login_user(
         f"login:ip:{request.client.host if request.client else 'unknown'}",
         settings.auth_rate_limit_per_minute,
     )
-    account_key = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    account_key = sha256_text(normalized)
     await _limited(request, f"login:account:{account_key}", settings.auth_rate_limit_per_minute)
     user = (
         await session.execute(
@@ -238,7 +218,7 @@ async def login_user(
         await audit(
             session,
             action="login",
-            resource_id_hash=hashlib.sha256(normalized.encode()).hexdigest(),
+            resource_id_hash=sha256_text(normalized),
             result="failure",
             request_id=request_id,
         )
@@ -263,7 +243,7 @@ async def login_user(
     await audit(
         session,
         action="login",
-        resource_id_hash=hashlib.sha256(normalized.encode()).hexdigest(),
+        resource_id_hash=sha256_text(normalized),
         result="success",
         request_id=request_id,
     )
@@ -407,7 +387,7 @@ async def request_password_reset(
         f"reset:ip:{request.client.host if request.client else 'unknown'}",
         settings.auth_rate_limit_per_minute,
     )
-    account_key = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    account_key = sha256_text(normalized)
     await _limited(request, f"reset:account:{account_key}", settings.auth_rate_limit_per_minute)
     user = (
         await session.execute(
@@ -454,7 +434,7 @@ async def request_password_reset(
     await audit(
         session,
         action="password_reset_request",
-        resource_id_hash=hashlib.sha256(normalized.encode()).hexdigest(),
+        resource_id_hash=sha256_text(normalized),
         result="success",
         request_id=getattr(request.state, "request_id", "unknown"),
     )

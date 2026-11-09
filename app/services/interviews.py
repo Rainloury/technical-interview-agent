@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -54,33 +52,21 @@ from app.schemas.interview import (
     WrongQuestionPage,
     WrongQuestionSummary,
 )
-
-
-def _hash(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+from app.services._idempotency import sha256_text, stable_json_fingerprint
+from app.services._ownership import get_owned
+from app.services._time import database_now
 
 
 def _operation_key(owner_user_id: uuid.UUID, client_key: str) -> str:
-    return _hash(f"interview-operation\0{owner_user_id.hex}\0{client_key}")
+    return sha256_text(f"interview-operation\0{owner_user_id.hex}\0{client_key}")
 
 
 def _answer_key(owner_user_id: uuid.UUID, interview_id: uuid.UUID, client_key: str) -> str:
-    return _hash(f"interview-answer\0{owner_user_id.hex}\0{interview_id.hex}\0{client_key}")
+    return sha256_text(f"interview-answer\0{owner_user_id.hex}\0{interview_id.hex}\0{client_key}")
 
 
 def _fingerprint(value: dict[str, Any]) -> str:
-    encoded = json.dumps(
-        value,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
-
-async def database_now(session: AsyncSession) -> datetime:
-    value = (await session.execute(select(func.statement_timestamp()))).scalar_one()
-    return cast(datetime, value)
+    return stable_json_fingerprint(value)
 
 
 def _configuration(interview: Interview) -> InterviewConfigurationView:
@@ -100,21 +86,14 @@ async def _owned_interview(
     *,
     lock: bool = False,
 ) -> Interview:
-    statement = select(Interview).where(
-        Interview.id == interview_id,
-        Interview.owner_user_id == user.id,
-        Interview.deleted_at.is_(None),
+    return await get_owned(
+        session,
+        Interview,
+        user,
+        interview_id,
+        message="面试记录不存在",
+        lock=lock,
     )
-    if lock:
-        statement = statement.with_for_update()
-    interview = (await session.execute(statement)).scalar_one_or_none()
-    if interview is None:
-        raise AppError(
-            status_code=404,
-            code="resource_not_found",
-            message="面试记录不存在",
-        )
-    return interview
 
 
 async def _owned_turn(
@@ -1228,7 +1207,6 @@ async def get_weak_point(
 
 __all__ = [
     "create_interview",
-    "database_now",
     "end_branch",
     "get_interview",
     "get_interview_report",

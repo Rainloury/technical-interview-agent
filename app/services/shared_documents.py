@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import uuid
-from base64 import urlsafe_b64decode, urlsafe_b64encode
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
@@ -26,16 +24,19 @@ from app.schemas.documents import (
     DocumentBatchAccepted,
     DocumentItem,
     DocumentPage,
+    DocumentUpload,
 )
+from app.services._audit import audit
+from app.services._idempotency import operation_key
+from app.services._ownership import get_owned
+from app.services._pagination import Cursor, cursor_condition, decode_cursor, encode_cursor
 from app.services._storage_tx import (
     UploadObjects,
     put_object,
     rollback_with_object_cleanup,
     uploaded_object_keys,
 )
-from app.services.auth import audit
 from app.services.documents import (
-    DocumentUpload,
     safe_document_name,
     validate_document_identity,
 )
@@ -43,7 +44,7 @@ from app.storage import ObjectStorage
 
 
 def _key(operation: str, actor_id: uuid.UUID, client_key: str) -> str:
-    return hashlib.sha256(f"{operation}\0{actor_id.hex}\0{client_key}".encode()).hexdigest()
+    return operation_key(operation, actor_id, client_key)
 
 
 def _item(document: SharedDocument, *, can_delete: bool) -> DocumentItem:
@@ -65,46 +66,21 @@ def _item(document: SharedDocument, *, can_delete: bool) -> DocumentItem:
     )
 
 
-def _encode_cursor(document: SharedDocument) -> str:
-    payload = json.dumps(
-        {"created_at": document.created_at.astimezone(UTC).isoformat(), "id": str(document.id)},
-        separators=(",", ":"),
-    ).encode()
-    return urlsafe_b64encode(payload).decode().rstrip("=")
-
-
-def _decode_cursor(value: str) -> tuple[datetime, uuid.UUID]:
-    try:
-        payload = json.loads(urlsafe_b64decode(value + "=" * (-len(value) % 4)))
-        created_at = datetime.fromisoformat(str(payload["created_at"]))
-        if created_at.tzinfo is None:
-            raise ValueError
-        return created_at.astimezone(UTC), uuid.UUID(str(payload["id"]))
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise AppError(
-            status_code=400,
-            code="invalid_request",
-            message="分页游标不合法",
-        ) from exc
-
-
 async def _document(
     session: AsyncSession,
     document_id: uuid.UUID,
     *,
     include_deleted: bool = False,
 ) -> SharedDocument:
-    query = select(SharedDocument).where(SharedDocument.id == document_id)
-    if not include_deleted:
-        query = query.where(SharedDocument.deleted_at.is_(None))
-    document = (await session.execute(query)).scalar_one_or_none()
-    if document is None:
-        raise AppError(
-            status_code=404,
-            code="resource_not_found",
-            message="资料不存在",
-        )
-    return document
+    return await get_owned(
+        session,
+        SharedDocument,
+        None,
+        document_id,
+        message="资料不存在",
+        include_deleted=include_deleted,
+        with_owner_scope=False,
+    )
 
 
 async def _store_document(
@@ -116,6 +92,7 @@ async def _store_document(
     idempotency_key: str,
     settings: Settings,
     uploaded: UploadObjects,
+    request_id: str,
 ) -> DocumentAccepted:
     filename = safe_document_name(upload.filename)
     detected_mime = validate_document_identity(
@@ -196,7 +173,7 @@ async def _store_document(
         resource_type="shared_document",
         resource_id_hash=hashlib.sha256(document.id.bytes).hexdigest(),
         result="success",
-        request_id="shared-upload",
+        request_id=request_id,
     )
     return DocumentAccepted(
         document_id=document.id,
@@ -213,6 +190,7 @@ async def upload_document(
     *,
     idempotency_key: str,
     settings: Settings,
+    request_id: str,
 ) -> DocumentAccepted:
     uploaded = uploaded_object_keys()
     try:
@@ -224,6 +202,7 @@ async def upload_document(
             idempotency_key=idempotency_key,
             settings=settings,
             uploaded=uploaded,
+            request_id=request_id,
         )
         await session.commit()
         return accepted
@@ -240,6 +219,7 @@ async def upload_documents(
     *,
     idempotency_key: str,
     settings: Settings,
+    request_id: str,
 ) -> DocumentBatchAccepted:
     if not uploads:
         raise AppError(status_code=422, code="invalid_request", message="至少选择一个资料文件")
@@ -267,6 +247,7 @@ async def upload_documents(
                 idempotency_key=item_key,
                 settings=settings,
                 uploaded=uploaded,
+                request_id=request_id,
             )
             accepted.append(item)
         await session.commit()
@@ -288,16 +269,8 @@ async def list_documents(
 ) -> DocumentPage:
     query = select(SharedDocument).where(SharedDocument.deleted_at.is_(None))
     if cursor:
-        created_at, document_id = _decode_cursor(cursor)
-        query = query.where(
-            or_(
-                SharedDocument.created_at < created_at,
-                and_(
-                    SharedDocument.created_at == created_at,
-                    SharedDocument.id < document_id,
-                ),
-            )
-        )
+        parsed = decode_cursor(cursor)
+        query = query.where(cursor_condition(SharedDocument.created_at, SharedDocument.id, parsed))
     rows = list(
         (
             await session.execute(
@@ -311,7 +284,11 @@ async def list_documents(
     items = rows[:limit]
     return DocumentPage(
         items=[_item(document, can_delete=is_admin) for document in items],
-        next_cursor=_encode_cursor(items[-1]) if has_more and items else None,
+        next_cursor=(
+            encode_cursor(Cursor(timestamp=items[-1].created_at, id=items[-1].id))
+            if has_more and items
+            else None
+        ),
     )
 
 
@@ -334,6 +311,7 @@ async def delete_document(
     *,
     idempotency_key: str,
     settings: Settings,
+    request_id: str,
 ) -> None:
     document = await _document(session, document_id, include_deleted=True)
     if document.state == "deleted":
@@ -378,6 +356,6 @@ async def delete_document(
         resource_type="shared_document",
         resource_id_hash=hashlib.sha256(document.id.bytes).hexdigest(),
         result="success",
-        request_id="shared-delete",
+        request_id=request_id,
     )
     await session.commit()

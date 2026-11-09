@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-import base64
 import hashlib
-import json
 import uuid
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import filetype
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
@@ -23,7 +20,11 @@ from app.schemas.documents import (
     DocumentBatchAccepted,
     DocumentItem,
     DocumentPage,
+    DocumentUpload,
 )
+from app.services._idempotency import operation_key
+from app.services._ownership import get_owned
+from app.services._pagination import Cursor, cursor_condition, decode_cursor, encode_cursor
 from app.services._storage_tx import (
     UploadObjects,
     put_object,
@@ -40,27 +41,8 @@ SUPPORTED_MIME_BY_SUFFIX = {
 }
 
 
-@dataclass(frozen=True, slots=True)
-class DocumentUpload:
-    """进入私有文档事务的受限字节数。"""
-
-    filename: str
-    declared_mime: str | None
-    content: bytes
-    title: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class DocumentCursor:
-    """使用 created_at 和 UUID 的稳定列表游标。"""
-
-    created_at: datetime
-    id: uuid.UUID
-
-
 def _key(operation: str, owner_id: uuid.UUID, client_key: str) -> str:
-    material = f"{operation}\0{owner_id.hex}\0{client_key}".encode()
-    return hashlib.sha256(material).hexdigest()
+    return operation_key(operation, owner_id, client_key)
 
 
 def safe_document_name(filename: str) -> str:
@@ -135,32 +117,6 @@ def _item(document: UserDocument) -> DocumentItem:
     )
 
 
-def _encode_cursor(document: UserDocument) -> str:
-    payload = json.dumps(
-        {"created_at": document.created_at.astimezone(UTC).isoformat(), "id": str(document.id)},
-        separators=(",", ":"),
-    ).encode()
-    return base64.urlsafe_b64encode(payload).decode().rstrip("=")
-
-
-def _decode_cursor(value: str) -> DocumentCursor:
-    try:
-        payload = json.loads(base64.urlsafe_b64decode(value + "=" * (-len(value) % 4)))
-        created_at = datetime.fromisoformat(str(payload["created_at"]))
-        if created_at.tzinfo is None:
-            raise ValueError
-        return DocumentCursor(
-            created_at=created_at.astimezone(UTC),
-            id=uuid.UUID(str(payload["id"])),
-        )
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise AppError(
-            status_code=400,
-            code="invalid_request",
-            message="分页游标不合法",
-        ) from exc
-
-
 async def _owned_document(
     session: AsyncSession,
     user: User,
@@ -168,20 +124,14 @@ async def _owned_document(
     *,
     include_deleted: bool = False,
 ) -> UserDocument:
-    query = select(UserDocument).where(
-        UserDocument.id == document_id,
-        UserDocument.owner_user_id == user.id,
+    return await get_owned(
+        session,
+        UserDocument,
+        user,
+        document_id,
+        message="资料不存在",
+        include_deleted=include_deleted,
     )
-    if not include_deleted:
-        query = query.where(UserDocument.deleted_at.is_(None))
-    document = (await session.execute(query)).scalar_one_or_none()
-    if document is None:
-        raise AppError(
-            status_code=404,
-            code="resource_not_found",
-            message="资料不存在",
-        )
-    return document
 
 
 async def _store_document(
@@ -416,13 +366,8 @@ async def list_documents(
         UserDocument.retention_expires_at > now,
     )
     if cursor:
-        parsed = _decode_cursor(cursor)
-        query = query.where(
-            or_(
-                UserDocument.created_at < parsed.created_at,
-                and_(UserDocument.created_at == parsed.created_at, UserDocument.id < parsed.id),
-            )
-        )
+        parsed = decode_cursor(cursor)
+        query = query.where(cursor_condition(UserDocument.created_at, UserDocument.id, parsed))
     rows = list(
         (
             await session.execute(
@@ -436,7 +381,11 @@ async def list_documents(
     items = rows[:limit]
     return DocumentPage(
         items=[_item(document) for document in items],
-        next_cursor=_encode_cursor(items[-1]) if has_more and items else None,
+        next_cursor=(
+            encode_cursor(Cursor(timestamp=items[-1].created_at, id=items[-1].id))
+            if has_more and items
+            else None
+        ),
     )
 
 

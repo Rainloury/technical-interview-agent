@@ -7,21 +7,21 @@ from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile, status
 
+from app.api._uploads import read_bounded_upload
 from app.api.dependencies import (
     AuthDependency,
     IdempotencyKeyDependency,
     SessionDependency,
     verify_write_security,
 )
-from app.errors import AppError
 from app.schemas.documents import (
     DocumentAccepted,
     DocumentBatchAccepted,
     DocumentItem,
     DocumentPage,
+    DocumentUpload,
 )
 from app.services.documents import (
-    DocumentUpload,
     delete_document,
     get_document,
     list_documents,
@@ -30,17 +30,6 @@ from app.services.documents import (
 )
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-
-
-async def _read_bounded(file: UploadFile, max_bytes: int) -> bytes:
-    chunks: list[bytes] = []
-    total = 0
-    while chunk := await file.read(64 * 1024):
-        total += len(chunk)
-        if total > max_bytes:
-            raise AppError(status_code=413, code="file_too_large", message="文件不能超过 10 MB")
-        chunks.append(chunk)
-    return b"".join(chunks)
 
 
 @router.post("", response_model=DocumentAccepted, status_code=status.HTTP_202_ACCEPTED)
@@ -54,7 +43,7 @@ async def upload(
 ) -> DocumentAccepted:
     verify_write_security(request, auth)
     settings = request.app.state.settings
-    content = await _read_bounded(file, settings.document_max_bytes)
+    content = await read_bounded_upload(file, settings.document_max_bytes)
     return await upload_document(
         session,
         request.app.state.resume_storage,
@@ -82,7 +71,7 @@ async def upload_batch(
     settings = request.app.state.settings
     uploads = []
     for file in files:
-        content = await _read_bounded(file, settings.document_max_bytes)
+        content = await read_bounded_upload(file, settings.document_max_bytes)
         uploads.append(
             DocumentUpload(
                 filename=file.filename or "",

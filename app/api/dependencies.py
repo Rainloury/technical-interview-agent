@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -94,9 +93,3 @@ def verify_write_security(request: Request, auth: AuthContext) -> None:
     """对已认证的写操作应用来源与 CSRF 校验。"""
 
     verify_csrf(request, request.app.state.settings, auth.session)
-
-
-def hash_idempotency_key(value: str) -> str:
-    """仅存储调用方提供的幂等性材料的哈希。"""
-
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()

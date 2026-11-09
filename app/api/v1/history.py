@@ -6,7 +6,8 @@ from fastapi import APIRouter, Query
 
 from app.api.dependencies import AuthDependency, SessionDependency
 from app.schemas.history import HistoryPage, HistoryType
-from app.services.history import decode_cursor, list_history
+from app.services._pagination import decode_cursor
+from app.services.history import list_history
 
 router = APIRouter(tags=["history"])
 
@@ -21,7 +22,7 @@ async def read_history(
 ) -> HistoryPage:
     """按稳定的降序仅列出当前用户的历史记录。"""
 
-    parsed_cursor = decode_cursor(cursor) if cursor else None
+    parsed_cursor = decode_cursor(cursor, field="updated_at") if cursor else None
     return await list_history(
         session,
         auth.user,
