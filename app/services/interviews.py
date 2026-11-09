@@ -45,7 +45,6 @@ from app.schemas.interview import (
     InterviewTurnAccepted,
     InterviewTurnView,
     InterviewView,
-    WeakPointEvidenceView,
     WeakPointPage,
     WeakPointSummary,
     WrongQuestionDetail,
@@ -53,6 +52,7 @@ from app.schemas.interview import (
     WrongQuestionSummary,
 )
 from app.services._idempotency import sha256_text, stable_json_fingerprint
+from app.services._interview_views import weak_point_view, wrong_question_view
 from app.services._ownership import get_owned
 from app.services._time import database_now
 
@@ -908,26 +908,7 @@ async def get_interview_report(
         )
         if not evidence_rows:
             continue
-        weak_points.append(
-            WeakPointSummary(
-                id=weak.id,
-                topic_key=weak.topic_key,
-                title=weak.title,
-                severity=float(weak.severity),
-                failure_count=weak.failure_count,
-                last_failure_at=weak.last_failure_at,
-                review_advice=weak.review_advice,
-                state=weak.state,
-                evidence=[
-                    {
-                        "wrong_question_id": row.wrong_question_id,
-                        "turn_id": row.turn_id,
-                        "loss_reason_hash": row.loss_reason_hash,
-                    }
-                    for row in evidence_rows
-                ],
-            )
-        )
+        weak_points.append(weak_point_view(weak, evidence_rows))
     scoring_status = (
         "incomplete_scoring"
         if any(turn.state == "scoring_failed" for turn in turns)
@@ -1017,29 +998,7 @@ async def list_wrong_questions(
     has_more = len(rows) > limit
     page = rows[:limit]
     return WrongQuestionPage(
-        items=[
-            WrongQuestionDetail(
-                id=item.id,
-                interview_id=item.interview_id,
-                turn_id=item.turn_id,
-                parent_turn_id=item.parent_turn_id,
-                question_text=item.question_text,
-                topic_key=item.topic_key,
-                difficulty=cast(Any, item.difficulty),
-                score_breakdown=item.score_breakdown,
-                loss_reasons=[
-                    str(value)
-                    for value in item.loss_reasons.get("items", [])
-                    if isinstance(value, str)
-                ],
-                created_at=item.created_at,
-                answer_text=item.answer_text,
-                reference_answer=item.reference_answer,
-                state=item.state,
-                expires_at=item.expires_at,
-            )
-            for item in page
-        ],
+        items=[wrong_question_view(item) for item in page],
         next_cursor=_review_cursor(page[-1]) if has_more and page else None,
     )
 
@@ -1073,24 +1032,7 @@ async def get_wrong_question(
             code="feedback_locked",
             message="面试结束后才能查看完整反馈",
         )
-    return WrongQuestionDetail(
-        id=item.id,
-        interview_id=item.interview_id,
-        turn_id=item.turn_id,
-        parent_turn_id=item.parent_turn_id,
-        question_text=item.question_text,
-        topic_key=item.topic_key,
-        difficulty=cast(Any, item.difficulty),
-        score_breakdown=item.score_breakdown,
-        loss_reasons=[
-            str(value) for value in item.loss_reasons.get("items", []) if isinstance(value, str)
-        ],
-        created_at=item.created_at,
-        answer_text=item.answer_text,
-        reference_answer=item.reference_answer,
-        state=item.state,
-        expires_at=item.expires_at,
-    )
+    return wrong_question_view(item)
 
 
 async def list_weak_points(
@@ -1132,26 +1074,7 @@ async def list_weak_points(
                 )
             ).scalars()
         )
-        items.append(
-            WeakPointSummary(
-                id=item.id,
-                topic_key=item.topic_key,
-                title=item.title,
-                severity=float(item.severity),
-                failure_count=item.failure_count,
-                last_failure_at=item.last_failure_at,
-                review_advice=item.review_advice,
-                state=item.state,
-                evidence=[
-                    WeakPointEvidenceView(
-                        wrong_question_id=row.wrong_question_id,
-                        turn_id=row.turn_id,
-                        loss_reason_hash=row.loss_reason_hash,
-                    )
-                    for row in evidence
-                ],
-            )
-        )
+        items.append(weak_point_view(item, evidence))
     return WeakPointPage(
         items=items,
         next_cursor=_review_cursor(page[-1]) if has_more and page else None,
@@ -1185,24 +1108,7 @@ async def get_weak_point(
             )
         ).scalars()
     )
-    return WeakPointSummary(
-        id=item.id,
-        topic_key=item.topic_key,
-        title=item.title,
-        severity=float(item.severity),
-        failure_count=item.failure_count,
-        last_failure_at=item.last_failure_at,
-        review_advice=item.review_advice,
-        state=item.state,
-        evidence=[
-            WeakPointEvidenceView(
-                wrong_question_id=row.wrong_question_id,
-                turn_id=row.turn_id,
-                loss_reason_hash=row.loss_reason_hash,
-            )
-            for row in evidence
-        ],
-    )
+    return weak_point_view(item, evidence)
 
 
 __all__ = [

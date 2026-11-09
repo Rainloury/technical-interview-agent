@@ -27,6 +27,7 @@ from app.schemas.documents import (
     DocumentUpload,
 )
 from app.services._audit import audit
+from app.services._documents_common import batch_item_key, document_item, validate_batch
 from app.services._idempotency import operation_key
 from app.services._ownership import get_owned
 from app.services._pagination import Cursor, cursor_condition, decode_cursor, encode_cursor
@@ -48,21 +49,11 @@ def _key(operation: str, actor_id: uuid.UUID, client_key: str) -> str:
 
 
 def _item(document: SharedDocument, *, can_delete: bool) -> DocumentItem:
-    return DocumentItem(
-        id=document.id,
-        title=document.title,
-        original_filename=document.original_filename,
-        state=document.state,
-        chunk_count=document.chunk_count,
-        failure_code=document.failure_code,
-        error_message=document.error_message,
-        index_version=document.index_version,
-        created_at=document.created_at,
-        updated_at=document.updated_at,
-        completed_at=document.completed_at,
-        retention_expires_at=document.created_at,
+    return document_item(
+        document,
         visibility="shared",
         can_delete=can_delete,
+        retention_expires_at=document.created_at,
     )
 
 
@@ -221,24 +212,12 @@ async def upload_documents(
     settings: Settings,
     request_id: str,
 ) -> DocumentBatchAccepted:
-    if not uploads:
-        raise AppError(status_code=422, code="invalid_request", message="至少选择一个资料文件")
-    identities = [
-        (upload.filename, hashlib.sha256(upload.content).hexdigest()) for upload in uploads
-    ]
-    if len(identities) != len(set(identities)):
-        raise AppError(
-            status_code=422,
-            code="invalid_request",
-            message="同一批次不能重复上传相同文件",
-        )
+    validate_batch(uploads)
     accepted: list[DocumentAccepted] = []
     uploaded = uploaded_object_keys()
     try:
         for upload in uploads:
-            item_key = (
-                f"{idempotency_key}:{upload.filename}:{hashlib.sha256(upload.content).hexdigest()}"
-            )
+            item_key = batch_item_key(idempotency_key, upload)
             item = await _store_document(
                 session,
                 storage,
