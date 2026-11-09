@@ -57,7 +57,7 @@ def _key(operation: str, owner_id: uuid.UUID, client_key: str) -> str:
     return hashlib.sha256(material).hexdigest()
 
 
-def _safe_name(filename: str) -> str:
+def safe_document_name(filename: str) -> str:
     name = Path(filename or "").name.strip()
     name = "".join(char for char in name if char.isprintable())
     if not name:
@@ -69,7 +69,7 @@ def _safe_name(filename: str) -> str:
     return name[:255]
 
 
-def _validate_identity(
+def validate_document_identity(
     *,
     filename: str,
     declared_mime: str | None,
@@ -189,8 +189,8 @@ async def _store_document(
 ) -> tuple[DocumentAccepted, str | None]:
     """在不提交的情况下验证、私有存储并将一个文档入队。"""
 
-    filename = _safe_name(upload.filename)
-    detected_mime = _validate_identity(
+    filename = safe_document_name(upload.filename)
+    detected_mime = validate_document_identity(
         filename=filename,
         declared_mime=upload.declared_mime,
         content=upload.content,
@@ -408,7 +408,7 @@ async def upload_documents(
         raise
     return DocumentBatchAccepted(
         documents=accepted,
-        original_filenames=[_safe_name(upload.filename) for upload in uploads],
+        original_filenames=[safe_document_name(upload.filename) for upload in uploads],
     )
 
 

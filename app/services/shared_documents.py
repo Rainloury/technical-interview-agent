@@ -28,7 +28,11 @@ from app.schemas.documents import (
     DocumentPage,
 )
 from app.services.auth import audit
-from app.services.documents import DocumentUpload, _safe_name, _validate_identity
+from app.services.documents import (
+    DocumentUpload,
+    safe_document_name,
+    validate_document_identity,
+)
 from app.storage import ObjectStorage
 
 
@@ -106,8 +110,8 @@ async def _store_document(
     idempotency_key: str,
     settings: Settings,
 ) -> tuple[DocumentAccepted, str | None]:
-    filename = _safe_name(upload.filename)
-    detected_mime = _validate_identity(
+    filename = safe_document_name(upload.filename)
+    detected_mime = validate_document_identity(
         filename=filename,
         declared_mime=upload.declared_mime,
         content=upload.content,
@@ -277,7 +281,7 @@ async def upload_documents(
         raise
     return DocumentBatchAccepted(
         documents=accepted,
-        original_filenames=[_safe_name(upload.filename) for upload in uploads],
+        original_filenames=[safe_document_name(upload.filename) for upload in uploads],
     )
 
 

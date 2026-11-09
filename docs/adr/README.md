@@ -6,7 +6,7 @@
 
 | 编号 | 决策 | 状态 | 影响范围 |
 | --- | --- | --- | --- |
-| [ADR-0001](./0001-layering.md) | 固定 `api -> agent -> tools -> llm` 依赖方向 | 已接受 | 全仓模块边界 |
+| [ADR-0001](./0001-layering.md) | 固定 `api -> agent -> tools -> llm` 依赖方向 | 已被 ADR-0011 取代 | 全仓模块边界 |
 | [ADR-0002](./0002-database-as-source-of-truth.md) | PostgreSQL 作为业务状态与幂等事实来源 | 已接受 | 数据、任务、恢复 |
 | [ADR-0003](./0003-server-authoritative-deadline.md) | 服务端时间控制面试截止 | 已接受 | 面试状态、提交、恢复 |
 | [ADR-0004](./0004-llm-client-and-trace.md) | 所有 LLM 调用统一经过可追踪 Client | 已接受 | LLM、日志、成本 |
@@ -16,8 +16,9 @@
 | [ADR-0008](./0008-protected-feedback.md) | 受保护反馈按整场终态解锁 | 已接受 | 面试、报告、DTO |
 | [ADR-0009](./0009-hybrid-rag-for-private-documents.md) | 私有内部资料采用 pgvector、BM25 和 RRF 混合检索 | 已接受 | 数据、检索、Worker、前端、部署 |
 | [ADR-0010](./0010-shared-documents-and-admin-role.md) | 共享资料采用独立资源与管理员角色 | 已接受 | 鉴权、数据、检索、Worker、前端、运维 |
+| [ADR-0011](./0011-services-usecase-layer.md) | 承认 `services` 用例编排层并固定依赖边界 | 已接受 | `api`、`services`、`worker`、分层检查 |
 
-当前 ADR-0001 至 ADR-0010 已全部接受。
+当前 ADR-0001 已由 ADR-0011 取代，ADR-0002 至 ADR-0011 均已接受。
 
 ADR 只记录架构选择。方案之间的关系、实现状态和发布遗留事项见[方案总览](../solution-map.md)。
 

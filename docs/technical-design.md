@@ -39,31 +39,35 @@ flowchart LR
     LLM --> PROVIDER["Official LLM SDK"]
 ```
 
-依赖方向遵循 `AGENTS.md` 的项目红线：
+依赖方向遵循 `AGENTS.md` 与 [ADR-0011](./adr/0011-services-usecase-layer.md) 的项目红线：
 
 ```text
-api -> agent -> tools -> llm
+api -> services -> 基础设施
+agent -> tools -> llm
 ```
 
-`tools/` 不导入 `api/` 或 `agent/`，`llm/` 不感知业务资源。用例编排放在 `agent/` 层内部；仓储、对象存储和邮件等基础设施通过明确接口注入，不使用全局可变状态。
+`services/` 承载用例编排，与 `agent/` 平级且互不 import；`tools/` 不导入 `api/` 或 `agent/`，
+`llm/` 不感知业务资源。仓储、对象存储和邮件等基础设施通过明确接口注入，不使用全局可变状态。
 
 依赖矩阵：
 
 | 来源 | 允许依赖 | 禁止依赖 |
 | --- | --- | --- |
-| `app/api/` | `app/agent/`、配置与 DTO | `app/llm/`、`app/tools/`、数据库直接写入 |
-| `app/agent/` | `app/tools/`、基础设施接口、`llm` 公共类型 | `app/api/`、具体路由 |
+| `app/api/` | `app/services/`、配置与 DTO | `app/agent/`、`app/llm/`、`app/tools/`、数据库直接写入 |
+| `app/services/` | `app/db/`、`app/schemas/`、`app/config`、`app/errors`、`app/storage`、`app/security`、`app/crypto`、`app/*_contracts`、同层 `_*.py` | `app/api/`、`app/agent/`、`app/tools/`、`app/llm/`、`app/worker`、跨 service 私有成员 |
+| `app/agent/` | `app/tools/`、基础设施接口、`llm` 公共类型 | `app/api/`、`app/services/`、具体路由 |
 | `app/tools/` | `app/llm/`、标准库和工具依赖 | `app/api/`、`app/agent/` |
 | `app/llm/` | 厂商 SDK、配置、日志与 trace 基础能力 | 业务模块、权限和资源所有权判断 |
 
-`app/worker/` 是进程装配入口，只能通过 `agent` 暴露的用例接口执行任务，不复制业务状态规则。基础设施适配器可以放在所属模块内部或独立基础设施包中，但只能通过接口被 `agent` 使用。
+`app/worker.py` 是进程装配入口，只能通过 `services` 暴露的用例接口执行任务，不复制业务状态规则。基础设施适配器可以放在所属模块内部或独立基础设施包中，但只能通过接口被 `services` 使用。
 
 ## 3. 模块职责
 
 | 模块 | 职责 | 禁止事项 |
 | --- | --- | --- |
 | `app/api/` | 路由、认证依赖、Pydantic 请求响应、HTTP 错误映射 | 业务状态迁移、Prompt 拼装、直接访问模型 |
-| `app/agent/` | plan -> act -> observe、用例编排、事务边界、权限、幂等、状态快照和预算消费 | 无上限循环、直接执行写操作 |
+| `app/services/` | 用例编排、事务边界、权限、幂等、公开响应裁剪 | 无上限循环、直接执行写操作、拼装 Prompt、import `api`/`agent`/`tools`/`llm` |
+| `app/agent/` | plan -> act -> observe、有界循环、状态快照和预算消费 | 无上限循环、直接执行写操作、承担账号与资料用例 |
 | `app/tools/` | 单一能力的参数模型、描述和执行 | 路由逻辑、跨工具共享可变状态 |
 | `app/llm/` | SDK 调用、重试、超时、trace、日志脱敏 | 业务权限判断、直接返回未校验模型结果 |
 | `app/prompts/` | Markdown Prompt 和版本元数据 | 在 Python 中拼接提示词 |
@@ -493,3 +497,4 @@ Trace 必须能从用户请求追到异步任务、模型调用、工具调用�
 | v0.22 | 2026-10-22 | 接受 ADR-0009：增加私有资料上传、pgvector + BM25 风格词法 + RRF、Ollama `mxbai-embed-large:latest`、BM25 降级、90 天保留和来源删除语义 |
 | v0.23 | 2026-10-23 | 同步 `DR-08`、`DR-09`、ADR-0010 和需求 v1.6；明确私有资料、共享资料与移动端状态统一由方案总览索引 |
 | v0.24 | 2026-10-23 | 同步 `v0.1.0` 正式发布与线上健康事实；将当前阶段改为发布后后续迭代 |
+| v0.25 | 2026-11-09 | 按 ADR-0011 承认 `services` 用例编排层：更新依赖矩阵与模块职责，`agent/` 回归有界循环职责，分层静态检查覆盖 services 允许/禁止清单 |

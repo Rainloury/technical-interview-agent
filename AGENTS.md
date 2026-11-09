@@ -50,12 +50,13 @@ uv run pytest evals -q             # 智能体行为评测，改 prompt 或换�
 ```
 app/
   main.py              # FastAPI 入口，只做装配，不写业务
-  api/                 # 路由层：校验参数 → 调 service → 返回
+  api/                 # 路由层：校验参数 → 调 services → 返回
   agent/
     loop.py            # 主循环：plan → act → observe，唯一的迭代点
     planner.py         # 任务分解
     state.py           # 会话状态模型（必须可序列化）
     registry.py        # 工具注册表，唯一注册入口
+  services/            # 用例编排：权限、幂等、事务、公开 DTO 裁剪
   tools/
     _base.py           # Tool 基类 + schema 约定
     <tool_name>.py     # 一个工具一个文件，文件名词性、函数名动词开头
@@ -75,8 +76,13 @@ docs/
 tests/
 ```
 
-**分层红线**：依赖方向只能是 `api → agent → tools → llm`。  
-禁止反向 import，禁止跨层直调。`tools/` 不许 import `api/`，`llm/` 对上述各层一无所知。
+**分层红线**：依赖方向只能是 `api → services → 基础设施`，以及 `agent → tools → llm`。  
+`services/` 承载用例编排（权限、幂等、事务、公开 DTO 裁剪），允许依赖 `db/`、`schemas/`、
+`storage.py`、`security.py`、`crypto.py`、`errors.py`、`config.py` 和各 `*_contracts.py`；
+禁止依赖 `api/`、`agent/`、`tools/`、`llm/`、`worker.py`。`agent/` 是有界循环的独立入口，
+与 `services/` 平级，两者互不 import。禁止反向 import，禁止跨层直调；
+`tools/` 不许 import `api/`，`llm/` 对上述各层一无所知。
+同层内的 `services` 公共逻辑放 `app/services/_*.py`，只导出公开函数，不 import 下划线私有成员。
 
 ## 4. 智能体开发的硬规则
 
