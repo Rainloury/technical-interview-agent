@@ -99,6 +99,7 @@ flowchart TD
 | [ADR-0009](./adr/0009-hybrid-rag-for-private-documents.md) | 私有资料采用 pgvector、BM25 和 RRF |
 | [ADR-0010](./adr/0010-shared-documents-and-admin-role.md) | 共享资料采用独立资源与管理员角色 |
 | [ADR-0011](./adr/0011-services-usecase-layer.md) | 承认 `services` 用例编排层并固定依赖边界 |
+| [ADR-0012](./adr/0012-opaque-review-cursors.md) | 复习分页统一为不透明游标并保留明文兼容期 |
 
 ## 5. 规格与实施计划
 

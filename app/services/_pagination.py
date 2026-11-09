@@ -52,6 +52,33 @@ def decode_cursor(value: str, *, field: str = "created_at") -> Cursor:
         ) from exc
 
 
+def decode_legacy_cursor(value: str) -> Cursor:
+    """兼容期内解析旧版 ``timestamp|uuid`` 明文复习游标。"""
+
+    try:
+        timestamp, item_id = value.strip().split("|", 1)
+        parsed = datetime.fromisoformat(timestamp)
+        if parsed.tzinfo is None:
+            raise ValueError("timezone required")
+        return Cursor(timestamp=parsed.astimezone(UTC), id=uuid.UUID(item_id))
+    except (TypeError, ValueError) as exc:
+        raise AppError(
+            status_code=400,
+            code="invalid_request",
+            message="分页游标不合法",
+        ) from exc
+
+
+def decode_cursor_with_legacy(value: str | None) -> Cursor | None:
+    """先尝试不透明游标,兼容期内回退到旧明文格式。"""
+
+    if value is None or not value.strip():
+        return None
+    if "|" in value:
+        return decode_legacy_cursor(value)
+    return decode_cursor(value)
+
+
 def cursor_condition(
     timestamp_column: Any,
     id_column: Any,

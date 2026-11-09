@@ -17,8 +17,9 @@
 | [ADR-0009](./0009-hybrid-rag-for-private-documents.md) | 私有内部资料采用 pgvector、BM25 和 RRF 混合检索 | 已接受 | 数据、检索、Worker、前端、部署 |
 | [ADR-0010](./0010-shared-documents-and-admin-role.md) | 共享资料采用独立资源与管理员角色 | 已接受 | 鉴权、数据、检索、Worker、前端、运维 |
 | [ADR-0011](./0011-services-usecase-layer.md) | 承认 `services` 用例编排层并固定依赖边界 | 已接受 | `api`、`services`、`worker`、分层检查 |
+| [ADR-0012](./0012-opaque-review-cursors.md) | 复习分页统一为不透明游标并保留明文兼容期 | 已接受 | 复习列表、分页公共模块、接口契约 |
 
-当前 ADR-0001 已由 ADR-0011 取代，ADR-0002 至 ADR-0011 均已接受。
+当前 ADR-0001 已由 ADR-0011 取代，ADR-0002 至 ADR-0012 均已接受。
 
 ADR 只记录架构选择。方案之间的关系、实现状态和发布遗留事项见[方案总览](../solution-map.md)。
 

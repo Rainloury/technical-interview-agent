@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,6 +54,11 @@ from app.schemas.interview import (
 from app.services._idempotency import sha256_text, stable_json_fingerprint
 from app.services._interview_views import weak_point_view, wrong_question_view
 from app.services._ownership import get_owned
+from app.services._pagination import (
+    cursor_condition,
+    decode_cursor_with_legacy,
+    next_cursor,
+)
 from app.services._time import database_now
 
 
@@ -927,41 +932,6 @@ async def get_interview_report(
     )
 
 
-def _cursor_condition(
-    created_column: Any,
-    id_column: Any,
-    cursor: tuple[datetime, uuid.UUID] | None,
-) -> Any:
-    if cursor is None:
-        return True
-    return or_(
-        created_column < cursor[0],
-        and_(created_column == cursor[0], id_column < cursor[1]),
-    )
-
-
-def decode_review_cursor(value: str | None) -> tuple[datetime, uuid.UUID] | None:
-    if value is None or not value.strip():
-        return None
-    try:
-        raw = value.strip()
-        timestamp, item_id = raw.split("|", 1)
-        parsed = datetime.fromisoformat(timestamp)
-        if parsed.tzinfo is None:
-            raise ValueError("timezone required")
-        return parsed.astimezone(UTC), uuid.UUID(item_id)
-    except (TypeError, ValueError) as exc:
-        raise AppError(
-            status_code=400,
-            code="invalid_request",
-            message="分页游标不合法",
-        ) from exc
-
-
-def _review_cursor(item: Any) -> str:
-    return f"{item.created_at.astimezone(UTC).isoformat()}|{item.id}"
-
-
 async def list_wrong_questions(
     session: AsyncSession,
     user: User,
@@ -973,12 +943,12 @@ async def list_wrong_questions(
     cursor: str | None,
 ) -> WrongQuestionPage:
     now = await database_now(session)
-    parsed_cursor = decode_review_cursor(cursor)
+    parsed_cursor = decode_cursor_with_legacy(cursor)
     statement = select(WrongQuestion).where(
         WrongQuestion.owner_user_id == user.id,
         WrongQuestion.deleted_at.is_(None),
         WrongQuestion.expires_at > now,
-        _cursor_condition(WrongQuestion.created_at, WrongQuestion.id, parsed_cursor),
+        cursor_condition(WrongQuestion.created_at, WrongQuestion.id, parsed_cursor),
     )
     if state:
         statement = statement.where(WrongQuestion.state == state)
@@ -999,7 +969,7 @@ async def list_wrong_questions(
     page = rows[:limit]
     return WrongQuestionPage(
         items=[wrong_question_view(item) for item in page],
-        next_cursor=_review_cursor(page[-1]) if has_more and page else None,
+        next_cursor=next_cursor(page, has_more=has_more),
     )
 
 
@@ -1043,11 +1013,11 @@ async def list_weak_points(
     limit: int,
     cursor: str | None,
 ) -> WeakPointPage:
-    parsed_cursor = decode_review_cursor(cursor)
+    parsed_cursor = decode_cursor_with_legacy(cursor)
     statement = select(WeakPoint).where(
         WeakPoint.owner_user_id == user.id,
         WeakPoint.deleted_at.is_(None),
-        _cursor_condition(WeakPoint.created_at, WeakPoint.id, parsed_cursor),
+        cursor_condition(WeakPoint.created_at, WeakPoint.id, parsed_cursor),
     )
     if state:
         statement = statement.where(WeakPoint.state == state)
@@ -1077,7 +1047,7 @@ async def list_weak_points(
         items.append(weak_point_view(item, evidence))
     return WeakPointPage(
         items=items,
-        next_cursor=_review_cursor(page[-1]) if has_more and page else None,
+        next_cursor=next_cursor(page, has_more=has_more),
     )
 
 

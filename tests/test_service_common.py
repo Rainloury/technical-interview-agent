@@ -8,7 +8,13 @@ from datetime import UTC, datetime
 import pytest
 from app.errors import AppError
 from app.services._idempotency import operation_key, sha256_text, stable_json_fingerprint
-from app.services._pagination import Cursor, cursor_condition, decode_cursor, encode_cursor
+from app.services._pagination import (
+    Cursor,
+    cursor_condition,
+    decode_cursor,
+    decode_cursor_with_legacy,
+    encode_cursor,
+)
 
 
 def test_operation_key_is_stable_and_owner_scoped() -> None:
@@ -52,3 +58,27 @@ def test_cursor_rejects_malformed_payload() -> None:
 def test_cursor_condition_is_true_without_cursor() -> None:
     condition = cursor_condition(object(), object(), None)
     assert str(condition) == "true"
+
+
+def test_review_cursor_is_opaque_and_round_trips() -> None:
+    cursor = Cursor(timestamp=datetime(2026, 11, 9, 8, 30, tzinfo=UTC), id=uuid.UUID(int=7))
+    encoded = encode_cursor(cursor)
+    assert "|" not in encoded
+    assert "2026-11-09" not in encoded
+    decoded = decode_cursor_with_legacy(encoded)
+    assert decoded is not None
+    assert decoded.timestamp == cursor.timestamp
+    assert decoded.id == cursor.id
+
+
+def test_legacy_review_cursor_is_still_accepted() -> None:
+    legacy = f"2026-11-09T08:30:00+00:00|{uuid.UUID(int=7)}"
+    decoded = decode_cursor_with_legacy(legacy)
+    assert decoded is not None
+    assert decoded.timestamp == datetime(2026, 11, 9, 8, 30, tzinfo=UTC)
+    assert decoded.id == uuid.UUID(int=7)
+
+
+def test_legacy_review_cursor_rejects_naive_timestamp() -> None:
+    with pytest.raises(AppError):
+        decode_cursor_with_legacy(f"2026-11-09T08:30:00|{uuid.UUID(int=7)}")
