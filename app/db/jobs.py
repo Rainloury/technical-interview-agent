@@ -1,4 +1,4 @@
-"""PostgreSQL-backed job leasing with fencing checks."""
+"""带防护检查的 PostgreSQL 后端作业租约。"""
 
 import uuid
 from datetime import datetime
@@ -17,11 +17,10 @@ async def lease_next_job(
     lease_seconds: int = 60,
     allowed_job_ids: tuple[uuid.UUID, ...] | None = None,
 ) -> AsyncJob | None:
-    """Lease one due job and increment its fencing token atomically.
+    """原子化地租用一个到期任务并递增其 fencing token。
 
-    ``allowed_job_ids`` is an optional partitioning/filter hook for callers
-    that must remain isolated from unrelated queued work, such as tests or a
-    future sharded worker pool.
+    ``allowed_job_ids`` 是可选的分区/过滤钩子,供需要与无关排队任务保持隔离的调用方使用,
+    例如测试或未来的分片 Worker 池。
     """
 
     if lease_seconds <= 0:
@@ -72,7 +71,7 @@ async def finish_job(
     error_detail: str | None = None,
     next_run_at: datetime | None = None,
 ) -> bool:
-    """Finish a job only when the caller still owns the current lease."""
+    """仅当调用方仍持有当前租约时才完成任务。"""
 
     values: dict[str, Any] = {
         "state": "queued" if state == "failed" and next_run_at is not None else state,
@@ -106,7 +105,7 @@ async def renew_job_lease(
     fencing_token: int,
     lease_seconds: int = 60,
 ) -> bool:
-    """Extend a lease only for the current owner and fencing token."""
+    """仅为当前所有者与 fencing token 延长租约。"""
 
     if lease_seconds <= 0:
         raise ValueError("lease_seconds must be positive")
@@ -138,7 +137,7 @@ async def enqueue_job(
     request_fingerprint: str = "",
     next_run_at: datetime | None = None,
 ) -> AsyncJob:
-    """Insert one job when its unique idempotency key is not already present."""
+    """当其唯一幂等键尚不存在时插入一个任务。"""
 
     existing = (
         await session.execute(select(AsyncJob).where(AsyncJob.idempotency_key == idempotency_key))

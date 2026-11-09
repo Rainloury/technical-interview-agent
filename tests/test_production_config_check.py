@@ -1,4 +1,4 @@
-"""Contract tests for the redacted production configuration check."""
+"""脱敏生产配置检查的契约测试。"""
 
 from __future__ import annotations
 

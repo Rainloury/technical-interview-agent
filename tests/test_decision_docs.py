@@ -1,4 +1,4 @@
-"""Decision, phase, and delivered-slice contracts visible in project docs."""
+"""项目文档中可见的决策、阶段和已交付切片约定。"""
 
 from __future__ import annotations
 

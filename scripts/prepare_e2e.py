@@ -1,4 +1,4 @@
-"""Seed deterministic interview history for a registered E2E account."""
+"""为已注册的 E2E 账户植入确定性的面试历史。"""
 
 from __future__ import annotations
 

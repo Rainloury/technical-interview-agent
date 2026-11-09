@@ -1,4 +1,4 @@
-"""Stable public error envelope and exception mappings."""
+"""稳定的公开错误信封与异常映射。"""
 
 from typing import Any
 
@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 
 class AppError(Exception):
-    """An expected application failure exposed through the public envelope."""
+    """通过公开信封暴露的预期应用失败。"""
 
     def __init__(
         self,
@@ -28,7 +28,7 @@ class AppError(Exception):
 
 
 def request_id_from(request: Request) -> str:
-    """Read the request identifier set by middleware."""
+    """读取由中间件设置的请求标识符。"""
 
     return getattr(request.state, "request_id", "unknown")
 
@@ -41,7 +41,7 @@ def error_payload(
     retryable: bool = False,
     details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build the stable API error envelope."""
+    """构建稳定的 API 错误信封。"""
 
     error: dict[str, Any] = {
         "code": code,
@@ -55,7 +55,7 @@ def error_payload(
 
 
 def install_exception_handlers(app: FastAPI) -> None:
-    """Install handlers without exposing internal exceptions."""
+    """安装处理器且不暴露内部异常。"""
 
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:

@@ -1,4 +1,4 @@
-"""add private document RAG schema
+"""添加私有文档 RAG schema
 
 Revision ID: 7f3a9c2d1b40
 Revises: 7e2b4c6d8f10

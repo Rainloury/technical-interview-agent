@@ -1,4 +1,4 @@
-"""JSON logging and sensitive-data redaction."""
+"""JSON 日志记录与敏感数据脱敏。"""
 
 import logging
 import re
@@ -38,7 +38,7 @@ CREDENTIAL_KEY_SUFFIXES = (
 
 
 def redact_text(value: str) -> str:
-    """Mask common sensitive values in free-form text."""
+    """在自由格式文本中掩码常见敏感值。"""
 
     value = EMAIL_PATTERN.sub("[REDACTED_EMAIL]", value)
     value = PHONE_PATTERN.sub("[REDACTED_PHONE]", value)
@@ -50,7 +50,7 @@ def redact_text(value: str) -> str:
 
 
 def _is_credential_key(key: str) -> bool:
-    """Distinguish credential fields from telemetry fields such as ``input_tokens``."""
+    """区分凭据字段与 ``input_tokens`` 等遥测字段。"""
 
     normalized = key.lower().replace("-", "_")
     return normalized in CREDENTIAL_KEYS or normalized.endswith(CREDENTIAL_KEY_SUFFIXES)
@@ -74,13 +74,13 @@ def _redact_value(value: Any) -> Any:
 def redact_event(
     _logger: logging.Logger, _method: str, event_dict: MutableMapping[str, Any]
 ) -> MutableMapping[str, Any]:
-    """Structlog processor that recursively redacts event fields."""
+    """递归脱敏事件字段的 Structlog 处理器。"""
 
     return cast(MutableMapping[str, Any], _redact_value(dict(event_dict)))
 
 
 def configure_logging(level: str = "INFO") -> None:
-    """Configure structlog JSON lines and route standard logging through it."""
+    """配置 structlog JSON lines 并将标准日志路由至其中。"""
 
     shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
@@ -116,6 +116,6 @@ def configure_logging(level: str = "INFO") -> None:
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    """Return a configured structured logger."""
+    """返回已配置的结构化日志记录器。"""
 
     return structlog.stdlib.get_logger(name)

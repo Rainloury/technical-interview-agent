@@ -27,7 +27,7 @@ final class WebAppClient extends BridgeWebViewClient {
             try {
                 bridge.getActivity().startActivity(new Intent(Intent.ACTION_VIEW, uri));
             } catch (Exception ignored) {
-                // No activity can handle the external link; keep the current app page intact.
+                // 没有 activity 可以处理此外部链接；保持当前 app 页面不变。
             }
         }
         return true;
@@ -46,7 +46,7 @@ final class WebAppClient extends BridgeWebViewClient {
         try {
             bridge.getActivity().startActivity(new Intent(Intent.ACTION_VIEW, uri));
         } catch (Exception ignored) {
-            // No activity can handle the external link; keep the current app page intact.
+            // 没有 activity 可以处理此外部链接；保持当前 app 页面不变。
         }
         return true;
     }

@@ -1,4 +1,4 @@
-"""Owner-scoped interview lifecycle, idempotent operations, and reports."""
+"""按所有者隔离的面试生命周期、幂等操作和报告。"""
 
 from __future__ import annotations
 
@@ -324,7 +324,7 @@ async def create_interview(
     idempotency_key: str,
     settings: Settings,
 ) -> InterviewCreated:
-    """Create a frozen configuration and an internal blueprint in one transaction."""
+    """在同一事务中创建冻结配置和内部蓝图。"""
 
     try:
         selected = normalize_topic_keys(payload.direction, payload.topic_keys)
@@ -441,7 +441,7 @@ async def start_interview(
     idempotency_key: str,
     settings: Settings,
 ) -> InterviewStartView:
-    """Freeze the server deadline exactly once and enqueue root question generation."""
+    """仅冻结服务器截止时间一次,并加入根问题生成任务。"""
 
     interview = await _owned_interview(session, user, interview_id, lock=True)
     key = _operation_key(user.id, idempotency_key)
@@ -539,7 +539,7 @@ async def submit_answer(
     idempotency_key: str,
     settings: Settings,
 ) -> InterviewTurnAccepted:
-    """Accept one first answer without reading or exposing scoring fields."""
+    """接受一个首次回答,不读取或暴露评分字段。"""
 
     del client_submitted_at
     interview = await _owned_interview(session, user, interview_id, lock=True)

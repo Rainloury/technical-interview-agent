@@ -1,4 +1,4 @@
-"""SQLAlchemy declarative base and naming conventions."""
+"""SQLAlchemy 声明式基类和命名约定。"""
 
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
@@ -13,6 +13,6 @@ NAMING_CONVENTION = {
 
 
 class Base(DeclarativeBase):
-    """Base class for persisted models."""
+    """持久化模型的基类。"""
 
     metadata = MetaData(naming_convention=NAMING_CONVENTION)

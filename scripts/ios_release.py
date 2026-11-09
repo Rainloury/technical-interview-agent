@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preflight and archive the iOS wrapper without embedding signing secrets."""
+"""在不嵌入签名密钥的情况下预检并归档 iOS wrapper。"""
 
 from __future__ import annotations
 

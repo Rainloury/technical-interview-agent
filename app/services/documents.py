@@ -1,4 +1,4 @@
-"""Owner-scoped private document upload, listing, detail, and deletion."""
+"""按所有者范围的私有文档上传、列表、详情与删除。"""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ SUPPORTED_MIME_BY_SUFFIX = {
 
 @dataclass(frozen=True, slots=True)
 class DocumentUpload:
-    """Bounded bytes entering the private document transaction."""
+    """进入私有文档事务的受限字节数。"""
 
     filename: str
     declared_mime: str | None
@@ -46,7 +46,7 @@ class DocumentUpload:
 
 @dataclass(frozen=True, slots=True)
 class DocumentCursor:
-    """Stable list cursor using created_at and UUID."""
+    """使用 created_at 和 UUID 的稳定列表游标。"""
 
     created_at: datetime
     id: uuid.UUID
@@ -187,7 +187,7 @@ async def _store_document(
     idempotency_key: str,
     settings: Settings,
 ) -> tuple[DocumentAccepted, str | None]:
-    """Validate, privately store, and enqueue one document without committing."""
+    """在不提交的情况下验证、私有存储并将一个文档入队。"""
 
     filename = _safe_name(upload.filename)
     detected_mime = _validate_identity(
@@ -336,7 +336,7 @@ async def upload_document(
     idempotency_key: str,
     settings: Settings,
 ) -> DocumentAccepted:
-    """Validate, privately store, enqueue, and commit one document."""
+    """验证、私有存储、入队并提交一个文档。"""
 
     uploaded_object: str | None = None
     try:
@@ -366,7 +366,7 @@ async def upload_documents(
     idempotency_key: str,
     settings: Settings,
 ) -> DocumentBatchAccepted:
-    """Store and enqueue every file in one atomic batch."""
+    """在一个原子批次中存储并将每个文件入队。"""
 
     if not uploads:
         raise AppError(
@@ -419,7 +419,7 @@ async def list_documents(
     limit: int = 20,
     cursor: str | None = None,
 ) -> DocumentPage:
-    """Return a stable owner-scoped document page."""
+    """返回稳定的按所有者范围的文档分页。"""
 
     now = datetime.now(UTC)
     query = select(UserDocument).where(
@@ -468,7 +468,7 @@ async def delete_document(
     idempotency_key: str,
     settings: Settings,
 ) -> None:
-    """Tombstone a document immediately and enqueue private cleanup."""
+    """立即将一个文档标记为墓碑并私有清理入队。"""
 
     document = await _owned_document(session, user, document_id, include_deleted=True)
     if document.state == "deleted":

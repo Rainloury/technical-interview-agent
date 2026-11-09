@@ -1,4 +1,4 @@
-"""Bounded resume format detection, extraction, and business limits."""
+"""有界的简历格式检测、提取与业务限制。"""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ _BLANK_LINES = re.compile(r"\n{3,}")
 
 @dataclass(frozen=True, slots=True)
 class ResumeDocument:
-    """Validated document text and the page model used for the P0 limit."""
+    """已验证的文档文本及用于 P0 限制的页面模型。"""
 
     detected_mime: str
     page_count: int
@@ -34,13 +34,13 @@ class ResumeDocument:
 
 
 class FileTypeMatch(Protocol):
-    """Minimal typed view of a ``filetype`` match."""
+    """``filetype`` 匹配的最小类型化视图。"""
 
     mime: str
 
 
 def sanitize_filename(filename: str | None) -> str:
-    """Keep a display-only basename and reject paths or control characters."""
+    """仅保留用于显示的 basename,拒绝路径或控制字符。"""
 
     candidate = Path(filename or "").name.strip()
     candidate = "".join(char for char in candidate if char.isprintable())
@@ -60,7 +60,7 @@ def validate_file_identity(
     content: bytes,
     settings: Settings,
 ) -> str:
-    """Validate extension, declared MIME, size, and magic before persistence."""
+    """持久化前校验扩展名、声明的 MIME、大小和 magic。"""
 
     if not content:
         raise AppError(status_code=422, code="invalid_request", message="文件不能为空")
@@ -97,7 +97,7 @@ def extract_resume(
     detected_mime: str,
     settings: Settings,
 ) -> ResumeDocument:
-    """Extract text with an explicit page model and stable user-facing failures."""
+    """使用显式页面模型提取文本,并提供稳定的用户可见失败。"""
 
     if detected_mime == PDF:
         return _extract_pdf(content, settings)
@@ -176,8 +176,8 @@ def _extract_docx(content: bytes, settings: Settings) -> ResumeDocument:
             message="文档没有可提取的文本",
         )
 
-    # DOCX does not expose settled printer pagination. Use deterministic
-    # character capacity only as the P0 limit, not as a rendering claim.
+    # DOCX 不暴露确定的打印机分页。仅将确定性
+    # 字符容量作为 P0 限制,不作为渲染声明。
     capacity = settings.resume_max_docx_characters
     page_count = max(1, (len(text) + capacity - 1) // capacity)
     if page_count > settings.resume_max_pages:

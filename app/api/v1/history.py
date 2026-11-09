@@ -1,4 +1,4 @@
-"""Authenticated cursor-paginated history endpoint."""
+"""需认证的游标分页历史端点。"""
 
 from typing import Annotated
 
@@ -19,7 +19,7 @@ async def read_history(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     cursor: str | None = None,
 ) -> HistoryPage:
-    """List only the current user's history in a stable descending order."""
+    """按稳定的降序仅列出当前用户的历史记录。"""
 
     parsed_cursor = decode_cursor(cursor) if cursor else None
     return await list_history(

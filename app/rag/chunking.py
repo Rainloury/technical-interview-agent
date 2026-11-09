@@ -1,4 +1,4 @@
-"""Deterministic chunking and lexical search text generation."""
+"""确定性分块与词法搜索文本生成。"""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def _window(
 
 
 def split_document(text: str, *, settings: Settings) -> list[DocumentChunk]:
-    """Split normalized text into stable overlapping chunks."""
+    """将规范化文本切分为稳定的重叠分块。"""
 
     normalized = text.strip()
     if not normalized:

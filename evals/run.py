@@ -1,4 +1,4 @@
-"""Run deterministic eval cases and compare them with a saved baseline."""
+"""运行确定性评估用例并与已保存的基线进行比较。"""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ LARGE_RESULT_TAIL_MARKER = "EVAL_TAIL_MARKER_7f3c9b"
 
 @dataclass(frozen=True, slots=True)
 class EvalCase:
-    """One declarative evaluation case."""
+    """一个声明式评估用例。"""
 
     case_id: str
     kind: str
@@ -67,7 +67,7 @@ class EvalCase:
 
 @dataclass(frozen=True, slots=True)
 class EvalResult:
-    """Observed result for one evaluation case."""
+    """单个评估用例的观测结果。"""
 
     case_id: str
     passed: bool
@@ -77,7 +77,7 @@ class EvalResult:
 
 @dataclass(frozen=True, slots=True)
 class EvalReport:
-    """Aggregate evaluation result written to stdout and the baseline."""
+    """写入 stdout 和基线的聚合评估结果。"""
 
     results: tuple[EvalResult, ...]
     generated_at: str
@@ -112,7 +112,7 @@ class EvalReport:
 
 @dataclass(frozen=True, slots=True)
 class ReleaseGate:
-    """Behavior release thresholds from D-30/AC-37."""
+    """来自 D-30/AC-37 的行为发布阈值。"""
 
     total_cases: int = 110
     cases_per_direction: int = 30
@@ -129,7 +129,7 @@ def validate_release_matrix(
     *,
     gate: ReleaseGate | None = None,
 ) -> list[str]:
-    """Return deterministic release-gate violations for the model matrix."""
+    """返回模型矩阵的确定性发布门禁违规项。"""
 
     limits = gate or ReleaseGate()
     case_by_id = {case.case_id: case for case in cases}
@@ -201,7 +201,7 @@ def validate_release_matrix(
 
 
 def percentile_nearest_rank(values: Sequence[float], percentile: float = 0.95) -> float:
-    """Return a conservative nearest-rank percentile without interpolation."""
+    """返回无插值的保守最近秩百分位数。"""
 
     if not values:
         return 0.0
@@ -254,7 +254,7 @@ def _parse_case(raw: object, source: Path) -> EvalCase:
 
 
 def load_cases(cases_path: Path = DEFAULT_CASES) -> tuple[EvalCase, ...]:
-    """Load and validate all YAML cases from a file or directory."""
+    """从文件或目录加载并校验所有 YAML 用例。"""
 
     paths = sorted(cases_path.glob("*.yaml")) if cases_path.is_dir() else [cases_path]
     if not paths:
@@ -327,13 +327,13 @@ def _run_http_case(client: TestClient, case: EvalCase) -> None:
 
 
 class SearchParams(ToolParams):
-    """Input contract for the deterministic behavior-eval read tool."""
+    """确定性行为评估读取工具的输入契约。"""
 
     query: str
 
 
 async def search(params: SearchParams) -> dict[str, object]:
-    """Return an instruction-like payload that the loop must treat as data."""
+    """返回一个类指令载荷,loop 必须将其视为数据。"""
 
     return {
         "query": params.query,
@@ -346,7 +346,7 @@ async def search(params: SearchParams) -> dict[str, object]:
 
 
 class ScriptedDecisionProvider:
-    """Deterministic provider that exercises the real loop and tool contracts."""
+    """运行真实 loop 和工具契约的确定性 provider。"""
 
     def __init__(self) -> None:
         self.requests: list[ProviderRequest] = []
@@ -378,7 +378,7 @@ async def _no_sleep(_seconds: float) -> None:
 
 
 def _run_agent_behavior_case(case: EvalCase) -> float:
-    """Run a no-network behavior evaluation through the shared agent substrate."""
+    """通过共享 agent 基座运行无网络行为评估。"""
 
     provider = ScriptedDecisionProvider()
     registry = ToolRegistry(
@@ -425,7 +425,7 @@ def _run_agent_behavior_case(case: EvalCase) -> float:
 
 
 def _run_interview_threshold_case(case: EvalCase) -> float:
-    """Validate deterministic threshold and follow-up policy without a provider."""
+    """在没有 provider 的情况下校验确定性阈值和跟进策略。"""
 
     expected_band = case.expect.get("band")
     expected_pass = case.expect.get("passed")
@@ -457,7 +457,7 @@ def _run_interview_threshold_case(case: EvalCase) -> float:
 
 
 class QaPromptProvider:
-    """Inspect the real Worker prompt and return a candidate answer."""
+    """检查真实 Worker 提示词并返回候选答案。"""
 
     def __init__(self, candidate: QaAnswerOutput) -> None:
         self.candidate = candidate
@@ -482,7 +482,7 @@ async def _run_qa_prompt_case(
     *,
     prompts: PromptLoader,
 ) -> float:
-    """Exercise the real QA prompt through Worker generation and validation."""
+    """通过 Worker 生成与校验演练真实 QA 提示词。"""
 
     question = case.input.get("question")
     evidence = case.input.get("evidence")
@@ -585,7 +585,7 @@ def _run_rag_hybrid_boundary_case(
     *,
     prompts: PromptLoader,
 ) -> float:
-    """Reject ungrounded citations while preserving degraded retrieval evidence."""
+    """在保留降级检索证据的同时拒绝无依据引用。"""
 
     question = case.input.get("question")
     evidence = case.input.get("evidence")
@@ -708,7 +708,7 @@ def _run_rag_hybrid_boundary_case(
 
 
 def run_suite(cases_path: Path = DEFAULT_CASES) -> EvalReport:
-    """Execute all cases and return a baseline-compatible report."""
+    """执行所有用例并返回与基线兼容的报告。"""
 
     cases = load_cases(cases_path)
     results: list[EvalResult] = []
@@ -783,7 +783,7 @@ def run_suite(cases_path: Path = DEFAULT_CASES) -> EvalReport:
 
 
 def compare_with_baseline(report: EvalReport, baseline_path: Path) -> list[str]:
-    """Return regression reasons using the approved 15% relative thresholds."""
+    """使用已批准的 15% 相对阈值返回回归原因。"""
 
     baseline = _object_mapping(
         json.loads(baseline_path.read_text(encoding="utf-8")),
@@ -814,7 +814,7 @@ def compare_with_baseline(report: EvalReport, baseline_path: Path) -> list[str]:
 
 
 def save_baseline(report: EvalReport, baseline_path: Path) -> None:
-    """Persist a report as the next comparison baseline."""
+    """将报告持久化为下一个比较基线。"""
 
     baseline_path.parent.mkdir(parents=True, exist_ok=True)
     baseline_path.write_text(
@@ -836,7 +836,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the eval CLI and return a process exit code."""
+    """运行 eval CLI 并返回进程退出码。"""
 
     args = _parser().parse_args(argv)
     try:

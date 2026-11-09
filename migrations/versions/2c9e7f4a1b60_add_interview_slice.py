@@ -1,4 +1,4 @@
-"""add interview and review slice
+"""添加面试和评审切片
 
 Revision ID: 2c9e7f4a1b60
 Revises: 4b6e9d2c1a70
@@ -18,7 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Add operation idempotency and interview scoring job types."""
+    """添加操作幂等性和面试评分任务类型。"""
 
     op.create_table(
         "interview_operations",
@@ -71,7 +71,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove interview operation records and restore the prior job enum."""
+    """移除面试操作记录并恢复先前的任务枚举。"""
 
     op.execute(
         "DELETE FROM async_jobs "

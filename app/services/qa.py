@@ -1,4 +1,4 @@
-"""Owner-scoped retrieval QA creation, replay, evidence, and event persistence."""
+"""按所有者隔离的检索 QA 创建、重放、证据和事件持久化。"""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def _raise_unsupported_source() -> None:
 
 
 def validate_question_input(payload: QaCreate) -> str:
-    """Normalize bounded text and reject caller-controlled source locations."""
+    """规范化有界文本并拒绝调用方控制的来源位置。"""
 
     question = " ".join(payload.question.split())
     if contains_url(question):
@@ -86,7 +86,7 @@ async def append_event(
     event_type: str,
     payload: dict[str, Any],
 ) -> QaStreamEvent:
-    """Allocate one durable sequence number while the owning request row is locked."""
+    """在锁定所属请求行时分配一个持久序列号。"""
 
     if event_type not in {"started", "delta", "evidence", "completed", "error"}:
         raise ValueError("unsupported QA event type")
@@ -131,7 +131,7 @@ async def create_qa_request(
     idempotency_key: str,
     settings: Settings,
 ) -> QaAccepted:
-    """Validate first, then atomically create one request, stream start, and job."""
+    """先校验,然后原子地创建一个请求、流开始和作业。"""
 
     question = validate_question_input(payload)
     key = _idempotency_key(user.id, idempotency_key)
@@ -257,7 +257,7 @@ async def evidence_for_request(
 
 
 def public_evidence(rows: list[QaEvidence]) -> list[QaEvidenceView]:
-    """Map internal frozen rows to non-locating public proof."""
+    """将内部冻结行映射为不定位的公开证明。"""
 
     return [
         QaEvidenceView(
@@ -300,7 +300,7 @@ async def get_qa_request(
     user: User,
     request_id: uuid.UUID,
 ) -> QaRequestView:
-    """Return only owner-visible state, final answer, and public evidence."""
+    """仅返回所有者可见状态、最终回答和公开证据。"""
 
     request = await _owned_request(session, user, request_id)
     evidence = await evidence_for_request(session, request.id)
@@ -364,7 +364,7 @@ def apply_answer(
     *,
     prompt_version: str,
 ) -> None:
-    """Persist the validated answer before the completion event is appended."""
+    """在追加完成事件前持久化已验证的回答。"""
 
     now = datetime.now(UTC)
     request.answer_json = output.model_dump(mode="json")
@@ -379,7 +379,7 @@ def completion_payload(
     request: QaRequest,
     evidence: list[QaEvidence],
 ) -> dict[str, Any]:
-    """Build the final SSE payload from persisted answer and frozen proof."""
+    """根据持久化回答和冻结证明构建最终 SSE 载荷。"""
 
     if request.answer_json is None:
         raise ValueError("completed QA request is missing its answer")

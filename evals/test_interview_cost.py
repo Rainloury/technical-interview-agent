@@ -1,4 +1,4 @@
-"""Deterministic tests for complete-interview cost evidence."""
+"""针对完整面试成本证据的确定性测试。"""
 
 from decimal import Decimal
 

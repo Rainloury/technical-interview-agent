@@ -1,1 +1,1 @@
-"""Repeatable local verification utilities."""
+"""可重复的本地验证工具。"""

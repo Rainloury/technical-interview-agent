@@ -1,4 +1,4 @@
-"""Portable column types that map to PostgreSQL-native types."""
+"""映射到 PostgreSQL 原生类型的可移植列类型。"""
 
 import uuid
 from datetime import UTC, datetime
@@ -11,7 +11,7 @@ from sqlalchemy.types import TypeDecorator
 
 
 class UUIDType(TypeDecorator[uuid.UUID]):
-    """UUID stored natively on PostgreSQL."""
+    """在 PostgreSQL 上原生存储的 UUID。"""
 
     impl = Uuid
     cache_ok = True
@@ -19,7 +19,7 @@ class UUIDType(TypeDecorator[uuid.UUID]):
 
 
 class UTCDateTime(TypeDecorator[datetime]):
-    """Timezone-aware datetime guaranteed to be UTC."""
+    """保证为 UTC 的时区感知 datetime。"""
 
     impl = DateTime(timezone=True)
     cache_ok = True
@@ -36,7 +36,7 @@ class UTCDateTime(TypeDecorator[datetime]):
 
 
 class JSONBType(TypeDecorator[dict[str, Any]]):
-    """JSON payload stored as JSONB on PostgreSQL."""
+    """在 PostgreSQL 上以 JSONB 存储的 JSON 载荷。"""
 
     impl = JSONB
     cache_ok = True

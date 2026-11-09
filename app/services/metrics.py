@@ -1,4 +1,4 @@
-"""Small aggregate operational metrics queries for release monitoring."""
+"""用于发布监控的小型聚合运维指标查询。"""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from app.schemas.dashboard import OperationalMetrics
 
 
 async def operational_metrics(session: AsyncSession) -> OperationalMetrics:
-    """Return bounded aggregate counters, never business content or IDs."""
+    """返回有界聚合计数器,绝不包含业务内容或 ID。"""
 
     jobs_by_state = {
         str(state): int(count)

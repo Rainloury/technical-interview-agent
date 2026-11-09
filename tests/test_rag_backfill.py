@@ -1,4 +1,4 @@
-"""System knowledge embedding backfill contract tests."""
+"""系统知识嵌入回填契约测试。"""
 
 from __future__ import annotations
 

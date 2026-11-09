@@ -1,4 +1,4 @@
-"""Authentication and server-side session lifecycle."""
+"""认证与服务端会话生命周期。"""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ logger = get_logger("app.auth")
 
 @dataclass(frozen=True, slots=True)
 class IssuedSession:
-    """A raw session token and public session metadata."""
+    """原始会话令牌与公开会话元数据。"""
 
     raw_token: str
     csrf_token: str
@@ -48,7 +48,7 @@ class IssuedSession:
 
 @dataclass(frozen=True, slots=True)
 class RoleChange:
-    """Auditable role transition for one active account."""
+    """为一个活跃账户执行可审计的角色转换。"""
 
     user_id: uuid.UUID
     previous_role: Literal["user", "admin"]
@@ -64,7 +64,7 @@ async def audit(
     result: str,
     request_id: str,
 ) -> None:
-    """Append a minimal, non-reversible audit record."""
+    """追加一条最小化、不可逆的审计记录。"""
 
     session.add(
         AuditEvent(
@@ -84,7 +84,7 @@ async def set_user_role(
     role: Literal["user", "admin"],
     request_id: str,
 ) -> RoleChange:
-    """Set one active account's role and persist a minimal audit event."""
+    """设置一个活跃账户的角色并持久化一条最小化审计事件。"""
 
     normalized = normalize_email(email)
     user = (
@@ -118,7 +118,7 @@ async def set_user_role(
 
 
 async def _limited(request: Request, key: str, limit: int) -> None:
-    """Apply a Redis-backed fixed-window limiter."""
+    """应用基于 Redis 的固定窗口限流器。"""
 
     bucket = f"auth:rate:{key}"
     redis = request.app.state.redis
@@ -153,7 +153,7 @@ async def register_user(
     request: Request,
     settings: Settings,
 ) -> None:
-    """Create a user or return the same neutral outcome."""
+    """创建用户或返回相同的中性结果。"""
 
     validate_password(password)
     check_write_origin(request, settings)
@@ -177,7 +177,7 @@ async def register_user(
             session.add(user)
             await session.flush()
     except IntegrityError:
-        # A concurrent registration has the same neutral outcome as an existing account.
+        # 并发注册与已存在账户具有相同的中性结果。
         pass
     await audit(
         session,
@@ -197,7 +197,7 @@ async def login_user(
     request: Request,
     settings: Settings,
 ) -> IssuedSession:
-    """Authenticate a user and issue one fresh server-side session."""
+    """认证用户并签发一个全新的服务端会话。"""
 
     check_write_origin(request, settings)
     normalized = normalize_email(email)
@@ -264,7 +264,7 @@ async def login_user(
 
 
 async def current_auth(session: AsyncSession, request: Request) -> tuple[User, AuthSession]:
-    """Resolve a live session from the HttpOnly cookie."""
+    """从 HttpOnly cookie 中解析出有效会话。"""
 
     raw_token = request.cookies.get(request.app.state.settings.session_cookie_name)
     if not raw_token:
@@ -303,7 +303,7 @@ async def current_auth_for_deletion_status(
     session: AsyncSession,
     request: Request,
 ) -> tuple[User, AuthSession]:
-    """Allow only the deletion-status endpoint to read after account anonymization."""
+    """账户匿名化后仅允许删除状态端点读取。"""
 
     raw_token = request.cookies.get(request.app.state.settings.session_cookie_name)
     if not raw_token:
@@ -338,7 +338,7 @@ async def current_auth_for_deletion_status(
 
 
 def verify_csrf(request: Request, settings: Settings, auth_session: AuthSession) -> None:
-    """Require an explicit token plus an allowed request origin."""
+    """要求显式令牌以及允许的请求来源。"""
 
     check_write_origin(request, settings)
     supplied = request.headers.get("X-CSRF-Token")
@@ -352,7 +352,7 @@ async def logout_user(
     request: Request,
     settings: Settings,
 ) -> None:
-    """Revoke the current session idempotently."""
+    """幂等地撤销当前会话。"""
 
     raw_token = request.cookies.get(settings.session_cookie_name)
     if raw_token:
@@ -384,7 +384,7 @@ async def request_password_reset(
     request: Request,
     settings: Settings,
 ) -> str | None:
-    """Create a one-time reset token and enqueue neutral link delivery."""
+    """创建一次性重置令牌并将中性链接投递入队。"""
 
     check_write_origin(request, settings)
     normalized = normalize_email(email)
@@ -456,7 +456,7 @@ async def confirm_password_reset(
     request: Request,
     settings: Settings,
 ) -> None:
-    """Consume a reset token, rotate the password, and revoke all sessions."""
+    """消费重置令牌,轮换密码,并撤销所有会话。"""
 
     validate_password(new_password)
     check_write_origin(request, settings)

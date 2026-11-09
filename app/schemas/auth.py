@@ -1,4 +1,4 @@
-"""Authentication DTOs."""
+"""认证 DTO。"""
 
 from datetime import datetime
 from typing import Literal
@@ -10,7 +10,7 @@ from app.security import normalize_email
 
 
 class EmailRequest(BaseModel):
-    """Request containing a normalized email address."""
+    """包含规范化电子邮件地址的请求。"""
 
     email: str = Field(max_length=320)
 
@@ -24,32 +24,32 @@ class EmailRequest(BaseModel):
 
 
 class PasswordRequest(EmailRequest):
-    """Request containing credentials."""
+    """包含凭据的请求。"""
 
     password: str = Field(min_length=12, max_length=128)
 
 
 class PasswordResetConfirm(BaseModel):
-    """Request containing a one-time reset token and a new password."""
+    """包含一次性重置令牌和新密码的请求。"""
 
     token: str = Field(min_length=32, max_length=256)
     new_password: str = Field(min_length=12, max_length=128)
 
 
 class NeutralAccepted(BaseModel):
-    """Non-enumerating acceptance payload."""
+    """非枚举接受载荷。"""
 
     accepted: Literal[True] = True
 
 
 class RegisterAccepted(NeutralAccepted):
-    """Registration acceptance that never reveals account existence."""
+    """从不泄露账户存在性的注册接受。"""
 
     next_action: Literal["login"] = "login"
 
 
 class UserSummary(BaseModel):
-    """Safe public user fields."""
+    """安全的公开用户字段。"""
 
     id: UUID
     display_name: str | None
@@ -57,20 +57,20 @@ class UserSummary(BaseModel):
 
 
 class SessionSummary(BaseModel):
-    """Safe public session fields."""
+    """安全的公开会话字段。"""
 
     expires_at: datetime
 
 
 class LoginResponse(BaseModel):
-    """Successful login payload."""
+    """成功登录载荷。"""
 
     user: UserSummary
     session: SessionSummary
 
 
 class SessionResponse(BaseModel):
-    """Current-session payload."""
+    """当前会话载荷。"""
 
     user: UserSummary
     session: SessionSummary

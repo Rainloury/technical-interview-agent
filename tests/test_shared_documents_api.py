@@ -1,4 +1,4 @@
-"""Administrator-only shared document upload and all-user read access."""
+"""仅管理员可上传共享文档,所有用户可读取。"""
 
 from __future__ import annotations
 

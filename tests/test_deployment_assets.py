@@ -1,4 +1,4 @@
-"""Production image and Compose deployment contracts."""
+"""生产镜像和 Compose 部署约定。"""
 
 from __future__ import annotations
 

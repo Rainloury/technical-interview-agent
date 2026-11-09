@@ -1,4 +1,4 @@
-"""Redis readiness integration test."""
+"""Redis 就绪集成测试。"""
 
 import pytest
 from app.config import Settings

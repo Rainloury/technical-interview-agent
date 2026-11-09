@@ -1,4 +1,4 @@
-"""Validated application configuration."""
+"""经过校验的应用配置。"""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 class Settings(BaseSettings):
-    """Runtime settings loaded from environment variables."""
+    """从环境变量加载的运行时设置。"""
 
     def __init__(self, **values: Any) -> None:
         env_file = values.pop("_env_file", ".env")
@@ -208,7 +208,7 @@ class Settings(BaseSettings):
         return endpoint
 
     def validate_deployment(self) -> None:
-        """Reject missing or development-only dependencies when starting a deployment."""
+        """启动部署时拒绝缺失或仅开发用的依赖。"""
         if self.app_env not in {"staging", "production"}:
             return
 
@@ -279,6 +279,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Return the process-wide settings object."""
+    """返回进程级设置对象。"""
 
     return Settings()

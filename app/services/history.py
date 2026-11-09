@@ -1,4 +1,4 @@
-"""Cursor-paginated owner history."""
+"""游标分页的按所有者历史记录。"""
 
 from __future__ import annotations
 
@@ -22,14 +22,14 @@ _WHITESPACE = re.compile(r"\s+")
 
 @dataclass(frozen=True, slots=True)
 class HistoryCursor:
-    """Stable timestamp and UUID tie-breaker."""
+    """稳定的时间戳与 UUID 决胜键。"""
 
     updated_at: datetime
     id: uuid.UUID
 
 
 def encode_cursor(cursor: HistoryCursor) -> str:
-    """Encode a URL-safe, opaque pagination cursor."""
+    """编码一个 URL 安全的不透明分页游标。"""
 
     payload = json.dumps(
         {"updated_at": cursor.updated_at.astimezone(UTC).isoformat(), "id": str(cursor.id)},
@@ -39,7 +39,7 @@ def encode_cursor(cursor: HistoryCursor) -> str:
 
 
 def decode_cursor(value: str) -> HistoryCursor:
-    """Reject malformed or timezone-free cursors as invalid requests."""
+    """将格式错误或缺少时区的游标视为无效请求拒绝。"""
 
     try:
         padded = value + "=" * (-len(value) % 4)
@@ -87,7 +87,7 @@ async def list_history(
     limit: int,
     cursor: HistoryCursor | None,
 ) -> HistoryPage:
-    """Return a stable descending page for one history collection."""
+    """为单个历史集合返回稳定的降序分页。"""
 
     now = datetime.now(UTC)
     rows: list[tuple[uuid.UUID, HistoryType, str, str, datetime]]

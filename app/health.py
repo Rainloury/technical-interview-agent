@@ -1,4 +1,4 @@
-"""Liveness and readiness endpoints."""
+"""存活与就绪端点。"""
 
 import asyncio
 from datetime import UTC, datetime
@@ -15,21 +15,21 @@ router = APIRouter(prefix="/health", tags=["health"])
 
 
 class HealthResponse(BaseModel):
-    """Health response payload."""
+    """健康响应载荷。"""
 
     status: Literal["ok", "degraded"]
     server_time: datetime
 
 
 class ReadinessResponse(HealthResponse):
-    """Dependency-level readiness response."""
+    """依赖级就绪响应。"""
 
     checks: dict[str, Literal["ok", "failed"]]
 
 
 @router.get("/live", response_model=HealthResponse)
 async def live() -> HealthResponse:
-    """Report process liveness without checking external services."""
+    """报告进程存活状态,不检查外部服务。"""
 
     return HealthResponse(status="ok", server_time=datetime.now(UTC))
 
@@ -40,7 +40,7 @@ async def live() -> HealthResponse:
     responses={503: {"description": "A required dependency is unavailable"}},
 )
 async def ready(request: Request) -> ReadinessResponse | JSONResponse:
-    """Check PostgreSQL and Redis availability."""
+    """检查 PostgreSQL 和 Redis 可用性。"""
 
     checks: dict[str, Literal["ok", "failed"]] = {}
 

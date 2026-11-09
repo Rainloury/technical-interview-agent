@@ -1,4 +1,4 @@
-"""Resume format detection, extraction limits, and LLM output contracts."""
+"""简历格式检测、提取限制和 LLM 输出契约。"""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 
 def make_pdf(*page_texts: str) -> bytes:
-    """Build a minimal text PDF using pypdf's documented writer path."""
+    """使用 pypdf 文档化的 writer 路径构建最小文本 PDF。"""
 
     writer = PdfWriter()
     for text in page_texts:
@@ -46,7 +46,7 @@ def make_pdf(*page_texts: str) -> bytes:
 
 
 def make_docx(text: str) -> bytes:
-    """Build a real DOCX package with one paragraph."""
+    """构建包含一个段落的真实 DOCX 包。"""
 
     document = Document()
     document.add_paragraph(text)

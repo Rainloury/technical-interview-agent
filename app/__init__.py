@@ -1,1 +1,1 @@
-"""Technical interview agent application."""
+"""技术面试智能体应用。"""

@@ -1,4 +1,4 @@
-"""Shared document API with all-user reads and administrator-only writes."""
+"""共享文档 API,所有用户可读,仅管理员可写。"""
 
 from __future__ import annotations
 

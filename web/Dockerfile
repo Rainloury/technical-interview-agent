@@ -11,7 +11,7 @@ COPY index.html tokens.css tsconfig.json vite.config.ts ./
 COPY public ./public
 COPY src ./src
 
-# The browser calls the API through the same-origin Nginx proxy.
+# 浏览器通过同源 Nginx 代理调用 API。
 ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build

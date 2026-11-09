@@ -1,5 +1,5 @@
-# Synology Container Manager / DSM 7 deployment.
-# The app is exposed to NPM or direct browser access on host port 8080.
+# Synology Container Manager / DSM 7 部署。
+# 应用通过主机端口 8080 暴露给 NPM 或浏览器直接访问。
 name: technical-interview-agent-synology
 
 x-api-image: &api-image

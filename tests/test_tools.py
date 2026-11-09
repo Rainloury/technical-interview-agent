@@ -1,4 +1,4 @@
-"""Tool contract, truncation, storage, errors, and safety tests."""
+"""工具契约、截断、存储、错误和安全测试。"""
 
 from pathlib import Path
 

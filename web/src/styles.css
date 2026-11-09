@@ -16,11 +16,11 @@
   font-display: swap;
 }
 
-/* Hallmark · pre-emit critique: P5 H4 E5 S5 R4 V5
+/* Hallmark · 发射前评审：P5 H4 E5 S5 R4 V5
  * genre: modern-minimal · macrostructure: Workbench · tone: technical · anchor hue: cobalt 260
- * theme: Cobalt · enrichment: none (product UI is the content) · nav: N3 side-rail / N1a on mobile · footer: Ft2 inline
- * contrast: pass (40–41) · honest: pass (46) · chrome: pass (47) · tokens: pass (48)
- * responsive: pass (49) · icons: pass (30) · mobile: pass (34, 49, 50–57)
+ * theme: Cobalt · enrichment: none（产品 UI 即内容）· nav: N3 侧栏 / 移动端 N1a · footer: Ft2 内联
+ * contrast: pass（40–41）· honest: pass（46）· chrome: pass（47）· tokens: pass（48）
+ * responsive: pass（49）· icons: pass（30）· mobile: pass（34, 49, 50–57）
  */
 
 :root {
@@ -147,7 +147,7 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-/* Shared controls */
+/* 共享控件 */
 
 .eyebrow,
 .section-kicker,
@@ -303,7 +303,7 @@ h1 {
   }
 }
 
-/* Forms */
+/* 表单 */
 
 .auth-page {
   display: grid;
@@ -742,7 +742,7 @@ h1 {
   display: none;
 }
 
-/* Application shell */
+/* 应用外壳 */
 
 .app-shell {
   min-height: 100dvh;
@@ -1071,7 +1071,7 @@ h1 {
   padding: var(--space-md);
 }
 
-/* Pages */
+/* 页面 */
 
 .page {
   width: min(100%, var(--page-max));
@@ -1490,7 +1490,7 @@ h1 {
   border-color: var(--danger);
 }
 
-/* Retrieval QA */
+/* 检索问答 */
 
 .qa-page {
   max-width: 1080px;
@@ -2770,7 +2770,7 @@ h1 {
   text-align: center;
 }
 
-/* Private document library */
+/* 私有文档库 */
 .documents-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr) auto;
@@ -2989,7 +2989,7 @@ h1 {
   color: var(--muted);
 }
 
-/* Interview and review */
+/* 面试与评审 */
 
 .sr-only {
   position: absolute;

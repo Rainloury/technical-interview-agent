@@ -1,4 +1,4 @@
-"""Owner-scoped resume upload and lifecycle endpoints."""
+"""按所有者隔离的简历上传和生命周期端点。"""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/resumes", tags=["resumes"])
 
 
 async def _read_bounded_upload(file: UploadFile, max_bytes: int) -> bytes:
-    """Read a multipart file in chunks and stop immediately at the limit."""
+    """分块读取 multipart 文件并在达到限制时立即停止。"""
 
     chunks: list[bytes] = []
     total = 0
@@ -52,7 +52,7 @@ async def create_resume(
     file: Annotated[UploadFile, File()],
     target_role: Annotated[str | None, Form()] = None,
 ) -> ResumeAccepted:
-    """Validate and privately store a PDF or DOCX resume."""
+    """校验并私有存储 PDF 或 DOCX 简历。"""
 
     del target_role
     verify_write_security(request, auth)
@@ -78,7 +78,7 @@ async def read_resume(
     auth: AuthDependency,
     session: SessionDependency,
 ) -> ResumeTaskView:
-    """Return the current owner's resume task."""
+    """返回当前所有者的简历任务。"""
 
     return await get_resume_task(session, auth.user, task_id)
 
@@ -95,7 +95,7 @@ async def retry_resume(
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
 ) -> ResumeAccepted:
-    """Create a new task from a failed task's still-private source."""
+    """从失败任务仍为私有的源创建新任务。"""
 
     verify_write_security(request, auth)
     return await retry_resume_task(
@@ -116,7 +116,7 @@ async def delete_source(
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
 ) -> Response:
-    """Tombstone and delete only the source file."""
+    """将源文件标记为墓碑并仅删除该文件。"""
 
     verify_write_security(request, auth)
     await delete_resume_source(

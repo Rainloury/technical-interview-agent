@@ -1,4 +1,4 @@
-"""Owner-scoped retrieval QA creation, detail, and resumable SSE stream."""
+"""按所有者隔离的检索问答创建、详情和可恢复 SSE 流。"""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ async def create_question(
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
 ) -> QaAccepted:
-    """Accept one allowlisted retrieval question and enqueue its answer job."""
+    """接受一个白名单内的检索问题并为其回答任务入队。"""
 
     verify_write_security(request, auth)
     return await create_qa_request(
@@ -60,7 +60,7 @@ async def read_question(
     auth: AuthDependency,
     session: SessionDependency,
 ) -> QaRequestView:
-    """Return the owner's current state, final answer, and public evidence."""
+    """返回所有者当前状态、最终回答和公开证据。"""
 
     return await get_qa_request(session, auth.user, request_id)
 
@@ -69,7 +69,7 @@ def _parse_cursor(
     after_seq: int | None = None,
     last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
 ) -> int:
-    """Prefer the explicit cursor, otherwise parse the SSE reconnect header."""
+    """优先使用显式游标,否则解析 SSE 重连头。"""
 
     if after_seq is not None:
         if after_seq < 0:
@@ -104,7 +104,7 @@ async def _stream_events(
     *,
     after_seq: int,
 ) -> AsyncIterator[str]:
-    """Poll durable events without holding a database session across sleeps."""
+    """轮询持久事件,睡眠期间不持有数据库会话。"""
 
     cursor = after_seq
     idle_polls = 0
@@ -140,7 +140,7 @@ async def stream_question(
     session: SessionDependency,
     cursor: Annotated[int, Depends(_parse_cursor)],
 ) -> StreamingResponse:
-    """Send durable QA events and resume strictly after the supplied cursor."""
+    """发送持久问答事件,并严格在提供的游标之后恢复。"""
 
     await assert_stream_owner(session, auth.user, request_id)
     await session.rollback()

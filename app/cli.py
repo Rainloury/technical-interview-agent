@@ -1,4 +1,4 @@
-"""Small command-line entry point for local operation."""
+"""用于本地运行的小型命令行入口点。"""
 
 import argparse
 import asyncio
@@ -119,7 +119,7 @@ def _command_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    """Run the API or production Worker from the same executable."""
+    """从同一可执行文件运行 API 或生产 Worker。"""
 
     parser = _command_parser()
     args = parser.parse_args(argv)

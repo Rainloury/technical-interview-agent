@@ -1,4 +1,4 @@
-"""Deterministic contract tests for the live-provider release matrix."""
+"""针对 live-provider 发布矩阵的确定性契约测试。"""
 
 from __future__ import annotations
 

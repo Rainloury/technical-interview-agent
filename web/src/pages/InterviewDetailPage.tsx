@@ -67,7 +67,7 @@ function saveDraft(interviewId: string, turnId: string, value: string): void {
       window.localStorage.removeItem(draftKey(interviewId, turnId));
     }
   } catch {
-    // Storage can be unavailable in privacy modes; the server still holds submitted answers.
+    // 隐私模式下存储可能不可用;服务器仍保留已提交的答案。
   }
 }
 

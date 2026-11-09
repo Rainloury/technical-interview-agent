@@ -1,4 +1,4 @@
-"""add alert delivery evidence
+"""添加告警投递凭证
 
 Revision ID: 7e2b4c6d8f10
 Revises: 3b7e1c9d4a20

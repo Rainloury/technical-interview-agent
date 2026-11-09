@@ -1,4 +1,4 @@
-"""Central model tier and cost mapping tests."""
+"""中心化模型层级和成本映射测试。"""
 
 from decimal import Decimal
 

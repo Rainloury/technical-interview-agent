@@ -1,4 +1,4 @@
-"""Worker retry and terminal behavior for password-reset delivery."""
+"""密码重置投递的 Worker 重试和终态行为。"""
 
 from __future__ import annotations
 

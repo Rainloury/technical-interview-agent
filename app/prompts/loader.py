@@ -1,4 +1,4 @@
-"""Safe Markdown prompt loader with version and variable validation."""
+"""带版本与变量校验的安全 Markdown 提示词加载器。"""
 
 from __future__ import annotations
 
@@ -17,12 +17,12 @@ NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
 class PromptError(ValueError):
-    """Stable prompt loading or rendering failure."""
+    """稳定的提示词加载或渲染失败。"""
 
 
 @dataclass(frozen=True, slots=True)
 class Prompt:
-    """Validated prompt template and its metadata."""
+    """经过校验的提示词模板及其元数据。"""
 
     name: str
     version: str
@@ -31,7 +31,7 @@ class Prompt:
     variables: frozenset[str]
 
     def render(self, **values: str) -> str:
-        """Render only declared variables and reject missing or unexpected values."""
+        """仅渲染已声明的变量,并拒绝缺失或意外的值。"""
 
         supplied = set(values)
         missing = self.variables - supplied
@@ -51,13 +51,13 @@ class Prompt:
 
 
 class PromptLoader:
-    """Read prompts only below a trusted root directory."""
+    """仅从受信任根目录下读取提示词。"""
 
     def __init__(self, root: str | Path) -> None:
         self._root = Path(root).resolve()
 
     def load(self, name: str) -> Prompt:
-        """Load and validate a prompt by a safe logical name."""
+        """通过安全的逻辑名称加载并校验提示词。"""
 
         if not NAME_PATTERN.fullmatch(name):
             raise PromptError("prompt name contains unsupported characters")

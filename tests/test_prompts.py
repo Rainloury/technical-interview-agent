@@ -1,4 +1,4 @@
-"""Markdown prompt loading, metadata, path, and variable tests."""
+"""Markdown 提示加载、元数据、路径和变量测试。"""
 
 from pathlib import Path
 

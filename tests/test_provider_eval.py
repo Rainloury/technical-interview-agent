@@ -1,4 +1,4 @@
-"""Contract tests for the opt-in live provider evaluation."""
+"""可选启用实时提供商评估的契约测试。"""
 
 import pytest
 from app.config import Settings

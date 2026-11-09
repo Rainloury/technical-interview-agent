@@ -1,4 +1,4 @@
-"""Minimal password-reset delivery adapter."""
+"""最小密码重置投递适配器。"""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def _send_smtp(settings: Settings, email: str, reset_url: str) -> None:
 
 
 async def deliver_password_reset(settings: Settings, *, email: str, token: str) -> None:
-    """Deliver a reset link without exposing delivery state to API callers."""
+    """投递重置链接,不向 API 调用方暴露投递状态。"""
 
     reset_url = f"{settings.password_reset_base_url}?token={token}"
     if settings.app_env == "development" and not settings.smtp_host:

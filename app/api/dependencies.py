@@ -1,4 +1,4 @@
-"""Shared API authentication and database dependencies."""
+"""共享 API 认证与数据库依赖。"""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from app.services.auth import (
 
 @dataclass(frozen=True, slots=True)
 class AuthContext:
-    """Authenticated user and the server-side session used to authorize it."""
+    """已认证用户及用于授权该用户的服务端会话。"""
 
     user: User
     session: AuthSession
@@ -31,7 +31,7 @@ SessionDependency = Annotated[AsyncSession, Depends(get_session)]
 
 
 async def get_auth_context(request: Request, session: SessionDependency) -> AuthContext:
-    """Resolve and persist last-seen activity for a live session."""
+    """为活跃会话解析并持久化最后活跃时间。"""
 
     user, auth_session = await current_auth(session, request)
     await session.commit()
@@ -42,7 +42,7 @@ AuthDependency = Annotated[AuthContext, Depends(get_auth_context)]
 
 
 def require_admin(auth: AuthContext) -> None:
-    """Require the database-backed administrator role for a write operation."""
+    """写操作需要基于数据库的管理员角色。"""
 
     if auth.user.role != "admin":
         raise AppError(
@@ -56,7 +56,7 @@ async def get_deletion_status_auth(
     request: Request,
     session: SessionDependency,
 ) -> AuthContext:
-    """Authenticate deletion-status reads for active or anonymized owners."""
+    """为活跃或已匿名化的所有者认证删除状态读取。"""
 
     user, auth_session = await current_auth_for_deletion_status(session, request)
     await session.commit()
@@ -69,7 +69,7 @@ DeletionStatusAuthDependency = Annotated[AuthContext, Depends(get_deletion_statu
 def require_idempotency_key(
     value: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> str:
-    """Require one bounded opaque idempotency key for mutating operations."""
+    """变更操作需要一个有界的不透明幂等键。"""
 
     if value is None or not value.strip():
         raise AppError(
@@ -91,12 +91,12 @@ IdempotencyKeyDependency = Annotated[str, Depends(require_idempotency_key)]
 
 
 def verify_write_security(request: Request, auth: AuthContext) -> None:
-    """Apply origin and CSRF verification to an authenticated write."""
+    """对已认证的写操作应用来源与 CSRF 校验。"""
 
     verify_csrf(request, request.app.state.settings, auth.session)
 
 
 def hash_idempotency_key(value: str) -> str:
-    """Store only a hash of caller-provided idempotency material."""
+    """仅存储调用方提供的幂等性材料的哈希。"""
 
     return hashlib.sha256(value.encode("utf-8")).hexdigest()

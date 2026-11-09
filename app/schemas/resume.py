@@ -1,4 +1,4 @@
-"""Public resume task DTOs with no storage keys or protected answer material."""
+"""公开简历任务 DTO,不含存储键或受保护答案材料。"""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ ResumeFailureStage = Literal["upload", "extract", "analyze", "generate"]
 
 
 class ResumeAccepted(BaseModel):
-    """Accepted upload metadata."""
+    """已接受的上传元数据。"""
 
     resume_task_id: UUID
     state: ResumeState
@@ -29,7 +29,7 @@ class ResumeAccepted(BaseModel):
 
 
 class ResumeAnalysisView(BaseModel):
-    """Only approved analysis sections are exposed."""
+    """仅公开已批准的分析部分。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -40,7 +40,7 @@ class ResumeAnalysisView(BaseModel):
 
 
 class GeneratedQuestionView(BaseModel):
-    """Question material safe to expose to its owner."""
+    """可安全向其所有者暴露的问题材料。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -54,7 +54,7 @@ class GeneratedQuestionView(BaseModel):
 
 
 class ResumeTaskView(BaseModel):
-    """Owner-visible task state and derived output."""
+    """所有者可见的任务状态和派生输出。"""
 
     model_config = ConfigDict(extra="forbid")
 

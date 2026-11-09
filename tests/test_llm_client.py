@@ -1,4 +1,4 @@
-"""LLM client timeout, retry, validation, cancellation, and trace tests."""
+"""LLM 客户端超时、重试、校验、取消和追踪测试。"""
 
 from __future__ import annotations
 

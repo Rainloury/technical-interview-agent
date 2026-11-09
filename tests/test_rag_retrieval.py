@@ -1,4 +1,4 @@
-"""Hybrid retrieval ranking and owner isolation tests."""
+"""混合检索排序和所有者隔离测试。"""
 
 from __future__ import annotations
 

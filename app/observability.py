@@ -1,4 +1,4 @@
-"""Request IDs, trace context, structured access logs, and server time."""
+"""请求 ID、追踪上下文、结构化访问日志与服务器时间。"""
 
 import uuid
 from collections.abc import Awaitable, Callable
@@ -18,13 +18,13 @@ SERVER_TIME_HEADER = "X-Server-Time"
 
 
 def current_server_time() -> datetime:
-    """Return the application clock for API diagnostics."""
+    """返回应用时钟用于 API 诊断。"""
 
     return datetime.now(UTC)
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
-    """Attach request/trace IDs, log one access event, and return server time."""
+    """附加请求/追踪 ID,记录一次访问事件,并返回服务器时间。"""
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -67,6 +67,6 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
 
 def install_request_context(app: FastAPI) -> None:
-    """Install request context middleware."""
+    """安装请求上下文中间件。"""
 
     app.add_middleware(RequestContextMiddleware)

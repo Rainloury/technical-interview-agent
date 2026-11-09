@@ -1,4 +1,4 @@
-"""Database contract and concurrency tests."""
+"""数据库约定和并发测试。"""
 
 import uuid
 from datetime import UTC, datetime, timedelta

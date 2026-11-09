@@ -1,4 +1,4 @@
-"""add QA retrieval slice
+"""添加 QA 检索切片
 
 Revision ID: 4b6e9d2c1a70
 Revises: 8f3d2a1c7b90
@@ -17,7 +17,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Add knowledge sections, QA idempotency, and the answer job type."""
+    """添加知识条目区、QA 幂等性和回答任务类型。"""
 
     op.create_table(
         "knowledge_source_sections",
@@ -109,7 +109,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove the QA retrieval additions without touching historical QA rows."""
+    """移除 QA 检索新增内容,不改动历史 QA 行。"""
 
     op.drop_constraint(op.f("ck_async_jobs_job_type"), "async_jobs", type_="check")
     op.create_check_constraint(

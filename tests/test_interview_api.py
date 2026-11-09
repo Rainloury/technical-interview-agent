@@ -1,4 +1,4 @@
-"""Interview lifecycle, scoring Worker, report, and review integration tests."""
+"""面试生命周期、评分 Worker、报告和评审集成测试。"""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ def _score(
 
 
 class InterviewStaticLlm:
-    """Deterministic output for all three interview prompts."""
+    """三个面试提示词的确定性输出。"""
 
     def __init__(
         self,

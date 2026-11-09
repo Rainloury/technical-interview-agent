@@ -1,4 +1,4 @@
-"""Configuration validation tests."""
+"""配置校验测试。"""
 
 import base64
 import os

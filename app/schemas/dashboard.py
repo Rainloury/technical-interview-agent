@@ -1,4 +1,4 @@
-"""Dashboard response models."""
+"""仪表盘响应模型。"""
 
 from datetime import datetime
 from typing import Any, Literal
@@ -10,7 +10,7 @@ from app.schemas.auth import UserSummary
 
 
 class RecentTask(BaseModel):
-    """A compact, non-sensitive task summary."""
+    """紧凑、非敏感的任务摘要。"""
 
     id: UUID
     type: Literal["resume", "qa"]
@@ -20,7 +20,7 @@ class RecentTask(BaseModel):
 
 
 class RecentInterview(BaseModel):
-    """A compact interview summary."""
+    """紧凑的面试摘要。"""
 
     id: UUID
     direction: Literal["backend", "frontend", "fullstack"]
@@ -29,7 +29,7 @@ class RecentInterview(BaseModel):
 
 
 class DashboardResponse(BaseModel):
-    """The account and recent activity needed by the workspace."""
+    """工作区所需的账户和近期活动。"""
 
     user: UserSummary
     recent_tasks: list[RecentTask]
@@ -38,7 +38,7 @@ class DashboardResponse(BaseModel):
 
 
 class OperationalMetrics(BaseModel):
-    """Aggregate operational counters without user content or resource IDs."""
+    """不含用户内容或资源 ID 的聚合运营计数器。"""
 
     generated_at: datetime
     jobs_by_state: dict[str, int]

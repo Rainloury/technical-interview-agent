@@ -1,4 +1,4 @@
-"""Measure end-to-end interview model cost through the real callback chain."""
+"""通过真实回调链测量端到端面试模型成本。"""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ FOLLOW_UP_ANSWER_TEXT = (
 
 @dataclass(slots=True)
 class CostRecorder:
-    """Real LLM client wrapper that records each completed call without content."""
+    """记录每次完成调用但不记录内容的真实 LLM 客户端包装器。"""
 
     client: LlmClient
     calls: list[dict[str, Any]] = field(default_factory=list)
@@ -83,7 +83,7 @@ class CostRecorder:
 
 @dataclass(frozen=True, slots=True)
 class InterviewCostRun:
-    """One complete interview run and its aggregate cost."""
+    """一次完整面试运行及其聚合成本。"""
 
     sequence: int
     direction: str
@@ -98,7 +98,7 @@ class InterviewCostRun:
 
 @dataclass(frozen=True, slots=True)
 class InterviewCostReport:
-    """Aggregate evidence for the complete-interview cost gate."""
+    """完整面试成本门禁的聚合证据。"""
 
     provider: str
     model: str
@@ -154,7 +154,7 @@ class InterviewCostReport:
 
 
 class CostInterviewLlm:
-    """Use the real client for questions, scoring, and follow-ups."""
+    """使用真实客户端进行提问、评分和追问。"""
 
     def __init__(self, settings: Settings, recorder: CostRecorder) -> None:
         self._recorder = recorder
@@ -183,7 +183,7 @@ class CostInterviewLlm:
 
 
 def _is_first_main_turn(user_prompt: str) -> bool:
-    """Identify only the synthetic benchmark marker, never production prompts."""
+    """仅识别合成基准标记,绝不识别生产提示。"""
 
     return "COST_BENCHMARK_MAIN_TURN_1" in user_prompt
 
@@ -334,7 +334,7 @@ async def run_interview_cost(
     rounds: int = DEFAULT_ROUNDS,
     timeout_seconds: float = 180,
 ) -> InterviewCostReport:
-    """Run complete interviews through the real Worker and real provider client."""
+    """通过真实 Worker 和真实提供商客户端运行完整面试。"""
 
     from evals.provider_matrix import _preflight_model
 
@@ -356,7 +356,7 @@ async def run_interview_cost(
     runs: list[InterviewCostRun] = []
     setup = create_engine(settings)
     try:
-        # Use the configured database but isolate all benchmark rows in a schema.
+        # 使用配置的数据库,但将所有基准行隔离在一个 schema 中。
         from app.db.base import Base
 
         try:

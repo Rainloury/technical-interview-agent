@@ -1,4 +1,4 @@
-"""iOS wrapper project and release-asset contracts."""
+"""iOS wrapper 项目和发布资产约定。"""
 
 from __future__ import annotations
 

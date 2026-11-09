@@ -1,4 +1,4 @@
-"""Owner-scoped private document upload and lifecycle API tests."""
+"""按所有者隔离的私有文档上传和生命周期 API 测试。"""
 
 from __future__ import annotations
 

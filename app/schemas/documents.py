@@ -1,4 +1,4 @@
-"""Public private-document DTOs with no storage locators or content bodies."""
+"""不含存储定位符或内容主体的公开私有文档 DTO。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ UserDocumentState = Literal["uploaded", "processing", "ready", "failed", "delete
 
 
 class DocumentAccepted(BaseModel):
-    """Accepted private-document upload metadata."""
+    """已接受的私有文档上传元数据。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -22,7 +22,7 @@ class DocumentAccepted(BaseModel):
 
 
 class DocumentBatchAccepted(BaseModel):
-    """Accepted metadata for one batch of private-document uploads."""
+    """一批私有文档上传的已接受元数据。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -31,7 +31,7 @@ class DocumentBatchAccepted(BaseModel):
 
 
 class DocumentItem(BaseModel):
-    """Owner-visible document status and bounded metadata."""
+    """所有者可见的文档状态和有界元数据。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -52,7 +52,7 @@ class DocumentItem(BaseModel):
 
 
 class DocumentPage(BaseModel):
-    """Stable cursor-paginated private document list."""
+    """稳定的游标分页私有文档列表。"""
 
     model_config = ConfigDict(extra="forbid")
 

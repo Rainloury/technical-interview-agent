@@ -1,4 +1,4 @@
-"""Structured logging redaction tests."""
+"""结构化日志脱敏测试。"""
 
 from app.logging import _redact_value, redact_text
 

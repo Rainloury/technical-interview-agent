@@ -1,4 +1,4 @@
-"""add password reset delivery encryption and queued mail job
+"""添加密码重置投递加密和排队邮件任务
 
 Revision ID: 3b7e1c9d4a20
 Revises: 9f4c2a7d1e30

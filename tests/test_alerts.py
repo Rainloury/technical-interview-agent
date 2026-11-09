@@ -1,4 +1,4 @@
-"""Alert evaluation, webhook delivery, and worker heartbeat tests."""
+"""告警评估、webhook 投递和 worker 心跳测试。"""
 
 from __future__ import annotations
 

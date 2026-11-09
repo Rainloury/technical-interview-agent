@@ -1,4 +1,4 @@
-"""Hybrid pgvector/lexical retrieval with deterministic RRF fusion."""
+"""混合 pgvector/词法检索,采用确定性 RRF 融合。"""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from app.rag.ollama import EmbeddingClient
 
 @dataclass(frozen=True, slots=True)
 class SearchCandidate:
-    """One hit from either recall route."""
+    """来自任一召回路由的单条命中。"""
 
     kind: Literal["vector", "lexical"]
     chunk_id: uuid.UUID
@@ -41,7 +41,7 @@ class SearchCandidate:
 
 @dataclass(frozen=True, slots=True)
 class MergedEvidence:
-    """Fused, owner-safe evidence ready to freeze in qa_evidence."""
+    """已融合、owner-safe 的证据,可冻结至 qa_evidence。"""
 
     chunk_id: uuid.UUID
     user_document_chunk_id: uuid.UUID | None
@@ -57,7 +57,7 @@ class MergedEvidence:
 
 @dataclass(frozen=True, slots=True)
 class RetrievalResult:
-    """Evidence plus vector-route status for observability and degradation."""
+    """证据及向量路由状态,用于可观测性与降级。"""
 
     evidence: list[MergedEvidence]
     vector_status: Literal["ok", "degraded", "disabled"]
@@ -75,7 +75,7 @@ def rrf_merge(
     k: int = 60,
     limit: int = 5,
 ) -> list[MergedEvidence]:
-    """Fuse two ranked lists with reciprocal-rank fusion and stable ties."""
+    """使用倒数排名融合与稳定平局处理融合两个排序列表。"""
 
     by_id: dict[uuid.UUID, tuple[SearchCandidate, float]] = {}
     for route in (vector, lexical):
@@ -131,7 +131,7 @@ async def hybrid_retrieve(
     embedding_client: EmbeddingClient | None,
     limit: int = 5,
 ) -> RetrievalResult:
-    """Retrieve owner-scoped personal and allowlisted system evidence."""
+    """检索 owner 范围内的个人证据及白名单系统证据。"""
 
     terms = _lexical_terms(question)
     lexical: list[SearchCandidate] = []
@@ -354,20 +354,20 @@ async def hybrid_retrieve(
 
 
 def _lexical_terms(value: str) -> str:
-    """Keep a deterministic, bounded query string for PostgreSQL FTS."""
+    """为 PostgreSQL FTS 保留确定性、有界的查询字符串。"""
 
     return " ".join(tokenize(value))[:1000]
 
 
 def _tsquery(terms: str) -> object:
-    """Build an OR query from the already-sanitized lexical tokens."""
+    """从已净化的词法 token 构建 OR 查询。"""
 
     safe = terms.replace("'", "''")
     return func.to_tsquery("simple", safe.replace(" ", " | "))
 
 
 def _latest_system_versions() -> Subquery:
-    """Select one latest published allowlisted version per source."""
+    """为每个来源选择一条最新发布的允许列表版本。"""
 
     return (
         select(

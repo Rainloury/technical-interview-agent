@@ -1,4 +1,4 @@
-"""FastAPI application assembly."""
+"""FastAPI 应用组装。"""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -19,7 +19,7 @@ from app.storage import create_resume_storage
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    """Build and configure the application."""
+    """构建并配置应用。"""
 
     resolved = settings or get_settings()
     resolved.validate_deployment()

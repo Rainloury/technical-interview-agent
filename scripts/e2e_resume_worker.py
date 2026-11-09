@@ -1,4 +1,4 @@
-"""Run a bounded local Worker with deterministic, offline LLM outputs."""
+"""运行一个有界的本地 Worker,使用确定性的离线 LLM 输出。"""
 
 from __future__ import annotations
 
@@ -44,14 +44,14 @@ QA_ANSWER = "有界重试应设置次数上限，使用指数退避与抖动，�
 
 
 class DeterministicEmbedding:
-    """Return fixed vectors so browser tests never depend on Ollama."""
+    """返回固定向量,使浏览器测试不再依赖 Ollama。"""
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         return [[0.0] * 1024 for _ in texts]
 
 
 class DeterministicResumeLlm:
-    """Return valid fixed outputs without any provider or network call."""
+    """在不进行任何 provider 或网络调用的情况下返回有效的固定输出。"""
 
     async def generate(
         self,
@@ -201,7 +201,7 @@ class DeterministicResumeLlm:
 
 @dataclass(frozen=True, slots=True)
 class DeterministicLlmResult:
-    """Minimal result shape consumed by the Worker."""
+    """Worker 使用的最小结果结构。"""
 
     output: BaseModel
     trace: LlmTrace
@@ -211,7 +211,7 @@ class DeterministicLlmResult:
 async def _seed_qa_source(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    """Create one fixed, published QA source without duplicating prior runs."""
+    """创建一个固定的、已发布的 QA 源,且不重复之前的运行。"""
 
     async with session_factory() as session:
         source = await session.get(KnowledgeSource, QA_SOURCE_ID)

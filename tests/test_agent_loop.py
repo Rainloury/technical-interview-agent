@@ -1,4 +1,4 @@
-"""Bounded agent loop success, tool feedback, and limit tests."""
+"""带边界的 agent 循环成功、工具反馈和限制测试。"""
 
 from __future__ import annotations
 

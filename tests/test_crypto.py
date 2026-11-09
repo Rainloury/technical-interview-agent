@@ -1,4 +1,4 @@
-"""Delivery-secret encryption and tamper-detection tests."""
+"""投递密钥加密和篡改检测测试。"""
 
 from __future__ import annotations
 

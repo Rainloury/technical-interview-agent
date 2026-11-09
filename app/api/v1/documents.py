@@ -1,4 +1,4 @@
-"""Owner-scoped private document upload and lifecycle endpoints."""
+"""按所有者隔离的私有文档上传和生命周期端点。"""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Validate production configuration without printing secret values."""
+"""在不打印密钥值的情况下验证生产配置。"""
 
 from __future__ import annotations
 

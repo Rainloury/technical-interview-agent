@@ -1,4 +1,4 @@
-"""Owner-scoped interview, report, wrong-question, and weak-point endpoints."""
+"""按所有者隔离的面试、报告、错题和薄弱点端点。"""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ reviews_router = APIRouter(tags=["reviews"])
 
 
 class InterviewAnswer(BaseModel):
-    """One first answer; client time is diagnostic only."""
+    """一道首次答案;客户端时间仅用于诊断。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -63,7 +63,7 @@ async def create(
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
 ) -> InterviewCreated:
-    """Create one frozen interview configuration and blueprint."""
+    """创建一份冻结的面试配置和蓝图。"""
 
     verify_write_security(request, auth)
     return await create_interview(
@@ -83,7 +83,7 @@ async def start(
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
 ) -> InterviewStartView:
-    """Start once and return only the current public question and neutral progress."""
+    """仅启动一次并仅返回当前公开问题和中性进度。"""
 
     verify_write_security(request, auth)
     return await start_interview(
@@ -101,7 +101,7 @@ async def detail(
     auth: AuthDependency,
     session: SessionDependency,
 ) -> InterviewView:
-    """Resume an owned interview without exposing protected feedback."""
+    """恢复所属面试且不暴露受保护的反馈。"""
 
     return await get_interview(session, auth.user, interview_id)
 
@@ -120,7 +120,7 @@ async def answer(
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
 ) -> InterviewTurnAccepted:
-    """Accept one answer and enqueue independent scoring."""
+    """接受一道答案并排队独立评分。"""
 
     verify_write_security(request, auth)
     return await submit_answer(
@@ -147,7 +147,7 @@ async def skip(
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
 ) -> InterviewBranchAction:
-    """Skip the current follow-up without ending the interview."""
+    """跳过当前追问而不结束面试。"""
 
     verify_write_security(request, auth)
     return await skip_turn(
@@ -172,7 +172,7 @@ async def end_current_branch(
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
 ) -> InterviewBranchAction:
-    """End only the current follow-up chain and record its distinct reason."""
+    """仅结束当前追问链并记录其独立原因。"""
 
     verify_write_security(request, auth)
     return await end_branch(
@@ -191,7 +191,7 @@ async def report(
     auth: AuthDependency,
     session: SessionDependency,
 ) -> InterviewReportView:
-    """Unlock protected feedback only after the interview and scoring settle."""
+    """仅在面试和评分落定后解锁受保护的反馈。"""
 
     return await get_interview_report(session, auth.user, interview_id)
 
@@ -206,7 +206,7 @@ async def wrong_questions(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     cursor: str | None = None,
 ) -> WrongQuestionPage:
-    """List only the caller's unexpired wrong questions."""
+    """仅列出调用方未过期的错题。"""
 
     return await list_wrong_questions(
         session,

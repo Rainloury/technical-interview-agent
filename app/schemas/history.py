@@ -1,4 +1,4 @@
-"""History pagination response models."""
+"""历史分页响应模型。"""
 
 from datetime import datetime
 from typing import Literal
@@ -10,7 +10,7 @@ HistoryType = Literal["resume", "qa", "interview", "wrong_question"]
 
 
 class HistoryItem(BaseModel):
-    """One owner-scoped history record."""
+    """一条所有者范围内的历史记录。"""
 
     id: UUID
     type: HistoryType
@@ -20,7 +20,7 @@ class HistoryItem(BaseModel):
 
 
 class HistoryPage(BaseModel):
-    """Stable cursor page used by both web and future clients."""
+    """供 Web 和未来客户端使用的稳定游标页。"""
 
     items: list[HistoryItem]
     next_cursor: str | None

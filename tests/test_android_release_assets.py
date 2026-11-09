@@ -1,4 +1,4 @@
-"""Android wrapper, signing, CI, and release documentation contracts."""
+"""Android wrapper、签名、CI 和发布文档约定。"""
 
 from __future__ import annotations
 

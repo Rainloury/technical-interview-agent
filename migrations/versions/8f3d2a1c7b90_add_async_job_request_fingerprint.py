@@ -1,4 +1,4 @@
-"""add async job request fingerprint
+"""添加异步任务请求指纹
 
 Revision ID: 8f3d2a1c7b90
 Revises: 0c7fb95f2e84
@@ -17,7 +17,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Separate hashed idempotency identity from request contents."""
+    """将哈希化幂等标识与请求内容分离。"""
 
     op.add_column(
         "async_jobs",
@@ -26,6 +26,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove the request fingerprint."""
+    """移除请求指纹。"""
 
     op.drop_column("async_jobs", "request_fingerprint")

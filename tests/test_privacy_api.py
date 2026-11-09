@@ -1,4 +1,4 @@
-"""Account data deletion, retention cleanup, and privacy audit integration tests."""
+"""账户数据删除、保留期清理和隐私审计集成测试。"""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ async def _owner(app_client: AppHarness, create_user: Any, email: str) -> User:
 
 
 class UnusedLlm:
-    """Deletion jobs must never call the model."""
+    """删除任务绝不能调用模型。"""
 
     async def generate(self, **_: Any) -> Any:
         raise AssertionError(f"model should not be called, tier={ModelTier.DEFAULT}")

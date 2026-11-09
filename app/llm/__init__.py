@@ -1,1 +1,1 @@
-"""Provider-neutral LLM access."""
+"""与提供商无关的 LLM 访问。"""

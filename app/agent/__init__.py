@@ -1,1 +1,1 @@
-"""Bounded agent orchestration."""
+"""有界智能体编排。"""

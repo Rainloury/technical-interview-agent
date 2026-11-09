@@ -1,4 +1,4 @@
-"""Owner-scoped resume upload, query, retry, and source-deletion services."""
+"""按所有者隔离的简历上传、查询、重试和源删除服务。"""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ MAX_EVIDENCE_SUMMARY_CHARS = 200
 
 @dataclass(frozen=True, slots=True)
 class ResumeUpload:
-    """Bounded bytes entering the private upload transaction."""
+    """进入私有上传事务的有界字节。"""
 
     filename: str
     declared_mime: str | None
@@ -61,7 +61,7 @@ def _owner_task(task: ResumeTask | None, user: User) -> ResumeTask:
 
 
 def _fingerprint(operation: str, owner_user_id: uuid.UUID, client_key: str) -> str:
-    """Hash all idempotency material without storing caller identifiers verbatim."""
+    """哈希所有幂等材料,不逐字存储调用方标识符。"""
 
     material = f"{operation}\0{owner_user_id.hex}\0{client_key}".encode()
     return hashlib.sha256(material).hexdigest()
@@ -135,7 +135,7 @@ async def ensure_resume_upload_acceptable(
     content: bytes,
     settings: Settings,
 ) -> tuple[str, ResumeDocument]:
-    """Validate and extract before any object or database write occurs."""
+    """在任何对象或数据库写入发生前完成校验和提取。"""
 
     safe_name = sanitize_filename(filename)
     detected_mime = validate_file_identity(
@@ -157,7 +157,7 @@ async def upload_resume(
     idempotency_key: str,
     settings: Settings,
 ) -> ResumeAccepted:
-    """Validate first, then atomically enqueue one privately stored source."""
+    """先校验,然后原子地加入一个私有存储的源。"""
 
     safe_name, document = await ensure_resume_upload_acceptable(
         filename=upload.filename,
@@ -251,7 +251,7 @@ async def get_resume_task(
     user: User,
     task_id: uuid.UUID,
 ) -> ResumeTaskView:
-    """Read one owned task without exposing private source material."""
+    """读取一个所属任务,不暴露私有源材料。"""
 
     task = _owner_task(await session.get(ResumeTask, task_id), user)
     analysis = (
@@ -316,7 +316,7 @@ async def retry_resume_task(
     idempotency_key: str,
     settings: Settings,
 ) -> ResumeAccepted:
-    """Copy an available failed source into a new task and enqueue it."""
+    """将可用的失败源复制到新任务并加入队列。"""
 
     original = _owner_task(await session.get(ResumeTask, task_id), user)
     if original.state != "failed":
@@ -438,7 +438,7 @@ async def retry_resume_task(
 
 
 def _redact_text(value: Any) -> Any:
-    """Keep only bounded, non-locating evidence summaries."""
+    """仅保留有界、不定位的证据摘要。"""
 
     if isinstance(value, dict):
         redacted: dict[str, Any] = {}
@@ -478,7 +478,7 @@ async def delete_resume_source(
     idempotency_key: str,
     settings: Settings,
 ) -> None:
-    """Commit an irreversible tombstone before deleting the private object."""
+    """在删除私有对象前提交不可逆墓碑。"""
 
     task = _owner_task(await session.get(ResumeTask, task_id), user)
     operation_fingerprint = hashlib.sha256(f"delete-source\0{task.id.hex}".encode()).hexdigest()

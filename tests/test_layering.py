@@ -1,4 +1,4 @@
-"""Static checks for the approved dependency direction."""
+"""对已批准依赖方向的静态检查。"""
 
 from __future__ import annotations
 

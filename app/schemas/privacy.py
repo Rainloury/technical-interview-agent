@@ -1,4 +1,4 @@
-"""Public privacy request and deletion-status DTOs."""
+"""公开的隐私请求和删除状态 DTO。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ DeletionState = Literal["requested", "deleting", "completed", "failed"]
 
 
 class DataDeletionAccepted(BaseModel):
-    """Neutral acceptance returned before asynchronous cleanup completes."""
+    """在异步清理完成前返回的中性接受。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -22,7 +22,7 @@ class DataDeletionAccepted(BaseModel):
 
 
 class DataDeletionStatus(BaseModel):
-    """Minimal deletion status without resource IDs or user content."""
+    """最小删除状态,不含资源 ID 或用户内容。"""
 
     model_config = ConfigDict(extra="forbid")
 

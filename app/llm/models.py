@@ -1,4 +1,4 @@
-"""Central model tiers, provider mappings, and pricing metadata."""
+"""集中的模型层级、提供商映射与定价元数据。"""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from app.config import Settings
 
 
 class ModelTier(StrEnum):
-    """Stable tiers consumed by application code."""
+    """应用代码使用的稳定层级。"""
 
     FAST = "FAST"
     DEFAULT = "DEFAULT"
@@ -19,7 +19,7 @@ class ModelTier(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ModelProfile:
-    """One resolved model and its cost metadata."""
+    """一个已解析的模型及其成本元数据。"""
 
     tier: ModelTier
     provider: str
@@ -30,7 +30,7 @@ class ModelProfile:
 
 @dataclass(frozen=True, slots=True)
 class ModelTierMapping:
-    """Provider defaults that can be overridden by environment configuration."""
+    """可由环境配置覆盖的提供商默认值。"""
 
     provider: str
     names: tuple[str, str, str]
@@ -39,8 +39,8 @@ class ModelTierMapping:
 
 MODEL_TIER_ORDER = (ModelTier.FAST, ModelTier.DEFAULT, ModelTier.REASONING)
 
-# These are defaults, not a claim about current provider availability. Deployments
-# should set MODEL_* overrides for the models enabled on their provider account.
+# 这些是默认值,并非对当前提供商可用性的声明。部署时
+# 应针对其提供商账户上启用的模型设置 MODEL_* 覆盖值。
 MAPPINGS: dict[str, ModelTierMapping] = {
     "openai": ModelTierMapping(
         provider="openai",
@@ -55,7 +55,7 @@ MAPPINGS: dict[str, ModelTierMapping] = {
     "deepseek": ModelTierMapping(
         provider="deepseek",
         names=("deepseek-flash", "deepseek-v4-pro", "deepseek-v4-pro"),
-        # Use peak prices so an estimate never understates provider cost.
+        # 使用峰值价格,确保估算永远不会低估供应商成本。
         pricing=(("0.30", "1.20"), ("1.32", "3.96"), ("1.32", "3.96")),
     ),
     "local": ModelTierMapping(
@@ -67,7 +67,7 @@ MAPPINGS: dict[str, ModelTierMapping] = {
 
 
 def resolve_model_tier(tier: ModelTier | str, settings: Settings) -> ModelProfile:
-    """Resolve a tier through the single centralized provider mapping."""
+    """通过单一集中式提供商映射解析层级。"""
 
     resolved_tier = ModelTier(tier)
     mapping = MAPPINGS.get(settings.llm_provider)
@@ -91,7 +91,7 @@ def resolve_model_tier(tier: ModelTier | str, settings: Settings) -> ModelProfil
 
 
 def configured_model_names(settings: Settings) -> tuple[str, ...]:
-    """Return the explicitly configured non-empty model names for preflight."""
+    """返回显式配置的非空模型名称以供预检。"""
 
     return tuple(
         value.strip()
@@ -105,7 +105,7 @@ def configured_model_names(settings: Settings) -> tuple[str, ...]:
 
 
 def estimate_cost_usd(profile: ModelProfile, input_tokens: int, output_tokens: int) -> Decimal:
-    """Calculate a conservative per-call cost from centralized pricing metadata."""
+    """根据集中式定价元数据计算保守的单次调用成本。"""
 
     million = Decimal(1_000_000)
     input_cost = Decimal(input_tokens) * profile.input_usd_per_million

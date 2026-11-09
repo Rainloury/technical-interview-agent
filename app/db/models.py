@@ -1,4 +1,4 @@
-"""SQLAlchemy models for the approved P0 data model."""
+"""已批准 P0 数据模型的 SQLAlchemy 模型。"""
 
 import uuid
 from datetime import datetime

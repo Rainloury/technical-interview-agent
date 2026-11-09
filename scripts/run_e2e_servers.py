@@ -1,4 +1,4 @@
-"""Start API, frontend, and the deterministic worker for browser E2E runs."""
+"""启动 API、前端和确定性 worker,用于浏览器 E2E 运行。"""
 
 from __future__ import annotations
 

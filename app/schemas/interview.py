@@ -1,4 +1,4 @@
-"""Public interview DTOs with a strict in-progress/report boundary."""
+"""具有严格进行中/报告边界的公开面试 DTO。"""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ ScoreBand = Literal["below_70", "70_84", "85_plus"]
 
 
 class InterviewCreate(BaseModel):
-    """One bounded interview configuration."""
+    """一个受边界约束的面试配置。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -70,7 +70,7 @@ class InterviewCreated(BaseModel):
 
 
 class InterviewTurnView(BaseModel):
-    """Only the question and neutral process metadata are public in-progress."""
+    """进行中仅公开问题和中性流程元数据。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -113,7 +113,7 @@ class InterviewStartView(BaseModel):
 
 
 class InterviewView(BaseModel):
-    """Owner-visible live view that cannot carry protected feedback fields."""
+    """所有者可见的实时视图,不携带受保护反馈字段。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -140,7 +140,7 @@ class InterviewTurnAccepted(BaseModel):
 
 
 class InterviewBranchAction(BaseModel):
-    """Neutral action acknowledgement with no score or branch-trigger reason."""
+    """中性操作确认,不含分数或分支触发原因。"""
 
     model_config = ConfigDict(extra="forbid")
 

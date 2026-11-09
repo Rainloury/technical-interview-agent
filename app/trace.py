@@ -1,4 +1,4 @@
-"""Request-scoped trace metadata and LLM call records."""
+"""请求范围的跟踪元数据和 LLM 调用记录。"""
 
 from dataclasses import dataclass
 from typing import Any
@@ -6,7 +6,7 @@ from typing import Any
 
 @dataclass(frozen=True, slots=True)
 class LlmTrace:
-    """Metadata captured for every LLM invocation."""
+    """每次 LLM 调用捕获的元数据。"""
 
     request_id: str
     trace_id: str
@@ -28,7 +28,7 @@ class LlmTrace:
     turn_id: str | None = None
 
     def as_log_fields(self) -> dict[str, Any]:
-        """Return only allowlisted trace fields for structured logs."""
+        """仅返回允许列表中的跟踪字段用于结构化日志。"""
 
         return {
             "request_id": self.request_id,

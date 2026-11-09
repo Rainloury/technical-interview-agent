@@ -1,1 +1,1 @@
-"""Registered agent tools."""
+"""已注册的 agent 工具。"""

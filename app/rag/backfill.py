@@ -1,4 +1,4 @@
-"""Idempotent backfill of embeddings for allowlisted system knowledge."""
+"""对允许列表系统知识的嵌入进行幂等回填。"""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ BACKFILL_INDEX_VERSION = "rag-v1"
 
 @dataclass(frozen=True, slots=True)
 class BackfillResult:
-    """Counts for one bounded backfill run."""
+    """一次有界回填运行的计数。"""
 
     processed: int
     skipped: int
@@ -64,7 +64,7 @@ async def backfill_system_embeddings(
     settings: Settings,
     batch_size: int = 16,
 ) -> BackfillResult:
-    """Backfill one bounded pass without touching frozen QA evidence."""
+    """执行一次有界回填,不触及已冻结的 QA 证据。"""
 
     if batch_size < 1:
         raise ValueError("batch_size must be positive")

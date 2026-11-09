@@ -1,4 +1,4 @@
-"""Bounded resume job Worker with leases, fencing, retries, and dead letters."""
+"""带有租约、fencing、重试和死信的有界简历任务 Worker。"""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ logger = get_logger("app.worker")
 
 
 def _safe_error_detail(exc: Exception) -> str:
-    """Return stable diagnostics without SQL parameters or user content."""
+    """返回稳定的诊断信息,不包含 SQL 参数或用户内容。"""
 
     parts = [f"exception={type(exc).__name__}"]
     if isinstance(exc, SQLAlchemyError):
@@ -106,7 +106,7 @@ def _safe_error_detail(exc: Exception) -> str:
 
 
 def _safe_prompt_detail(exc: PromptError) -> str:
-    """Keep only a non-sensitive prompt failure category."""
+    """仅保留非敏感的提示失败类别。"""
 
     message = str(exc)
     if message.startswith("prompt not found:"):
@@ -123,7 +123,7 @@ def _safe_prompt_detail(exc: PromptError) -> str:
 
 
 class ResumeWorkerError(Exception):
-    """A stable, retry-aware Worker failure."""
+    """稳定的、支持重试的 Worker 失败。"""
 
     def __init__(self, code: str, *, retryable: bool = True) -> None:
         super().__init__(code)
@@ -132,14 +132,14 @@ class ResumeWorkerError(Exception):
 
 
 class StaleLeaseError(ResumeWorkerError):
-    """The Worker no longer owns the lease and must stop writing."""
+    """Worker 不再持有租约,必须停止写入。"""
 
     def __init__(self) -> None:
         super().__init__("lease_lost", retryable=False)
 
 
 class ResumeLlm(Protocol):
-    """Narrow LLM interface used by the Worker."""
+    """Worker 使用的窄 LLM 接口。"""
 
     async def generate(
         self,
@@ -160,14 +160,14 @@ class ResumeLlm(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class WorkerResult:
-    """One bounded Worker iteration outcome."""
+    """一次有界 Worker 迭代结果。"""
 
     job_id: uuid.UUID | None
     outcome: str
 
 
 class ResumeWorker:
-    """Process one resume job per iteration with explicit state transitions."""
+    """每次迭代处理一个恢复任务,并显式进行状态转换。"""
 
     def __init__(
         self,
@@ -189,7 +189,7 @@ class ResumeWorker:
         self._worker_id = worker_id or f"resume-worker-{uuid.uuid4().hex[:12]}"
 
     async def run_once(self) -> WorkerResult:
-        """Lease at most one due job and process it to a durable outcome."""
+        """最多租用一个到期任务,并将其处理到持久结果。"""
 
         async with self._sessions() as session:
             job = await lease_next_job(
@@ -540,7 +540,7 @@ class ResumeWorker:
         resource_id: uuid.UUID,
         code: str,
     ) -> None:
-        """Drop encrypted delivery material after the final failed attempt."""
+        """在最后一次失败尝试后丢弃加密投递材料。"""
 
         del code
         async with self._sessions() as session:
@@ -560,7 +560,7 @@ class ResumeWorker:
         fencing_token: int,
         resource_id: uuid.UUID,
     ) -> None:
-        """Decrypt one queued reset link and send it outside the request path."""
+        """解密一个排队的重置链接,并在请求路径之外发送它。"""
 
         async with self._sessions() as session:
             await self._current_job(session, job_id, fencing_token)
@@ -597,7 +597,7 @@ class ResumeWorker:
         code: str,
         timed_out: bool = False,
     ) -> None:
-        """Keep retry history auditable without leaving attempts running."""
+        """保持重试历史可审计,同时不留下正在运行的尝试。"""
 
         async with self._sessions() as session:
             attempt = (
@@ -628,7 +628,7 @@ class ResumeWorker:
         attempt_count: int,
         max_attempts: int,
     ) -> None:
-        """Convert permanent scoring failure into an explainable terminal turn."""
+        """将永久性评分失败转换为可解释的终止轮次。"""
 
         async with self._sessions() as session:
             turn = await session.get(InterviewTurn, resource_id, with_for_update=True)
@@ -738,7 +738,7 @@ class ResumeWorker:
         resource_id: uuid.UUID,
         owner_user_id: uuid.UUID | None,
     ) -> None:
-        """Finish an account-wide deletion after the visibility tombstone."""
+        """在可见性墓碑后完成账户范围的删除。"""
 
         async with self._sessions() as session:
             await self._current_job(session, job_id, fencing_token)
@@ -854,7 +854,7 @@ class ResumeWorker:
         fencing_token: int,
         resource_id: uuid.UUID,
     ) -> None:
-        """Delete expired private objects and anonymize expired metadata."""
+        """删除过期的私有对象并匿名化过期的元数据。"""
 
         del resource_id
         now = datetime.now(UTC)
@@ -1090,7 +1090,7 @@ class ResumeWorker:
         resource_id: uuid.UUID,
         owner_user_id: uuid.UUID | None,
     ) -> None:
-        """Run retrieval once, then answer from the frozen evidence snapshot."""
+        """运行一次检索,然后基于冻结的证据快照作答。"""
 
         async with self._sessions() as session:
             await self._current_job(session, job_id, fencing_token)
@@ -1251,7 +1251,7 @@ class ResumeWorker:
         resource_id: uuid.UUID,
         owner_user_id: uuid.UUID | None,
     ) -> None:
-        """Index one private document with bounded extraction and embeddings."""
+        """使用有界提取和嵌入索引一个私有文档。"""
 
         async with self._sessions() as session:
             await self._current_job(session, job_id, fencing_token)
@@ -1328,7 +1328,7 @@ class ResumeWorker:
         resource_id: uuid.UUID,
         owner_user_id: uuid.UUID | None,
     ) -> None:
-        """Index one shared document with bounded extraction and embeddings."""
+        """使用有界提取和嵌入索引一个共享文档。"""
 
         del owner_user_id
         async with self._sessions() as session:
@@ -1401,7 +1401,7 @@ class ResumeWorker:
         resource_id: uuid.UUID,
         resource_type: str,
     ) -> None:
-        """Delete chunks and the private object after the visible tombstone."""
+        """在可见墓碑后删除分块和私有对象。"""
 
         if resource_type == "shared_document":
             await self._process_shared_document_delete(
@@ -1506,7 +1506,7 @@ class ResumeWorker:
         resource_id: uuid.UUID,
         owner_user_id: uuid.UUID | None,
     ) -> None:
-        """Generate all main questions once, then expose only the first root."""
+        """一次性生成所有主问题,然后只暴露第一个根。"""
 
         async with self._sessions() as session:
             await self._current_job(session, job_id, fencing_token)
@@ -1659,7 +1659,7 @@ class ResumeWorker:
         resource_id: uuid.UUID,
         owner_user_id: uuid.UUID | None,
     ) -> None:
-        """Score one turn, then apply deterministic branch and terminal rules."""
+        """对一个轮次评分,然后应用确定性的分支和终止规则。"""
 
         async with self._sessions() as session:
             await self._current_job(session, job_id, fencing_token)
@@ -1676,8 +1676,8 @@ class ResumeWorker:
             if interview is None:
                 raise ResumeWorkerError("resource_not_found", retryable=False)
             if turn.state != "scoring":
-                # A skip/end-branch operation reuses this job type to advance
-                # the branch without creating or scoring a synthetic answer.
+                # 跳过/结束分支操作复用此任务类型来推进
+                # 分支,而不会创建或评分一个合成答案。
                 if turn.state in {"skipped", "branch_completed"}:
                     await self._advance_after_branch(session, interview, turn)
                     await session.commit()
@@ -1892,7 +1892,7 @@ class ResumeWorker:
         resource_id: uuid.UUID,
         owner_user_id: uuid.UUID | None,
     ) -> None:
-        """Advance a branch after the user explicitly skipped or ended it."""
+        """在用户显式跳过或结束后推进分支。"""
 
         async with self._sessions() as session:
             await self._current_job(session, job_id, fencing_token)
@@ -2068,9 +2068,9 @@ class ResumeWorker:
         interview: Interview,
         turn: InterviewTurn,
     ) -> None:
-        # Keep the scored root result stable for the final report. Only a
-        # completed follow-up becomes branch_completed; the chain carries the
-        # branch lifecycle independently.
+        # 保持评分根结果稳定以用于最终报告。只有
+        # 已完成的后续才会成为 branch_completed;链独立携带
+        # 分支生命周期。
         root_id = turn.root_turn_id
         remaining_roots = list(
             (
@@ -2225,7 +2225,7 @@ async def run_worker(
     worker_id_prefix: str | None = None,
     shutdown_grace_seconds: float | None = None,
 ) -> None:
-    """Run bounded polling until stopped or the deadline is reached."""
+    """运行有界轮询,直到停止或到达截止时间。"""
 
     if concurrency < 1:
         raise ValueError("worker concurrency must be positive")
@@ -2343,7 +2343,7 @@ async def run_worker(
 
 
 class WorkerRunner:
-    """One production Worker lifecycle with bounded concurrency and signal handling."""
+    """一个生产 Worker 生命周期,具有有界并发和信号处理。"""
 
     def __init__(
         self,
@@ -2355,7 +2355,7 @@ class WorkerRunner:
         self._llm_factory = llm_factory
 
     async def run(self) -> None:
-        """Assemble dependencies, run pollers, and release all owned resources."""
+        """组装依赖项,运行轮询器,并释放所有拥有的资源。"""
 
         self._settings.validate_deployment()
         configure_logging(self._settings.app_log_level)

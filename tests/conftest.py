@@ -1,4 +1,4 @@
-"""Shared test configuration and transactional database fixtures."""
+"""共享测试配置和事务性数据库夹具。"""
 
 import base64
 import os
@@ -61,7 +61,7 @@ async def _install_test_triggers(connection: object) -> None:
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Skip integration tests unless the environment explicitly enables them."""
+    """除非环境显式启用,否则跳过集成测试。"""
 
     if os.getenv("RUN_INTEGRATION") == "1":
         return
@@ -73,7 +73,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
-    """Return isolated settings for the test process."""
+    """返回测试进程的隔离设置。"""
 
     return Settings(
         app_env="test",
@@ -87,7 +87,7 @@ def settings(tmp_path: Path) -> Settings:
 
 @pytest.fixture
 async def db_session(settings: Settings) -> AsyncIterator[AsyncSession]:
-    """Provide a schema isolated from other tests and stale rows."""
+    """提供与其他测试和过期行隔离的 schema。"""
 
     schema_name = f"test_{uuid.uuid4().hex}"
     setup_engine = create_async_engine(settings.database_url)
@@ -123,7 +123,7 @@ async def db_session(settings: Settings) -> AsyncIterator[AsyncSession]:
 
 
 class TestRedis:
-    """Small deterministic Redis surface used by authentication tests."""
+    """供认证测试使用的小型确定性 Redis 表面。"""
 
     def __init__(self) -> None:
         self.counts: dict[str, int] = {}
@@ -142,7 +142,7 @@ class TestRedis:
 
 @dataclass(frozen=True, slots=True)
 class AppHarness:
-    """Application client and a writer connected to its disposable schema."""
+    """应用程序客户端以及连接到其一次性 schema 的写入器。"""
 
     app: FastAPI
     client: TestClient
@@ -154,7 +154,7 @@ class AppHarness:
 async def app_client(
     settings: Settings,
 ) -> AsyncIterator[AppHarness]:
-    """Run API requests against a committed, disposable database schema."""
+    """针对已提交的一次性数据库 schema 运行 API 请求。"""
 
     schema_name = f"test_{uuid.uuid4().hex}"
     bootstrap_engine = create_async_engine(settings.database_url)
@@ -215,7 +215,7 @@ async def app_client(
 
 @pytest.fixture
 def create_user() -> Callable[..., User]:
-    """Build a password-authenticated account for API tests."""
+    """为 API 测试构建使用密码认证的账户。"""
 
     def factory(
         email: str,
@@ -236,7 +236,7 @@ def create_user() -> Callable[..., User]:
 
 @pytest.fixture
 def create_activity() -> Callable[..., tuple[ResumeTask, QaRequest, Interview]]:
-    """Create owner-scoped records used by dashboard and history tests."""
+    """创建供仪表盘和历史测试使用的按所有者隔离的记录。"""
 
     def factory(user: User, *, suffix: str, day: int) -> tuple[ResumeTask, QaRequest, Interview]:
         timestamp = datetime(2026, 10, day, 8, tzinfo=UTC)

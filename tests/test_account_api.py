@@ -1,4 +1,4 @@
-"""Account, session, CSRF, dashboard, and history API tests."""
+"""账户、会话、CSRF、仪表盘和历史 API 测试。"""
 
 from __future__ import annotations
 

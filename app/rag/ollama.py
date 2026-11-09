@@ -1,4 +1,4 @@
-"""Bounded Ollama embedding client isolated from chat model routing."""
+"""与聊天模型路由隔离的有界 Ollama 嵌入客户端。"""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from app.config import Settings
 
 
 class OllamaEmbeddingError(Exception):
-    """Stable embedding failure with retry semantics."""
+    """具有重试语义的稳定嵌入失败。"""
 
     def __init__(self, code: str, *, retryable: bool) -> None:
         super().__init__(code)
@@ -22,13 +22,13 @@ class OllamaEmbeddingError(Exception):
 
 
 class EmbeddingClient(Protocol):
-    """Narrow embedding contract consumed by ingestion and retrieval."""
+    """供摄取与检索使用的窄嵌入契约。"""
 
     async def embed(self, texts: list[str]) -> list[list[float]]: ...
 
 
 class OllamaEmbeddingClient:
-    """Ollama `/api/embed` adapter with batching, retry, and dimension checks."""
+    """支持批处理、重试与维度检查的 Ollama `/api/embed` 适配器。"""
 
     def __init__(
         self,
@@ -103,7 +103,7 @@ class OllamaEmbeddingClient:
         raise OllamaEmbeddingError("embedding_unavailable", retryable=True)
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        """Embed texts in bounded batches while preserving input order."""
+        """在有界批次中嵌入文本,同时保持输入顺序。"""
 
         if not texts:
             return []

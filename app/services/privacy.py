@@ -1,4 +1,4 @@
-"""Owner-scoped privacy requests, visibility tombstones, and deletion status."""
+"""按所有者隔离的隐私请求、可见性墓碑和删除状态。"""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ async def latest_deletion_status(
     session: AsyncSession,
     user: User,
 ) -> DataDeletionStatus | None:
-    """Return the newest deletion request without exposing another owner's data."""
+    """返回最新的删除请求,不暴露其他所有者的数据。"""
 
     request = (
         await session.execute(
@@ -78,7 +78,7 @@ async def request_data_deletion(
     idempotency_key: str,
     settings: Settings,
 ) -> DataDeletionAccepted:
-    """Tombstone visible business data, then enqueue private cleanup."""
+    """标记可见业务数据墓碑,然后加入私有清理任务。"""
 
     key = _hash(f"delete-account-data\0{user.id.hex}\0{idempotency_key}")
     fingerprint = _hash(f"delete-account-data\0{user.id.hex}")
@@ -114,8 +114,8 @@ async def request_data_deletion(
     session.add(request)
     await session.flush()
 
-    # Make all business records invisible in the same transaction as the
-    # deletion request before any asynchronous object cleanup starts.
+    # 在任何异步对象清理开始前,在同一事务中使所有业务记录不可见,
+    # 与删除请求一起。
     resume_tasks = list(
         (
             await session.execute(
@@ -247,7 +247,7 @@ async def get_deletion_status(
 
 
 def next_retention_run(now: datetime | None = None) -> datetime:
-    """Return the next daily retention sweep time."""
+    """返回下一次每日保留清理时间。"""
 
     current = now or datetime.now(UTC)
     return current + timedelta(days=1)

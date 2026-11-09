@@ -1,4 +1,4 @@
-"""API skeleton, health, request context, and error envelope tests."""
+"""API 骨架、健康检查、请求上下文和错误信封测试。"""
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 
 class ReadyState:
-    """Minimal state used to exercise readiness through its observable contract."""
+    """用于通过其可观测约定验证就绪状态的最小状态。"""
 
     def __init__(self, session_factory: object, redis: object) -> None:
         self.session_factory = session_factory

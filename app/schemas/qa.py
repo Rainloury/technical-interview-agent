@@ -1,4 +1,4 @@
-"""Public retrieval-QA DTOs with bounded evidence and stable state."""
+"""公开的检索问答 DTO,具有受限证据和稳定状态。"""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ AnswerPreference = Literal["concise", "detailed"]
 
 
 class QaCreate(BaseModel):
-    """One bounded technical question."""
+    """一个受边界约束的技术问题。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -29,7 +29,7 @@ class QaCreate(BaseModel):
 
 
 class QaAccepted(BaseModel):
-    """Accepted QA request metadata."""
+    """已接受的 QA 请求元数据。"""
 
     qa_request_id: UUID
     stream_url: str
@@ -37,7 +37,7 @@ class QaAccepted(BaseModel):
 
 
 class QaEvidenceView(BaseModel):
-    """Public evidence snapshot with no internal source identifiers."""
+    """公开证据快照,不含内部来源标识符。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -51,7 +51,7 @@ class QaEvidenceView(BaseModel):
 
 
 class QaAnswerView(BaseModel):
-    """Validated structured answer returned to the owner."""
+    """返回给所有者的已校验结构化答案。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -64,7 +64,7 @@ class QaAnswerView(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def normalize_historical_citations(cls, value: Any) -> Any:
-        """Hide citations from legacy rows whose status cannot use them."""
+        """对状态无法使用引用的遗留行隐藏引用。"""
 
         if not isinstance(value, dict):
             return value
@@ -75,7 +75,7 @@ class QaAnswerView(BaseModel):
 
 
 class QaRequestView(BaseModel):
-    """Owner-visible request, final answer, and public evidence."""
+    """所有者可见的请求、最终答案和公开证据。"""
 
     model_config = ConfigDict(extra="forbid")
 

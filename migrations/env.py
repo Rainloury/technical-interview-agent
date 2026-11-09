@@ -1,4 +1,4 @@
-"""Alembic environment using the application's async database configuration."""
+"""使用应用程序异步数据库配置的 Alembic 环境。"""
 
 import asyncio
 from logging.config import fileConfig
@@ -20,7 +20,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Run migrations without a live database connection."""
+    """在没有活动数据库连接的情况下运行迁移。"""
 
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
@@ -34,7 +34,7 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    """Configure Alembic for an active SQLAlchemy connection."""
+    """为活动的 SQLAlchemy 连接配置 Alembic。"""
 
     context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
     with context.begin_transaction():
@@ -42,7 +42,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    """Open an async engine and run migrations synchronously through Alembic."""
+    """打开异步引擎并通过 Alembic 同步运行迁移。"""
 
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
@@ -55,7 +55,7 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run online migrations."""
+    """运行在线迁移。"""
 
     asyncio.run(run_async_migrations())
 

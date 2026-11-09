@@ -1,4 +1,4 @@
-"""Private object storage for original resume files."""
+"""原始简历文件的私有对象存储。"""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from app.config import Settings
 
 
 class ObjectStorage(Protocol):
-    """Narrow storage contract used by the resume service and Worker."""
+    """简历服务和 Worker 使用的窄存储契约。"""
 
     async def put(self, object_key: str, content: bytes) -> None: ...
 
@@ -31,7 +31,7 @@ class ObjectStorage(Protocol):
 
 
 class LocalPrivateStorage:
-    """Private local adapter for development; object keys never leave the server."""
+    """用于开发的私有本地适配器;对象键永远不会离开服务器。"""
 
     def __init__(self, root: str | Path) -> None:
         self._root = Path(root).expanduser().resolve()
@@ -45,7 +45,7 @@ class LocalPrivateStorage:
         return path
 
     async def put(self, object_key: str, content: bytes) -> None:
-        """Atomically write one private object with owner-only permissions."""
+        """以仅所有者权限原子写入一个私有对象。"""
 
         destination = self._path(object_key)
         destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -61,23 +61,23 @@ class LocalPrivateStorage:
             temporary.unlink(missing_ok=True)
 
     async def get(self, object_key: str) -> bytes:
-        """Read a private object, raising ``FileNotFoundError`` when absent."""
+        """读取私有对象,不存在时抛出 ``FileNotFoundError``。"""
 
         return self._path(object_key).read_bytes()
 
     async def delete(self, object_key: str) -> None:
-        """Delete an object idempotently."""
+        """幂等删除对象。"""
 
         self._path(object_key).unlink(missing_ok=True)
 
     def clear_for_tests(self) -> None:
-        """Remove the adapter root in isolated tests only."""
+        """仅在隔离测试中移除适配器根目录。"""
 
         shutil.rmtree(self._root, ignore_errors=True)
 
 
 class OssPrivateStorage:
-    """Private Alibaba Cloud OSS adapter using the official V1 request signature."""
+    """使用官方 V1 请求签名的私有阿里云 OSS 适配器。"""
 
     def __init__(
         self,
@@ -203,7 +203,7 @@ class OssPrivateStorage:
 
 
 def create_resume_storage(settings: Settings) -> ObjectStorage:
-    """Create the configured storage adapter."""
+    """创建配置的存储适配器。"""
 
     if settings.resume_storage_backend == "oss":
         required = {

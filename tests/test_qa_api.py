@@ -1,4 +1,4 @@
-"""Owner-scoped retrieval QA API, worker, evidence, and SSE behavior."""
+"""所有者范围检索 QA API、worker、证据和 SSE 行为。"""
 
 from __future__ import annotations
 
@@ -125,7 +125,7 @@ def _answer(
 
 
 class QaStaticLlm:
-    """Return a deterministic QA answer and optionally fail before answering."""
+    """返回确定性的 QA 答案,并可选择在回答前失败。"""
 
     def __init__(
         self,

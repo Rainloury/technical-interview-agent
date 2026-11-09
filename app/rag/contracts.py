@@ -1,4 +1,4 @@
-"""Pure data contracts shared by document ingestion and retrieval."""
+"""文档摄取与检索共享的纯数据契约。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class ExtractedDocument:
-    """Validated text extracted from one private document."""
+    """从单个私有文档中提取的已验证文本。"""
 
     detected_mime: str
     text: str
@@ -16,7 +16,7 @@ class ExtractedDocument:
 
 @dataclass(frozen=True, slots=True)
 class DocumentChunk:
-    """One stable, retrievable document chunk."""
+    """一个稳定、可检索的文档分块。"""
 
     index: int
     section_path: str

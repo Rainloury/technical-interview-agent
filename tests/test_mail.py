@@ -1,4 +1,4 @@
-"""Password reset delivery adapter behavior."""
+"""密码重置投递适配器行为。"""
 
 from __future__ import annotations
 

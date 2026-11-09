@@ -1,4 +1,4 @@
-"""Bounded PDF, DOCX, text, and Markdown extraction."""
+"""有界的 PDF、DOCX、文本与 Markdown 提取。"""
 
 from __future__ import annotations
 
@@ -138,7 +138,7 @@ def extract_document(
     declared_mime: str | None,
     settings: Settings,
 ) -> ExtractedDocument:
-    """Validate and extract one bounded private document."""
+    """验证并提取单个有界私有文档。"""
 
     safe_filename = _sanitize_filename(filename)
     if len(content) > settings.document_max_bytes:

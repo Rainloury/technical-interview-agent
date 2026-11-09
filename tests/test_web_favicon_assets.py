@@ -1,4 +1,4 @@
-"""Favicon source and browser integration contracts."""
+"""Favicon 来源和浏览器集成契约。"""
 
 from __future__ import annotations
 

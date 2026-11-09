@@ -1,4 +1,4 @@
-"""Storage adapter selection and OSS request contract tests."""
+"""存储适配器选择和 OSS 请求契约测试。"""
 
 from __future__ import annotations
 

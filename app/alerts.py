@@ -1,4 +1,4 @@
-"""Production alert evaluation and webhook delivery."""
+"""生产告警评估与 webhook 投递。"""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ ALERT_CODES = (
 
 @dataclass(frozen=True, slots=True)
 class AlertObservation:
-    """One actionable alert state with no business content."""
+    """一个可操作的告警状态,不含业务内容。"""
 
     code: str
     severity: str
@@ -45,7 +45,7 @@ def worker_heartbeat_observation(
     max_age_seconds: int,
     now: float | None = None,
 ) -> AlertObservation | None:
-    """Return an alert when the Worker health file is absent or stale."""
+    """当 Worker 健康文件缺失或过期时返回告警。"""
 
     current = time.time() if now is None else now
     if not health_file.is_file():
@@ -67,7 +67,7 @@ def worker_heartbeat_observation(
 
 
 async def database_observations(session: AsyncSession) -> list[AlertObservation]:
-    """Evaluate database-backed alert categories."""
+    """评估基于数据库的告警类别。"""
 
     observations: list[AlertObservation] = []
     dead_letter = int(
@@ -129,7 +129,7 @@ async def readiness_observation(
     request_timeout: float,
     client: httpx.AsyncClient | None = None,
 ) -> AlertObservation | None:
-    """Treat an unreachable or degraded readiness endpoint as an alert."""
+    """将不可达或降级的就绪端点视为告警。"""
 
     owned_client = client is None
     resolved_client = client or httpx.AsyncClient(timeout=request_timeout)
@@ -170,7 +170,7 @@ async def deliver_alerts(
     observations: list[AlertObservation],
     client: httpx.AsyncClient | None = None,
 ) -> list[AlertDelivery]:
-    """Send one webhook per observation and persist every attempt."""
+    """每次观察发送一个 webhook,并持久化每次尝试。"""
 
     if not observations:
         return []
@@ -225,7 +225,7 @@ async def evaluate_alerts(
     now: float | None = None,
     client: httpx.AsyncClient | None = None,
 ) -> list[AlertDelivery]:
-    """Evaluate all five alert categories and deliver actionable ones."""
+    """评估全部五类告警并投递可操作的告警。"""
 
     observations = await database_observations(session)
     ready = await readiness_observation(
@@ -251,7 +251,7 @@ async def evaluate_alerts(
 
 
 async def clear_alerts(session: AsyncSession) -> None:
-    """Clear delivery evidence in isolated test environments only."""
+    """仅在隔离测试环境中清理投递证据。"""
 
     await session.execute(text("DELETE FROM alert_deliveries"))
     await session.commit()

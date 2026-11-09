@@ -1,4 +1,4 @@
-"""Structured QA answer contract and deterministic lexical retrieval."""
+"""结构化 QA 答案契约与确定性词法检索。"""
 
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ _STOPWORDS = frozenset(
 
 
 class QaAnswerOutput(BaseModel):
-    """Provider-neutral answer shape shared by Worker and API."""
+    """Worker 与 API 共享的供应商中立答案结构。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -99,7 +99,7 @@ class QaAnswerOutput(BaseModel):
 
 @dataclass(frozen=True, slots=True)
 class RetrievedEvidence:
-    """One ranked section snapshot before persistence."""
+    """持久化前的一次排名章节快照。"""
 
     knowledge_source_version_id: uuid.UUID
     source_title: str
@@ -110,13 +110,13 @@ class RetrievedEvidence:
 
 
 def contains_url(value: str) -> bool:
-    """Reject caller-supplied locations from becoming knowledge sources."""
+    """拒绝调用方提供的位置成为知识来源。"""
 
     return _URL_PATTERN.search(value) is not None
 
 
 def tokenize(value: str) -> list[str]:
-    """Use a deterministic, dependency-free tokenizer for Chinese and English."""
+    """为中文和英文使用确定性的、无依赖的分词器。"""
 
     tokens = [token.casefold() for token in _TOKEN_PATTERN.findall(value)]
     return [token for token in tokens if token not in _STOPWORDS]
@@ -155,7 +155,7 @@ async def retrieve_evidence(
     question: str,
     limit: int = 5,
 ) -> list[RetrievedEvidence]:
-    """Rank the latest published allowlisted sections with stable lexical scoring."""
+    """以稳定的词法评分对最新发布的允许列表章节进行排名。"""
 
     terms = tokenize(question)
     if not terms:

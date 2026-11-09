@@ -1,4 +1,4 @@
-"""Owner-scoped resume upload, retry, deletion, and Worker behavior."""
+"""所有者范围简历上传、重试、删除和 Worker 行为。"""
 
 from __future__ import annotations
 
@@ -364,7 +364,7 @@ async def test_delete_source_removes_private_material_and_protected_answers(
 
 
 class StaticLlm:
-    """Return deterministic analysis and questions for the Worker test."""
+    """为 Worker 测试返回确定性的分析和问题。"""
 
     def __init__(self) -> None:
         self.calls: list[ModelTier] = []

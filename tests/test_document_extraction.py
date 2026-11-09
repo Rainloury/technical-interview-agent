@@ -1,4 +1,4 @@
-"""Document extraction, normalization, and chunk contract tests."""
+"""文档提取、规范化和分块约定测试。"""
 
 from __future__ import annotations
 

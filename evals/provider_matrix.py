@@ -1,4 +1,4 @@
-"""Run the 110-case live-provider interview and safety release matrix."""
+"""运行 110 个用例的 live-provider 面试与安全发布矩阵。"""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ SECRET_SENTINEL = "MATRIX_SECRET_REFERENCE_9c2f"  # noqa: S105 - test sentinel
 
 @dataclass(frozen=True, slots=True)
 class MatrixCase:
-    """One live-provider scoring scenario and its expected policy outcome."""
+    """一个 live-provider 评分场景及其预期策略结果。"""
 
     case: EvalCase
     question: str
@@ -57,7 +57,7 @@ class MatrixCase:
 
 @dataclass(frozen=True, slots=True)
 class MatrixResult:
-    """One provider result without prompts or full user content."""
+    """不包含提示词或完整用户内容的单个 provider 结果。"""
 
     case_id: str
     passed: bool
@@ -81,7 +81,7 @@ class MatrixResult:
 
 @dataclass(frozen=True, slots=True)
 class MatrixReport:
-    """Persisted release-matrix evidence."""
+    """持久化的发布矩阵证据。"""
 
     provider: str
     model: str
@@ -645,7 +645,7 @@ def _direction_cases(direction: str, plan: Any) -> list[MatrixCase]:
 
 
 def build_matrix_cases() -> tuple[MatrixCase, ...]:
-    """Build exactly 90 directional and 20 shared cases."""
+    """精确构建 90 个方向性用例和 20 个共享用例。"""
 
     cases: list[MatrixCase] = []
     for direction in ("backend", "frontend", "fullstack"):
@@ -797,7 +797,7 @@ async def run_matrix(
     concurrency: int = 3,
     case_ids: Sequence[str] | None = None,
 ) -> MatrixReport:
-    """Execute each bounded case once through the live provider client."""
+    """通过 live provider 客户端将每个有界用例执行一次。"""
 
     await _preflight_model(settings)
     cases = build_matrix_cases()
@@ -890,7 +890,7 @@ async def run_matrix(
 
 
 async def _preflight_model(settings: Settings) -> None:
-    """Reject an unsupported model name before spending a full matrix run."""
+    """在消耗完整矩阵运行前拒绝不支持的模型名称。"""
 
     if not settings.llm_api_key:
         raise ValueError("LLM_API_KEY is required for the provider matrix")

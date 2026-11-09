@@ -1,4 +1,4 @@
-"""Private document Worker indexing, retry, deletion, and isolation tests."""
+"""私有文档 Worker 索引、重试、删除和隔离测试。"""
 
 from __future__ import annotations
 

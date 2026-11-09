@@ -1,4 +1,4 @@
-"""Standard-library authenticated encryption for short-lived delivery secrets."""
+"""用于短时交付密钥的标准库认证加密。"""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ def _stream(key: bytes, nonce: bytes, length: int) -> bytes:
 
 
 def encrypt_secret(settings: Settings, plaintext: str) -> str:
-    """Encrypt a short secret with a random nonce and HMAC-SHA256 tag."""
+    """使用随机 nonce 和 HMAC-SHA256 标签加密短密钥。"""
 
     encryption_key, mac_key = _keys(settings)
     nonce = os.urandom(_NONCE_BYTES)
@@ -57,7 +57,7 @@ def encrypt_secret(settings: Settings, plaintext: str) -> str:
 
 
 def decrypt_secret(settings: Settings, value: str) -> str:
-    """Verify and decrypt a value produced by ``encrypt_secret``."""
+    """验证并解密由 ``encrypt_secret`` 生成的值。"""
 
     encryption_key, mac_key = _keys(settings)
     try:

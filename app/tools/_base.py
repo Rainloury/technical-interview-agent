@@ -1,4 +1,4 @@
-"""Tool contract, untrusted-data envelope, truncation, and error normalization."""
+"""工具契约、不可信数据信封、截断和错误规范化。"""
 
 from __future__ import annotations
 
@@ -15,13 +15,13 @@ SUMMARY_LINES = 3
 
 
 class ToolParams(BaseModel):
-    """Base for strict tool parameter models."""
+    """严格工具参数模型的基类。"""
 
     model_config = ConfigDict(extra="forbid")
 
 
 class ToolError(Exception):
-    """A recoverable tool failure returned to the model."""
+    """返回给模型的可恢复工具失败。"""
 
     def __init__(self, error: str, hint: str) -> None:
         super().__init__(error)
@@ -30,7 +30,7 @@ class ToolError(Exception):
 
 
 class ToolContract(BaseModel):
-    """Versioned declaration consumed by the registry."""
+    """由注册表消费的版本化声明。"""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -42,18 +42,18 @@ class ToolContract(BaseModel):
 
 
 class Tool(Protocol):
-    """Shape shared by all tool modules."""
+    """所有工具模块共享的形状。"""
 
     NAME: ClassVar[str]
     DESCRIPTION: ClassVar[str]
     Params: ClassVar[type[ToolParams]]
 
     async def run(self, params: BaseModel, *, dry_run: bool = True) -> object:
-        """Execute the tool."""
+        """执行工具。"""
 
 
 def tool_schema(params: type[BaseModel]) -> dict[str, Any]:
-    """Generate a JSON schema from the Pydantic parameter model."""
+    """从 Pydantic 参数模型生成 JSON schema。"""
 
     return params.model_json_schema()
 
@@ -63,7 +63,7 @@ def _json_text(value: object) -> str:
 
 
 def _summary(value: object) -> list[str]:
-    """Describe the result shape without re-injecting a large payload."""
+    """描述结果形状而不重新注入大负载。"""
 
     if isinstance(value, dict):
         keys = ", ".join(str(key) for key in list(value)[:8])
@@ -74,7 +74,7 @@ def _summary(value: object) -> list[str]:
 
 
 def store_large_result(result: object, *, directory: str | Path, ttl_seconds: int) -> str:
-    """Write a large result privately and return only its path."""
+    """将大结果私有写入并仅返回其路径。"""
 
     target = Path(directory)
     target.mkdir(parents=True, exist_ok=True)
@@ -87,7 +87,7 @@ def store_large_result(result: object, *, directory: str | Path, ttl_seconds: in
     except Exception:
         Path(path).unlink(missing_ok=True)
         raise
-    _ = ttl_seconds  # retention is enforced by the cleanup worker in a later slice
+    _ = ttl_seconds  # 保留期由后续切片的清理 Worker 强制执行
     return path
 
 
@@ -98,7 +98,7 @@ def normalize_tool_result(
     result_dir: str | Path | None = None,
     ttl_seconds: int = 3600,
 ) -> object:
-    """Bound every tool result and preserve a concise summary for large data."""
+    """限制每个工具结果并为大数据保留简洁摘要。"""
 
     serialized = _json_text(result)
     if len(serialized) <= max_chars:
@@ -120,7 +120,7 @@ def normalize_tool_result(
 
 
 def error_envelope(exc: Exception) -> dict[str, str] | dict[str, object]:
-    """Convert expected failures into the model-visible error contract."""
+    """将预期失败转换为模型可见的错误契约。"""
 
     if isinstance(exc, ToolError):
         return {"ok": False, "error": exc.error, "hint": exc.hint}
@@ -138,13 +138,13 @@ def error_envelope(exc: Exception) -> dict[str, str] | dict[str, object]:
 
 
 def wrap_untrusted(content: str) -> str:
-    """Wrap external content so prompts can treat it strictly as data."""
+    """包装外部内容,使提示可以严格将其视为数据。"""
 
     return f"<untrusted>\n{content}\n</untrusted>"
 
 
 def has_dry_run_default(run: Any) -> bool:
-    """Check the write-operation safety convention."""
+    """检查写操作安全约定。"""
 
     import inspect
 

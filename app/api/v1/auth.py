@@ -1,4 +1,4 @@
-"""HTTP boundary for account and session lifecycle."""
+"""账户和会话生命周期的 HTTP 边界。"""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ def _set_session_cookies(
     csrf_token: str,
     expires_at: datetime,
 ) -> None:
-    """Set the HttpOnly session and readable CSRF verification cookies."""
+    """设置 HttpOnly 会话 cookie 和可读的 CSRF 验证 cookie。"""
 
     secure = settings.cookie_secure
     response.set_cookie(
@@ -61,7 +61,7 @@ def _set_session_cookies(
 
 
 def _clear_auth_cookies(response: Response, settings: Settings) -> None:
-    """Expire both cookies after logout or password reset."""
+    """在登出或密码重置后使两个 cookie 过期。"""
 
     response.delete_cookie(settings.session_cookie_name, path="/")
     response.delete_cookie(settings.csrf_cookie_name, path="/")
@@ -73,7 +73,7 @@ async def register(
     request: Request,
     session: SessionDependency,
 ) -> RegisterAccepted:
-    """Create an account or return the same neutral acceptance."""
+    """创建账户或返回相同的中性接受响应。"""
 
     await register_user(
         session,
@@ -92,7 +92,7 @@ async def login(
     response: Response,
     session: SessionDependency,
 ) -> LoginResponse:
-    """Verify credentials and issue a fresh server-side session."""
+    """验证凭据并签发全新的服务端会话。"""
 
     issued = await login_user(
         session,
@@ -124,7 +124,7 @@ async def logout(
     response: Response,
     session: SessionDependency,
 ) -> Response:
-    """Revoke the current session and expire client cookies."""
+    """撤销当前会话并使客户端 cookie 过期。"""
 
     await logout_user(
         session,
@@ -138,7 +138,7 @@ async def logout(
 
 @router.get("/session")
 async def read_session(auth: AuthDependency) -> SessionResponse:
-    """Return only safe user and expiry metadata."""
+    """仅返回安全的用户和过期元数据。"""
 
     return SessionResponse(
         user=UserSummary(
@@ -156,7 +156,7 @@ async def request_reset(
     request: Request,
     session: SessionDependency,
 ) -> dict[str, bool]:
-    """Return a neutral acceptance regardless of account existence."""
+    """无论账户是否存在都返回中性接受响应。"""
 
     await request_password_reset(
         session,
@@ -174,7 +174,7 @@ async def confirm_reset(
     response: Response,
     session: SessionDependency,
 ) -> Response:
-    """Rotate the password, revoke old sessions, and clear auth cookies."""
+    """轮换密码、撤销旧会话并清除认证 cookie。"""
 
     await confirm_password_reset(
         session,

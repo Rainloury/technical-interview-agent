@@ -15,7 +15,7 @@ const allowed = new Set([
   "0BSD",
 ]);
 
-// caniuse-lite's CC-BY-4.0 covers its browser-support dataset, not the app code.
+// caniuse-lite 的 CC-BY-4.0 仅覆盖其浏览器支持数据集，不覆盖应用代码。
 const notices = new Map([["node_modules/caniuse-lite", "CC-BY-4.0"]]);
 
 const lockfile = JSON.parse(readFileSync("web/package-lock.json", "utf8"));

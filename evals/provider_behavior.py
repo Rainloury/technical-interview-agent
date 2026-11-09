@@ -1,4 +1,4 @@
-"""Optional live-provider behavior check, isolated from deterministic tests."""
+"""可选的 live-provider 行为检查,与确定性测试隔离。"""
 
 from __future__ import annotations
 
@@ -24,21 +24,21 @@ DEFAULT_OUTPUT = Path("/private/tmp/technical-interview-agent-provider-eval.json
 
 
 class AddParams(ToolParams):
-    """Small deterministic tool used to observe provider tool selection."""
+    """用于观察 provider 工具选择的小型确定性工具。"""
 
     left: int
     right: int
 
 
 async def add(params: AddParams) -> dict[str, int]:
-    """Return a deterministic arithmetic result."""
+    """返回确定性的算术结果。"""
 
     return {"sum": params.left + params.right}
 
 
 @dataclass(frozen=True, slots=True)
 class ProviderEvidence:
-    """One live provider run's observable outcome and cost."""
+    """单次 live provider 运行的可观测结果和成本。"""
 
     status: Literal["passed", "failed"]
     provider: str
@@ -71,7 +71,7 @@ async def run_provider_check(
     *,
     tier: ModelTier | str = ModelTier.FAST,
 ) -> ProviderEvidence:
-    """Execute one real provider call through the shared Agent Loop."""
+    """通过共享 Agent Loop 执行一次真实 provider 调用。"""
 
     if not _provider_is_configured(settings):
         raise ValueError("LLM_API_KEY is required for the live provider eval")
@@ -154,7 +154,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run one live model task and persist non-secret evidence."""
+    """运行一次 live 模型任务并持久化非机密证据。"""
 
     args = _parser().parse_args(argv)
     try:

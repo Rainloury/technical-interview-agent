@@ -1,4 +1,4 @@
-"""Contract tests for the eval runner itself."""
+"""针对 eval runner 本身的契约测试。"""
 
 from pathlib import Path
 

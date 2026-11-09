@@ -87,7 +87,7 @@ async function parseError(response: Response): Promise<ApiError> {
   try {
     payload = (await response.json()) as ApiErrorBody;
   } catch {
-    // A proxy or outage can return a non-JSON body.
+    // 代理或故障可能返回非 JSON 响应体。
   }
   return new ApiError(payload.error?.message || "请求未完成，请稍后重试。", {
     status: response.status,

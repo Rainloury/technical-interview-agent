@@ -1,4 +1,4 @@
-"""Bounded plan -> act -> observe loop with structured decisions."""
+"""有界的 plan -> act -> observe 循环,带结构化决策。"""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from app.tools._base import error_envelope, normalize_tool_result, wrap_untruste
 
 
 class AgentDecision(BaseModel):
-    """The model's next bounded step."""
+    """模型的下一个有界步骤。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -31,7 +31,7 @@ class AgentDecision(BaseModel):
 
 @dataclass(frozen=True, slots=True)
 class AgentLimits:
-    """Hard limits applied to every loop."""
+    """应用于每个循环的硬性限制。"""
 
     max_steps: int = 8
     max_tokens: int = 200_000
@@ -50,12 +50,12 @@ class AgentLimits:
 
 
 class AgentLimitError(RuntimeError):
-    """A hard budget or cycle limit was reached."""
+    """已达到硬性预算或循环限制。"""
 
 
 @dataclass(frozen=True, slots=True)
 class AgentObservation:
-    """Serializable observation fed back to the next model step."""
+    """可序列化的观察结果,反馈到下一个模型步骤。"""
 
     step: int
     tool_name: str
@@ -64,7 +64,7 @@ class AgentObservation:
 
 @dataclass(frozen=True, slots=True)
 class AgentRunResult:
-    """Final bounded agent result and aggregate accounting."""
+    """最终有界智能体结果与汇总统计。"""
 
     answer: str
     steps: int
@@ -76,7 +76,7 @@ class AgentRunResult:
 
 
 class AgentLoop:
-    """Single iteration point for all agent work."""
+    """所有智能体工作的单次迭代入口。"""
 
     def __init__(
         self,
@@ -108,7 +108,7 @@ class AgentLoop:
         depth: int = 0,
         tier: ModelTier | str = ModelTier.DEFAULT,
     ) -> AgentRunResult:
-        """Run until the model finishes, fails, or a hard limit is reached."""
+        """运行直到模型完成、失败或达到硬性限制。"""
 
         if depth > self._limits.max_depth:
             raise AgentLimitError("maximum nesting depth exceeded")

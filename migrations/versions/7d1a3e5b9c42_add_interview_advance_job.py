@@ -1,4 +1,4 @@
-"""add interview advance job type
+"""添加面试推进任务类型
 
 Revision ID: 7d1a3e5b9c42
 Revises: 2c9e7f4a1b60

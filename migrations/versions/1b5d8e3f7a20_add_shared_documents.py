@@ -1,4 +1,4 @@
-"""add shared documents and admin roles
+"""添加共享文档和管理员角色
 
 Revision ID: 1b5d8e3f7a20
 Revises: 7f3a9c2d1b40

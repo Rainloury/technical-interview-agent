@@ -1,4 +1,4 @@
-"""Owner-scoped workspace summaries."""
+"""按所有者范围的工作区摘要。"""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def _short_title(value: str, fallback: str) -> str:
 
 
 async def get_dashboard(session: AsyncSession, user: User) -> DashboardResponse:
-    """Return recent owned work without exposing content bodies."""
+    """返回最近拥有的工作内容而不暴露正文。"""
 
     now = datetime.now(UTC)
     resume_updated = func.coalesce(

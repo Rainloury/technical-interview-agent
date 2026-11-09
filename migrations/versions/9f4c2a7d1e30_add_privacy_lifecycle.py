@@ -1,4 +1,4 @@
-"""add privacy lifecycle
+"""添加隐私生命周期
 
 Revision ID: 9f4c2a7d1e30
 Revises: 7d1a3e5b9c42

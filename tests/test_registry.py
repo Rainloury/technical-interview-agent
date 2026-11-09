@@ -1,4 +1,4 @@
-"""Tool registry duplicate, contract, and execution tests."""
+"""工具注册表重复、契约和执行测试。"""
 
 from __future__ import annotations
 

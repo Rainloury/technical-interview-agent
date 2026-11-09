@@ -1,4 +1,4 @@
-"""Deterministic interview configuration and structured LLM contracts."""
+"""确定性面试配置与结构化 LLM 契约。"""
 
 from __future__ import annotations
 
@@ -220,7 +220,7 @@ DIRECTION_PLANS: dict[Direction, DirectionPlan] = {
 
 
 def normalize_topic_keys(direction: Direction, values: list[str]) -> list[str]:
-    """Validate, deduplicate, and preserve caller order for topic preferences."""
+    """校验、去重并保留调用方顺序的主题偏好。"""
 
     known = {topic.key for topic in DIRECTION_PLANS[direction].topics}
     normalized: list[str] = []
@@ -236,7 +236,7 @@ def normalize_topic_keys(direction: Direction, values: list[str]) -> list[str]:
 
 
 def difficulty_mix(profile: DifficultyProfile) -> tuple[Difficulty, ...]:
-    """Return the frozen five-question difficulty distribution."""
+    """返回固定的五题难度分布。"""
 
     if profile == "foundation":
         return ("easy", "easy", "medium", "medium", "hard")
@@ -252,7 +252,7 @@ def build_blueprint(
     topic_keys: list[str],
     interview_id: str,
 ) -> list[BlueprintQuestion]:
-    """Create a deterministic five-topic blueprint with at least four topics."""
+    """创建至少包含四个主题的确定性五主题蓝图。"""
 
     plan = DIRECTION_PLANS[direction]
     digest = hashlib.sha256(interview_id.encode("utf-8")).digest()
@@ -283,7 +283,7 @@ def build_blueprint(
 
 
 class InterviewQuestionDraft(BaseModel):
-    """One generated question with protected scoring material."""
+    """一道带受保护评分材料的生成题目。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -293,7 +293,7 @@ class InterviewQuestionDraft(BaseModel):
 
 
 class InterviewQuestionsOutput(BaseModel):
-    """Exactly five ordered main-question drafts."""
+    """恰好五道有序主问题草稿。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -307,7 +307,7 @@ class InterviewQuestionsOutput(BaseModel):
 
 
 class InterviewScoreDimension(BaseModel):
-    """A bounded dimension score with a concrete loss reason."""
+    """带具体失分原因的有界维度评分。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -316,7 +316,7 @@ class InterviewScoreDimension(BaseModel):
 
 
 class InterviewScoringOutput(BaseModel):
-    """Model-provided scoring evidence; deterministic code computes pass/fail."""
+    """模型提供的评分证据;由确定性代码计算通过/失败。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -338,7 +338,7 @@ class InterviewScoringOutput(BaseModel):
 
 
 class InterviewFollowUpOutput(BaseModel):
-    """One relevant, non-duplicative follow-up question."""
+    """一道相关且不重复的追问。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -348,7 +348,7 @@ class InterviewFollowUpOutput(BaseModel):
 
 
 def weighted_total(output: InterviewScoringOutput) -> float:
-    """Compute the fixed weighted total in one deterministic place."""
+    """在一个确定性位置计算固定加权总分。"""
 
     total: float = sum(
         float(getattr(output, dimension).score) * weight / 100
@@ -370,7 +370,7 @@ def is_pass(total: float, critical_error: bool) -> bool:
 
 
 def scoring_payload(output: InterviewScoringOutput) -> dict[str, object]:
-    """Return the internal, versioned scoring snapshot."""
+    """返回内部的、带版本的评分快照。"""
 
     total = weighted_total(output)
     return {

@@ -1,4 +1,4 @@
-"""Explicit tool registration with duplicate and contract validation."""
+"""显式工具注册,含重复与契约校验。"""
 
 from __future__ import annotations
 
@@ -17,12 +17,12 @@ from app.tools._base import (
 
 
 class RegistryError(ValueError):
-    """Invalid or conflicting tool registration."""
+    """无效或冲突的工具注册。"""
 
 
 @dataclass(frozen=True, slots=True)
 class RegisteredTool:
-    """One validated tool available to the model."""
+    """一个经校验、可供模型使用的工具。"""
 
     name: str
     description: str
@@ -36,7 +36,7 @@ class RegisteredTool:
 
 
 class ToolRegistry:
-    """Explicit, immutable-by-convention set of tools."""
+    """显式且约定不可变的工具集合。"""
 
     def __init__(self, tools: Iterable[RegisteredTool] = ()) -> None:
         self._tools: dict[str, RegisteredTool] = {}

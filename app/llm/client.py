@@ -1,4 +1,4 @@
-"""The only provider-facing LLM client, with bounded retries and trace records."""
+"""唯一面向提供商的 LLM 客户端,具有有界重试与追踪记录。"""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ ResultT = TypeVar("ResultT", bound=BaseModel)
 
 
 class LlmClientError(Exception):
-    """Stable error raised after the client exhausts its bounded retry policy."""
+    """客户端耗尽有界重试策略后抛出的稳定错误。"""
 
     def __init__(self, code: str, message: str, *, retryable: bool) -> None:
         super().__init__(message)
@@ -37,7 +37,7 @@ class LlmClientError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class PromptMetadata:
-    """Prompt identity attached to every call and trace."""
+    """附加到每次调用与追踪的提示标识。"""
 
     name: str
     version: str
@@ -45,7 +45,7 @@ class PromptMetadata:
 
 @dataclass(frozen=True, slots=True)
 class ProviderRequest:
-    """Validated provider-neutral request."""
+    """经过校验的与提供商无关的请求。"""
 
     model: str
     system_prompt: str
@@ -55,7 +55,7 @@ class ProviderRequest:
 
 @dataclass(frozen=True, slots=True)
 class ProviderResult:
-    """Only the validated data and usage details leave the provider adapter."""
+    """只有经过校验的数据与用量详情离开提供商适配器。"""
 
     data: BaseModel
     input_tokens: int
@@ -65,17 +65,17 @@ class ProviderResult:
 
 
 class LlmProvider(Protocol):
-    """Provider-neutral adapter contract used by the client."""
+    """客户端使用的与提供商无关的适配器契约。"""
 
     async def generate(
         self, request: ProviderRequest, output_schema: type[BaseModel]
     ) -> ProviderResult:
-        """Generate one structured output."""
+        """生成一个结构化输出。"""
 
 
 @dataclass(frozen=True, slots=True)
 class LlmResult(Generic[ResultT]):
-    """Validated business result plus metadata safe for persistence."""
+    """经过校验的业务结果以及可安全持久化的元数据。"""
 
     output: ResultT
     trace: LlmTrace
@@ -84,7 +84,7 @@ class LlmResult(Generic[ResultT]):
 
 @dataclass(frozen=True, slots=True)
 class TraceContext:
-    """Business correlation IDs that must never contain raw prompt content."""
+    """业务关联 ID,绝不能包含原始提示内容。"""
 
     request_id: str = field(default="unknown")
     trace_id: str = field(default="unknown")
@@ -96,7 +96,7 @@ class TraceContext:
 
 
 def _parse_json_object(text: str) -> str:
-    """Trim common Markdown fences without parsing arbitrary provider objects."""
+    """去除常见的 Markdown 围栏,而不解析任意提供商对象。"""
 
     stripped = text.strip()
     if stripped.startswith("```"):
@@ -107,7 +107,7 @@ def _parse_json_object(text: str) -> str:
 
 
 def _chat_completions_root(base_url: str | None) -> str | None:
-    """Return the SDK base URL when configured with a full Chat Completions endpoint."""
+    """当配置为完整的 Chat Completions 端点时,返回 SDK 基础 URL。"""
 
     if not base_url:
         return None
@@ -126,7 +126,7 @@ async def _generate_chat_completion(
     *,
     stream: bool = False,
 ) -> ProviderResult:
-    """Call one OpenAI-compatible Chat Completions endpoint with JSON output."""
+    """调用一个 OpenAI 兼容的 Chat Completions 端点并输出 JSON。"""
 
     schema_text = json.dumps(
         output_schema.model_json_schema(),
@@ -195,7 +195,7 @@ async def _generate_chat_completion(
 
 
 class OpenAiProvider:
-    """OpenAI SDK adapter for Responses or a full Chat Completions endpoint."""
+    """用于 Responses 或完整 Chat Completions 端点的 OpenAI SDK 适配器。"""
 
     def __init__(self, settings: Settings, *, client: Any | None = None) -> None:
         if client is not None:
@@ -261,7 +261,7 @@ class OpenAiProvider:
 
 
 class AnthropicProvider:
-    """Official Anthropic SDK adapter with JSON Schema output configuration."""
+    """官方 Anthropic SDK 适配器,带 JSON Schema 输出配置。"""
 
     def __init__(self, settings: Settings) -> None:
         kwargs: dict[str, Any] = {
@@ -317,7 +317,7 @@ class AnthropicProvider:
 
 
 class DeepSeekProvider:
-    """DeepSeek's OpenAI-compatible Chat Completions adapter with JSON output."""
+    """DeepSeek 的 OpenAI 兼容 Chat Completions 适配器,输出 JSON。"""
 
     def __init__(self, settings: Settings, *, client: Any | None = None) -> None:
         if client is not None:
@@ -347,7 +347,7 @@ class DeepSeekProvider:
 
 
 class LocalProvider:
-    """Explicit non-deployment LLM provider that never calls a network service."""
+    """显式的非部署 LLM 提供商,从不调用网络服务。"""
 
     async def generate(
         self, request: ProviderRequest, output_schema: type[BaseModel]
@@ -372,7 +372,7 @@ def _provider_from_settings(settings: Settings) -> LlmProvider:
 
 
 class LlmClient:
-    """Unified LLM entry point with timeout, retries, schema validation, and trace."""
+    """统一的 LLM 入口,具备超时、重试、schema 校验与追踪。"""
 
     def __init__(
         self,
@@ -398,7 +398,7 @@ class LlmClient:
         max_output_tokens: int | None = None,
         timeout_seconds: float | None = None,
     ) -> LlmResult[ResultT]:
-        """Generate one validated response or raise a stable client error."""
+        """生成一个经过校验的响应,或抛出稳定的客户端错误。"""
 
         profile = resolve_model_tier(tier, self._settings)
         request = ProviderRequest(
@@ -516,7 +516,7 @@ class LlmClient:
         raise last_error
 
     async def aclose(self) -> None:
-        """Release provider-owned network resources."""
+        """释放提供商持有的网络资源。"""
 
         close = getattr(self._provider, "close", None)
         if callable(close):

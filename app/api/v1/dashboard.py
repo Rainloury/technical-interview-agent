@@ -1,4 +1,4 @@
-"""Authenticated workspace endpoint."""
+"""需认证的工作区端点。"""
 
 from typing import Annotated
 
@@ -19,7 +19,7 @@ async def read_dashboard(
     auth: AuthDependency,
     session: SessionDependency,
 ) -> DashboardResponse:
-    """Return the current user's recent task and interview summaries."""
+    """返回当前用户近期的任务和面试摘要。"""
 
     return await get_dashboard(session, auth.user)
 
@@ -30,7 +30,7 @@ async def read_operational_metrics(
     session: SessionDependency,
     authorization: Annotated[str | None, Header()] = None,
 ) -> OperationalMetrics:
-    """Return aggregate release metrics only with the configured ops token."""
+    """仅使用配置的 ops token 返回聚合发布指标。"""
 
     expected = request.app.state.settings.ops_metrics_token
     supplied = authorization.removeprefix("Bearer ").strip() if authorization else ""

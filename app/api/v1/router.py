@@ -1,4 +1,4 @@
-"""Version 1 route composition."""
+"""版本 1 路由组合。"""
 
 from fastapi import APIRouter
 
@@ -28,6 +28,6 @@ router.include_router(shared_documents_router)
 
 @router.get("/ping", tags=["meta"])
 async def ping() -> dict[str, str]:
-    """Confirm the versioned API router is mounted."""
+    """确认已挂载版本化 API 路由器。"""
 
     return {"status": "ok"}

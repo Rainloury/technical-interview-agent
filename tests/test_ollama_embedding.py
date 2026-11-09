@@ -1,4 +1,4 @@
-"""Ollama embedding request, retry, and validation tests."""
+"""Ollama embedding 请求、重试和校验测试。"""
 
 from __future__ import annotations
 

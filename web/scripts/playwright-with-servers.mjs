@@ -11,8 +11,8 @@ const parseTimeout = (value, fallback) => {
   const timeout = Number(value ?? fallback);
   return Number.isFinite(timeout) && timeout > 0 ? timeout : fallback;
 };
-// E2E owns its ephemeral key so an invalid developer .env value cannot break
-// password-reset flows, and the shared API/worker keep the same key.
+// E2E 拥有自己的临时密钥，因此无效的开发者 .env 值不会破坏
+// 密码重置流程，且共享的 API/worker 保持相同密钥。
 const dataEncryptionKey = randomBytes(32).toString("base64url");
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
 const workerHealthFile =

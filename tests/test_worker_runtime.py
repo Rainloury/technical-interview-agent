@@ -1,4 +1,4 @@
-"""Production Worker loop, lifecycle, and command-line contract."""
+"""生产 Worker 循环、生命周期和命令行契约。"""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 class FakeWorker:
-    """Deterministic poller that records instances and waits for a stop event."""
+    """记录实例并等待停止事件的确定性轮询器。"""
 
     instances: ClassVar[list[FakeWorker]] = []
     stop_on_first_idle: ClassVar[bool] = False

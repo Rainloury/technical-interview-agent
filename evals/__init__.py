@@ -1,1 +1,1 @@
-"""Deterministic and behavioral evaluation entry points."""
+"""确定性和行为评估入口点。"""

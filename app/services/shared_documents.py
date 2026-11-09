@@ -1,4 +1,4 @@
-"""Administrator-managed shared document upload, listing, detail, and deletion."""
+"""管理员管理的共享文档上传、列出、详情和删除。"""
 
 from __future__ import annotations
 

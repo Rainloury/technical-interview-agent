@@ -1,4 +1,4 @@
-"""Structured LLM contracts for resume analysis and question generation."""
+"""用于简历分析与问题生成的结构化 LLM 契约。"""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ class ResumeEvidence(BaseModel):
 
 
 class ResumeAnalysisOutput(BaseModel):
-    """Provider-neutral resume analysis schema."""
+    """提供商中立的简历分析 schema。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -76,7 +76,7 @@ class GeneratedQuestionOutput(BaseModel):
 
 
 class ResumeQuestionsOutput(BaseModel):
-    """Strict fixed-size question-set contract."""
+    """严格固定大小的问题集契约。"""
 
     model_config = ConfigDict(extra="forbid")
 

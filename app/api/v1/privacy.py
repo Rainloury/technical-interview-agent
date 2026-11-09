@@ -1,4 +1,4 @@
-"""Authenticated privacy request and deletion-status endpoints."""
+"""需认证的隐私请求和删除状态端点。"""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ async def delete_my_data(
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
 ) -> DataDeletionAccepted:
-    """Tombstone the user's business data and enqueue private cleanup."""
+    """将用户的业务数据标记为墓碑并排队私有清理。"""
 
     verify_write_security(request, auth)
     return await request_data_deletion(
@@ -50,7 +50,7 @@ async def read_latest_deletion(
     auth: DeletionStatusAuthDependency,
     session: SessionDependency,
 ) -> DataDeletionStatus | None:
-    """Return the latest request status without exposing resource identifiers."""
+    """返回最新的请求状态而不暴露资源标识符。"""
 
     return await latest_deletion_status(session, auth.user)
 
@@ -61,6 +61,6 @@ async def read_deletion(
     auth: DeletionStatusAuthDependency,
     session: SessionDependency,
 ) -> DataDeletionStatus:
-    """Return one owner-scoped deletion status."""
+    """返回一个按所有者隔离的删除状态。"""
 
     return await get_deletion_status(session, auth.user, request_id)

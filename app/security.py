@@ -1,4 +1,4 @@
-"""Password, opaque-token, and request-origin security primitives."""
+"""密码、不透明令牌和请求来源安全原语。"""
 
 from __future__ import annotations
 
@@ -20,13 +20,13 @@ _DUMMY_PASSWORD_HASH = _PASSWORD_HASHER.hash("not-a-real-user-password")
 
 
 def normalize_email(email: str) -> str:
-    """Normalize an email consistently before uniqueness and lookup."""
+    """在唯一性检查和查找前一致地规范化电子邮件。"""
 
     return unicodedata.normalize("NFKC", email).strip().lower()
 
 
 def validate_password(password: str) -> None:
-    """Apply the shared password policy without echoing the input."""
+    """应用共享密码策略且不回显输入。"""
 
     if len(password) < 12 or len(password) > 128:
         raise AppError(
@@ -37,19 +37,19 @@ def validate_password(password: str) -> None:
 
 
 def hash_password(password: str) -> str:
-    """Hash a password with Argon2id."""
+    """使用 Argon2id 哈希密码。"""
 
     return _PASSWORD_HASHER.hash(password)
 
 
 def dummy_password_hash() -> str:
-    """Return a stable hash used to equalize failed account lookups."""
+    """返回用于均衡失败账户查找的稳定哈希。"""
 
     return _DUMMY_PASSWORD_HASH
 
 
 def verify_password(password_hash: str, password: str) -> bool:
-    """Verify a password without depending on hash availability."""
+    """在不依赖哈希可用性的情况下校验密码。"""
 
     try:
         return _PASSWORD_HASHER.verify(password_hash, password)
@@ -58,33 +58,33 @@ def verify_password(password_hash: str, password: str) -> bool:
 
 
 def opaque_token() -> str:
-    """Generate an opaque high-entropy token."""
+    """生成不透明高熵令牌。"""
 
     return secrets.token_urlsafe(48)
 
 
 def token_hash(token: str) -> str:
-    """Hash a bearer or CSRF token before persistence."""
+    """在持久化前哈希 bearer 或 CSRF 令牌。"""
 
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def tokens_equal(left: str, right: str) -> bool:
-    """Compare verifier strings in constant time."""
+    """以常量时间比较验证字符串。"""
 
     return secrets.compare_digest(left, right)
 
 
 @dataclass(frozen=True, slots=True)
 class RequestOrigin:
-    """Parsed same-origin request metadata."""
+    """已解析的同源请求元数据。"""
 
     scheme: str
     host: str
 
 
 def request_origin(request: Request) -> RequestOrigin | None:
-    """Return the Origin header or derive one from Referer."""
+    """返回 Origin 头或从 Referer 派生一个。"""
 
     origin = request.headers.get("origin")
     if origin:
@@ -100,7 +100,7 @@ def request_origin(request: Request) -> RequestOrigin | None:
 
 
 def check_write_origin(request: Request, settings: Settings) -> None:
-    """Reject cross-origin writes before CSRF verification."""
+    """在 CSRF 验证之前拒绝跨源写入。"""
 
     origin = request_origin(request)
     if origin is None:

@@ -1,4 +1,4 @@
-"""LLM trace contract tests."""
+"""LLM 跟踪契约测试。"""
 
 from dataclasses import FrozenInstanceError
 

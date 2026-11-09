@@ -1,4 +1,4 @@
-"""Async database engine and session lifecycle."""
+"""异步数据库引擎与会话生命周期。"""
 
 from collections.abc import AsyncIterator
 
@@ -14,7 +14,7 @@ from app.config import Settings
 
 
 def create_engine(settings: Settings) -> AsyncEngine:
-    """Create the application database engine."""
+    """创建应用数据库引擎。"""
 
     return create_async_engine(
         settings.database_url,
@@ -27,13 +27,13 @@ def create_engine(settings: Settings) -> AsyncEngine:
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-    """Create sessions with explicit transaction boundaries."""
+    """以显式事务边界创建会话。"""
 
     return async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
-    """Yield a request-scoped session."""
+    """生成请求作用域会话。"""
 
     factory = request.app.state.session_factory
     async with factory() as session:
