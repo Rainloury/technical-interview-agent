@@ -51,6 +51,7 @@ uv run pytest evals -q             # 智能体行为评测，改 prompt 或换�
 app/
   main.py              # FastAPI 入口，只做装配，不写业务
   api/                 # 路由层：校验参数 → 调 services → 返回
+  dependencies/        # FastAPI 依赖注入：按 state/db/auth/幂等/分页/资源拆分
   agent/
     loop.py            # 主循环：plan → act → observe，唯一的迭代点
     planner.py         # 任务分解
