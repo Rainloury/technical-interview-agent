@@ -9,12 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import router as v1_router
 from app.config import Settings, get_settings
 from app.db.session import create_engine, create_session_factory
+from app.dependencies.redis import create_redis
 from app.errors import install_exception_handlers
 from app.health import router as health_router
 from app.logging import configure_logging, get_logger
 from app.observability import install_request_context
 from app.rag.ollama import OllamaEmbeddingClient
-from app.redis import create_redis
 from app.storage import create_resume_storage
 
 

@@ -26,6 +26,7 @@ from app.prompts.loader import PromptLoader
 from app.storage import LocalPrivateStorage
 from app.worker import ResumeWorker
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 from sqlalchemy import select
 
 from tests.conftest import AppHarness
@@ -241,10 +242,8 @@ async def test_delete_account_data_tombstones_immediately_and_worker_cleans_priv
                     .limit(1)
                 )
             ).scalar_one()
-        raise AssertionError(
-            f"deletion worker outcome={outcome.outcome} "
-            f"code={job.error_code} detail={job.error_detail}"
-        )
+        detail = f"outcome={outcome.outcome} code={job.error_code} detail={job.error_detail}"
+        raise AssertionError(f"deletion worker {detail}")
     storage_root = LocalPrivateStorage(settings.resume_storage_dir)._root
     assert not (storage_root / f"{owner.id.hex}/private-resume.pdf").exists()
     assert not (storage_root / document_key).exists()
@@ -438,7 +437,9 @@ async def test_ops_metrics_requires_token_and_returns_only_aggregates(
     create_user: Any,
 ) -> None:
     await _owner(app_client, create_user, "metrics-owner@example.com")
-    app_client.app.state.settings = settings.model_copy(update={"ops_metrics_token": "ops-secret"})
+    app_client.app.state.settings = settings.model_copy(
+        update={"ops_metrics_token": SecretStr("ops-secret")}
+    )
     client = app_client.client
 
     hidden = client.get("/api/v1/ops/metrics")
@@ -456,3 +457,15 @@ async def test_ops_metrics_requires_token_and_returns_only_aggregates(
     assert "deletion_requests_by_state" in payload
     assert "interview_scoring_failed" in payload
     assert "metrics-owner" not in visible.text
+
+
+async def test_ops_metrics_hidden_when_token_not_configured(app_client: AppHarness) -> None:
+    """未配置 ops token 时任何凭据都必须得到 404,不能因空值抛异常。"""
+
+    assert app_client.app.state.settings.ops_metrics_token is None
+    hidden = app_client.client.get(
+        "/api/v1/ops/metrics",
+        headers={"Authorization": "Bearer any-token"},
+    )
+    assert hidden.status_code == 404
+    assert hidden.json()["error"]["code"] == "resource_not_found"

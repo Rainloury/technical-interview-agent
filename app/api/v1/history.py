@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from app.api.dependencies import AuthDependency, SessionDependency
+from app.dependencies import AuthDependency, SessionDependency
 from app.schemas.history import HistoryPage, HistoryType
 from app.services._pagination import decode_cursor
 from app.services.history import list_history

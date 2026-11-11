@@ -8,10 +8,12 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, Request, Response, UploadFile, status
 
 from app.api._uploads import read_bounded_upload
-from app.api.dependencies import (
+from app.dependencies import (
     AuthDependency,
     IdempotencyKeyDependency,
     SessionDependency,
+    SettingsDependency,
+    StorageDependency,
     verify_write_security,
 )
 from app.schemas.resume import ResumeAccepted, ResumeTaskView
@@ -32,18 +34,19 @@ async def create_resume(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
+    storage: StorageDependency,
     file: Annotated[UploadFile, File()],
     target_role: Annotated[str | None, Form()] = None,
 ) -> ResumeAccepted:
     """校验并私有存储 PDF 或 DOCX 简历。"""
 
     del target_role
-    verify_write_security(request, auth)
-    settings = request.app.state.settings
+    verify_write_security(request, auth, settings)
     content = await read_bounded_upload(file, settings.resume_max_bytes)
     return await upload_resume(
         session,
-        request.app.state.resume_storage,
+        storage,
         auth.user,
         ResumeUpload(
             filename=file.filename or "",
@@ -77,17 +80,19 @@ async def retry_resume(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
+    storage: StorageDependency,
 ) -> ResumeAccepted:
     """从失败任务仍为私有的源创建新任务。"""
 
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     return await retry_resume_task(
         session,
-        request.app.state.resume_storage,
+        storage,
         auth.user,
         task_id,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
 
 
@@ -98,16 +103,18 @@ async def delete_source(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
+    storage: StorageDependency,
 ) -> Response:
     """将源文件标记为墓碑并仅删除该文件。"""
 
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     await delete_resume_source(
         session,
-        request.app.state.resume_storage,
+        storage,
         auth.user,
         task_id,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

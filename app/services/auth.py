@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from fastapi import Request
+from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import RedisError
 from redis.exceptions import TimeoutError as RedisTimeoutError
@@ -110,11 +111,10 @@ async def set_user_role(
     )
 
 
-async def _limited(request: Request, key: str, limit: int) -> None:
+async def _limited(redis: Redis, key: str, limit: int) -> None:
     """应用基于 Redis 的固定窗口限流器。"""
 
     bucket = f"auth:rate:{key}"
-    redis = request.app.state.redis
     try:
         pipe = redis.pipeline(transaction=True)
         pipe.incr(bucket)
@@ -144,6 +144,7 @@ async def register_user(
     password: str,
     request: Request,
     settings: Settings,
+    redis: Redis,
 ) -> None:
     """创建用户或返回相同的中性结果。"""
 
@@ -152,13 +153,13 @@ async def register_user(
     normalized = normalize_email(email)
     request_id = getattr(request.state, "request_id", "unknown")
     await _limited(
-        request,
+        redis,
         f"register:ip:{request.client.host if request.client else 'unknown'}",
         settings.auth_rate_limit_per_minute,
     )
     account_key = sha256_text(normalized)
     await _limited(
-        request,
+        redis,
         f"register:account:{account_key}",
         settings.auth_rate_limit_per_minute,
     )
@@ -190,6 +191,7 @@ async def login_user(
     password: str,
     request: Request,
     settings: Settings,
+    redis: Redis,
 ) -> IssuedSession:
     """认证用户并签发一个全新的服务端会话。"""
 
@@ -197,12 +199,12 @@ async def login_user(
     normalized = normalize_email(email)
     request_id = getattr(request.state, "request_id", "unknown")
     await _limited(
-        request,
+        redis,
         f"login:ip:{request.client.host if request.client else 'unknown'}",
         settings.auth_rate_limit_per_minute,
     )
     account_key = sha256_text(normalized)
-    await _limited(request, f"login:account:{account_key}", settings.auth_rate_limit_per_minute)
+    await _limited(redis, f"login:account:{account_key}", settings.auth_rate_limit_per_minute)
     user = (
         await session.execute(
             select(User).where(
@@ -257,10 +259,13 @@ async def login_user(
     )
 
 
-async def current_auth(session: AsyncSession, request: Request) -> tuple[User, AuthSession]:
+async def current_auth(
+    session: AsyncSession,
+    *,
+    raw_token: str | None,
+) -> tuple[User, AuthSession]:
     """从 HttpOnly cookie 中解析出有效会话。"""
 
-    raw_token = request.cookies.get(request.app.state.settings.session_cookie_name)
     if not raw_token:
         raise AppError(
             status_code=401,
@@ -295,11 +300,11 @@ async def current_auth(session: AsyncSession, request: Request) -> tuple[User, A
 
 async def current_auth_for_deletion_status(
     session: AsyncSession,
-    request: Request,
+    *,
+    raw_token: str | None,
 ) -> tuple[User, AuthSession]:
     """账户匿名化后仅允许删除状态端点读取。"""
 
-    raw_token = request.cookies.get(request.app.state.settings.session_cookie_name)
     if not raw_token:
         raise AppError(
             status_code=401,
@@ -377,18 +382,19 @@ async def request_password_reset(
     email: str,
     request: Request,
     settings: Settings,
+    redis: Redis,
 ) -> str | None:
     """创建一次性重置令牌并将中性链接投递入队。"""
 
     check_write_origin(request, settings)
     normalized = normalize_email(email)
     await _limited(
-        request,
+        redis,
         f"reset:ip:{request.client.host if request.client else 'unknown'}",
         settings.auth_rate_limit_per_minute,
     )
     account_key = sha256_text(normalized)
-    await _limited(request, f"reset:account:{account_key}", settings.auth_rate_limit_per_minute)
+    await _limited(redis, f"reset:account:{account_key}", settings.auth_rate_limit_per_minute)
     user = (
         await session.execute(
             select(User).where(

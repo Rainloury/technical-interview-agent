@@ -1,8 +1,5 @@
-"""异步数据库引擎与会话生命周期。"""
+"""异步数据库引擎与会话工厂。"""
 
-from collections.abc import AsyncIterator
-
-from fastapi import Request
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -30,11 +27,3 @@ def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSessi
     """以显式事务边界创建会话。"""
 
     return async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
-
-
-async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
-    """生成请求作用域会话。"""
-
-    factory = request.app.state.session_factory
-    async with factory() as session:
-        yield session

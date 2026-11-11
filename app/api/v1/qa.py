@@ -6,18 +6,21 @@ import asyncio
 import json
 import uuid
 from collections.abc import AsyncIterator
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, Depends, Header, Request, status
+from fastapi import APIRouter, Request, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.api.dependencies import (
+from app.dependencies import (
     AuthDependency,
+    CursorDependency,
     IdempotencyKeyDependency,
     SessionDependency,
+    SessionFactoryDependency,
+    SettingsDependency,
     verify_write_security,
 )
-from app.errors import AppError
 from app.schemas.qa import QaAccepted, QaCreate, QaRequestView
 from app.services.qa import (
     assert_stream_owner,
@@ -41,16 +44,17 @@ async def create_question(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
 ) -> QaAccepted:
     """接受一个白名单内的检索问题并为其回答任务入队。"""
 
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     return await create_qa_request(
         session,
         auth.user,
         payload,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
 
 
@@ -65,41 +69,8 @@ async def read_question(
     return await get_qa_request(session, auth.user, request_id)
 
 
-def _parse_cursor(
-    after_seq: int | None = None,
-    last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
-) -> int:
-    """优先使用显式游标,否则解析 SSE 重连头。"""
-
-    if after_seq is not None:
-        if after_seq < 0:
-            raise AppError(
-                status_code=400,
-                code="invalid_request",
-                message="事件游标不合法",
-            )
-        return after_seq
-    if last_event_id is None or not last_event_id.strip():
-        return 0
-    try:
-        cursor = int(last_event_id)
-    except ValueError as exc:
-        raise AppError(
-            status_code=400,
-            code="invalid_request",
-            message="事件游标不合法",
-        ) from exc
-    if cursor < 0:
-        raise AppError(
-            status_code=400,
-            code="invalid_request",
-            message="事件游标不合法",
-        )
-    return cursor
-
-
 async def _stream_events(
-    request: Request,
+    session_factory: async_sessionmaker[AsyncSession],
     request_id: uuid.UUID,
     *,
     after_seq: int,
@@ -109,7 +80,7 @@ async def _stream_events(
     cursor = after_seq
     idle_polls = 0
     while True:
-        async with request.app.state.session_factory() as session:
+        async with session_factory() as session:
             events, terminal = await events_after(
                 session,
                 request_id,
@@ -135,17 +106,17 @@ async def _stream_events(
 @router.get("/{request_id}/stream")
 async def stream_question(
     request_id: uuid.UUID,
-    request: Request,
     auth: AuthDependency,
     session: SessionDependency,
-    cursor: Annotated[int, Depends(_parse_cursor)],
+    session_factory: SessionFactoryDependency,
+    cursor: CursorDependency,
 ) -> StreamingResponse:
     """发送持久问答事件,并严格在提供的游标之后恢复。"""
 
     await assert_stream_owner(session, auth.user, request_id)
     await session.rollback()
     return StreamingResponse(
-        _stream_events(request, request_id, after_seq=cursor),
+        _stream_events(session_factory, request_id, after_seq=cursor),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

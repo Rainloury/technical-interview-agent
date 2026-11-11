@@ -2,7 +2,7 @@
 
 import pytest
 from app.config import Settings
-from app.redis import create_redis
+from app.dependencies.redis import create_redis
 
 pytestmark = pytest.mark.integration
 

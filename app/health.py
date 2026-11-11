@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from app.dependencies.state import app_state
 from app.observability import current_server_time
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -43,13 +44,14 @@ async def ready(request: Request) -> ReadinessResponse | JSONResponse:
     """检查 PostgreSQL 和 Redis 可用性。"""
 
     checks: dict[str, Literal["ok", "failed"]] = {}
+    state = app_state(request)
 
     async def check_postgres() -> None:
-        async with request.app.state.session_factory() as session:
+        async with state.session_factory() as session:
             await session.execute(text("SELECT 1"))
 
     async def check_redis() -> None:
-        await request.app.state.redis.ping()
+        await state.redis.ping()
 
     for name, check in (("postgres", check_postgres), ("redis", check_redis)):
         try:

@@ -8,10 +8,12 @@ from typing import Annotated
 from fastapi import APIRouter, File, Form, Query, Request, Response, UploadFile, status
 
 from app.api._uploads import read_bounded_upload
-from app.api.dependencies import (
+from app.dependencies import (
     AuthDependency,
     IdempotencyKeyDependency,
     SessionDependency,
+    SettingsDependency,
+    StorageDependency,
     verify_write_security,
 )
 from app.schemas.documents import (
@@ -38,15 +40,16 @@ async def upload(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
+    storage: StorageDependency,
     file: Annotated[UploadFile, File()],
     title: Annotated[str | None, Form()] = None,
 ) -> DocumentAccepted:
-    verify_write_security(request, auth)
-    settings = request.app.state.settings
+    verify_write_security(request, auth, settings)
     content = await read_bounded_upload(file, settings.document_max_bytes)
     return await upload_document(
         session,
-        request.app.state.resume_storage,
+        storage,
         auth.user,
         DocumentUpload(
             filename=file.filename or "",
@@ -65,10 +68,11 @@ async def upload_batch(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
+    storage: StorageDependency,
     files: Annotated[list[UploadFile], File()],
 ) -> DocumentBatchAccepted:
-    verify_write_security(request, auth)
-    settings = request.app.state.settings
+    verify_write_security(request, auth, settings)
     uploads = []
     for file in files:
         content = await read_bounded_upload(file, settings.document_max_bytes)
@@ -82,7 +86,7 @@ async def upload_batch(
         )
     return await upload_documents(
         session,
-        request.app.state.resume_storage,
+        storage,
         auth.user,
         uploads,
         idempotency_key=idempotency_key,
@@ -116,13 +120,14 @@ async def remove(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
 ) -> Response:
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     await delete_document(
         session,
         auth.user,
         document_id,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

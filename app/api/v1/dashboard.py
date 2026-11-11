@@ -2,9 +2,9 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Header
 
-from app.api.dependencies import AuthDependency, SessionDependency
+from app.dependencies import AuthDependency, SessionDependency, SettingsDependency
 from app.errors import AppError
 from app.schemas.dashboard import DashboardResponse, OperationalMetrics
 from app.security import tokens_equal
@@ -26,18 +26,15 @@ async def read_dashboard(
 
 @router.get("/ops/metrics", response_model=OperationalMetrics)
 async def read_operational_metrics(
-    request: Request,
+    settings: SettingsDependency,
     session: SessionDependency,
     authorization: Annotated[str | None, Header()] = None,
 ) -> OperationalMetrics:
     """仅使用配置的 ops token 返回聚合发布指标。"""
 
-    expected = request.app.state.settings.ops_metrics_token
+    expected = settings.ops_metrics_token
     supplied = authorization.removeprefix("Bearer ").strip() if authorization else ""
-    expected_value = (
-        expected.get_secret_value() if hasattr(expected, "get_secret_value") else str(expected)
-    )
-    if expected is None or not supplied or not tokens_equal(supplied, expected_value):
+    if expected is None or not supplied or not tokens_equal(supplied, expected.get_secret_value()):
         raise AppError(
             status_code=404,
             code="resource_not_found",

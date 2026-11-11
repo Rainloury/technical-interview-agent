@@ -6,8 +6,13 @@ from datetime import datetime
 
 from fastapi import APIRouter, Request, Response, status
 
-from app.api.dependencies import AuthDependency, SessionDependency
 from app.config import Settings
+from app.dependencies import (
+    AuthDependency,
+    RedisDependency,
+    SessionDependency,
+    SettingsDependency,
+)
 from app.schemas.auth import (
     EmailRequest,
     LoginResponse,
@@ -72,6 +77,8 @@ async def register(
     payload: PasswordRequest,
     request: Request,
     session: SessionDependency,
+    settings: SettingsDependency,
+    redis: RedisDependency,
 ) -> RegisterAccepted:
     """创建账户或返回相同的中性接受响应。"""
 
@@ -80,7 +87,8 @@ async def register(
         email=payload.email,
         password=payload.password,
         request=request,
-        settings=request.app.state.settings,
+        settings=settings,
+        redis=redis,
     )
     return RegisterAccepted()
 
@@ -91,6 +99,8 @@ async def login(
     request: Request,
     response: Response,
     session: SessionDependency,
+    settings: SettingsDependency,
+    redis: RedisDependency,
 ) -> LoginResponse:
     """验证凭据并签发全新的服务端会话。"""
 
@@ -99,11 +109,12 @@ async def login(
         email=payload.email,
         password=payload.password,
         request=request,
-        settings=request.app.state.settings,
+        settings=settings,
+        redis=redis,
     )
     _set_session_cookies(
         response,
-        settings=request.app.state.settings,
+        settings=settings,
         session_token=issued.raw_token,
         csrf_token=issued.csrf_token,
         expires_at=issued.expires_at,
@@ -123,15 +134,16 @@ async def logout(
     request: Request,
     response: Response,
     session: SessionDependency,
+    settings: SettingsDependency,
 ) -> Response:
     """撤销当前会话并使客户端 cookie 过期。"""
 
     await logout_user(
         session,
         request=request,
-        settings=request.app.state.settings,
+        settings=settings,
     )
-    _clear_auth_cookies(response, request.app.state.settings)
+    _clear_auth_cookies(response, settings)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
 
@@ -155,6 +167,8 @@ async def request_reset(
     payload: EmailRequest,
     request: Request,
     session: SessionDependency,
+    settings: SettingsDependency,
+    redis: RedisDependency,
 ) -> dict[str, bool]:
     """无论账户是否存在都返回中性接受响应。"""
 
@@ -162,7 +176,8 @@ async def request_reset(
         session,
         email=payload.email,
         request=request,
-        settings=request.app.state.settings,
+        settings=settings,
+        redis=redis,
     )
     return {"accepted": True}
 
@@ -173,6 +188,7 @@ async def confirm_reset(
     request: Request,
     response: Response,
     session: SessionDependency,
+    settings: SettingsDependency,
 ) -> Response:
     """轮换密码、撤销旧会话并清除认证 cookie。"""
 
@@ -181,8 +197,8 @@ async def confirm_reset(
         token=payload.token,
         new_password=payload.new_password,
         request=request,
-        settings=request.app.state.settings,
+        settings=settings,
     )
-    _clear_auth_cookies(response, request.app.state.settings)
+    _clear_auth_cookies(response, settings)
     response.status_code = status.HTTP_204_NO_CONTENT
     return response

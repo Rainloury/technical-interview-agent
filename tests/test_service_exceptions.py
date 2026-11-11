@@ -124,14 +124,12 @@ async def test_register_does_not_swallow_non_unique_integrity_errors(
                 password="correct horse battery staple",
                 request=DummyRequest(),  # type: ignore[arg-type]
                 settings=app_client.app.state.settings,
+                redis=app_client.app.state.redis,
             )
 
 
 async def test_auth_rate_limit_sets_expiration_atomically(
     app_client: AppHarness,
 ) -> None:
-    class DummyRequest:
-        app = app_client.app
-
-    await _limited(DummyRequest(), "atomic-key", 5)  # type: ignore[arg-type]
+    await _limited(app_client.app.state.redis, "atomic-key", 5)
     assert app_client.app.state.redis.expirations["auth:rate:atomic-key"] == 60

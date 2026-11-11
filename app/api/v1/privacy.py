@@ -6,11 +6,12 @@ import uuid
 
 from fastapi import APIRouter, Request, status
 
-from app.api.dependencies import (
+from app.dependencies import (
     AuthDependency,
     DeletionStatusAuthDependency,
     IdempotencyKeyDependency,
     SessionDependency,
+    SettingsDependency,
     verify_write_security,
 )
 from app.schemas.privacy import DataDeletionAccepted, DataDeletionStatus
@@ -33,15 +34,16 @@ async def delete_my_data(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
 ) -> DataDeletionAccepted:
     """将用户的业务数据标记为墓碑并排队私有清理。"""
 
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     return await request_data_deletion(
         session,
         auth.user,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
 
 

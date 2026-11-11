@@ -9,10 +9,11 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.api.dependencies import (
+from app.dependencies import (
     AuthDependency,
     IdempotencyKeyDependency,
     SessionDependency,
+    SettingsDependency,
     verify_write_security,
 )
 from app.schemas.interview import (
@@ -62,16 +63,17 @@ async def create(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
 ) -> InterviewCreated:
     """创建一份冻结的面试配置和蓝图。"""
 
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     return await create_interview(
         session,
         auth.user,
         payload,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
 
 
@@ -82,16 +84,17 @@ async def start(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
 ) -> InterviewStartView:
     """仅启动一次并仅返回当前公开问题和中性进度。"""
 
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     return await start_interview(
         session,
         auth.user,
         interview_id,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
 
 
@@ -119,10 +122,11 @@ async def answer(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
 ) -> InterviewTurnAccepted:
     """接受一道答案并排队独立评分。"""
 
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     return await submit_answer(
         session,
         auth.user,
@@ -131,7 +135,7 @@ async def answer(
         answer=payload.answer,
         client_submitted_at=payload.client_submitted_at,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
 
 
@@ -146,17 +150,18 @@ async def skip(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
 ) -> InterviewBranchAction:
     """跳过当前追问而不结束面试。"""
 
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     return await skip_turn(
         session,
         auth.user,
         interview_id,
         turn_id,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
 
 
@@ -171,17 +176,18 @@ async def end_current_branch(
     auth: AuthDependency,
     session: SessionDependency,
     idempotency_key: IdempotencyKeyDependency,
+    settings: SettingsDependency,
 ) -> InterviewBranchAction:
     """仅结束当前追问链并记录其独立原因。"""
 
-    verify_write_security(request, auth)
+    verify_write_security(request, auth, settings)
     return await end_branch(
         session,
         auth.user,
         interview_id,
         turn_id,
         idempotency_key=idempotency_key,
-        settings=request.app.state.settings,
+        settings=settings,
     )
 
 
