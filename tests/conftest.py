@@ -3,7 +3,7 @@
 import base64
 import os
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -211,7 +211,7 @@ async def app_client(
     redis = TestRedis()
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         engine = create_async_engine(
             settings.database_url,
             connect_args={"server_settings": {"search_path": f"{schema_name},pg_catalog,public"}},

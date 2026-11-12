@@ -1,6 +1,6 @@
 """API 骨架、健康检查、请求上下文和错误信封测试。"""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import pytest
@@ -145,7 +145,7 @@ def test_readiness_reports_each_dependency(
     expected: dict[str, str],
 ) -> None:
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.session_factory = lambda: FakeSession(postgres_fails)
         app.state.redis = FakeRedis(redis_fails)
         yield

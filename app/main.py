@@ -1,6 +1,6 @@
 """FastAPI 应用组装。"""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -27,7 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     logger = get_logger("app.lifecycle")
 
     @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         engine = create_engine(resolved)
         redis = create_redis(resolved)
         app.state.settings = resolved
