@@ -3,9 +3,12 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
+import { initAnalytics } from "./analytics/gtm";
 import { App } from "./App";
 import { AuthProvider } from "./auth/AuthProvider";
 import "./styles.css";
+
+initAnalytics();
 
 const queryClient = new QueryClient({
   defaultOptions: {

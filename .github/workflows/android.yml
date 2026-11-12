@@ -30,6 +30,8 @@ jobs:
         working-directory: web
         env:
           VITE_API_BASE_URL: https://it.rainstone.top
+          VITE_GTM_ID: ${{ vars.VITE_GTM_ID }}
+          VITE_ANALYTICS_ENABLED: ${{ vars.VITE_ANALYTICS_ENABLED }}
       - run: npx cap sync android
         working-directory: web
       - run: ./gradlew assembleDebug
@@ -60,6 +62,8 @@ jobs:
         working-directory: web
         env:
           VITE_API_BASE_URL: https://it.rainstone.top
+          VITE_GTM_ID: ${{ vars.VITE_GTM_ID }}
+          VITE_ANALYTICS_ENABLED: ${{ vars.VITE_ANALYTICS_ENABLED }}
       - run: npx cap sync android
         working-directory: web
       - name: Decode release keystore

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
+import { usePageViews } from "./analytics/gtm";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { PublicOnlyRoute } from "./auth/PublicOnlyRoute";
 import { AppShell } from "./components/AppShell";
@@ -20,6 +21,8 @@ import { ReviewPage } from "./pages/ReviewPage";
 import { WorkspacePage } from "./pages/WorkspacePage";
 
 export function App() {
+  usePageViews();
+
   return (
     <Routes>
       <Route element={<PublicOnlyRoute />}>

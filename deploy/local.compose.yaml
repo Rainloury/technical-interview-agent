@@ -165,6 +165,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: ""
+        VITE_GTM_ID: "${VITE_GTM_ID:-}"
+        VITE_ANALYTICS_ENABLED: "${VITE_ANALYTICS_ENABLED:-}"
     image: technical-interview-agent-web:local
     ports:
       - "127.0.0.1:8080:8080"
