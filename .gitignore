@@ -9,6 +9,7 @@ deploy/synology.env
 .ruff_cache/
 .venv/
 .hallmark
+.workbuddy
 .superpowers/
 __pycache__/
 *.py[cod]

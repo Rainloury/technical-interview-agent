@@ -40,4 +40,36 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
     },
   },
+  {
+    files: ["src/shared/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/app/*", "@/features/*"],
+              message: "shared/ 只能依赖 shared/ 内部，不能反向依赖 app/ 或 features/。",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/features/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/app/*"],
+              message: "features/ 不能依赖 app/ 装配层；共享能力请下沉到 shared/。",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import console from "node:console";
 import { randomBytes } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import { clearTimeout, setTimeout } from "node:timers";
 
@@ -15,9 +17,16 @@ const parseTimeout = (value, fallback) => {
 // 密码重置流程，且共享的 API/worker 保持相同密钥。
 const dataEncryptionKey = randomBytes(32).toString("base64url");
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
+const e2eTempDir = process.env.E2E_TEMP_DIR ?? tmpdir();
 const workerHealthFile =
   process.env.WORKER_HEALTH_FILE ??
-  "/private/tmp/technical-interview-agent-e2e-worker-health";
+  join(e2eTempDir, "technical-interview-agent-e2e-worker-health");
+const passwordResetFile =
+  process.env.MAIL_LOCAL_RESET_FILE ??
+  join(e2eTempDir, "technical-interview-agent-password-reset.json");
+const resumeStorageDir =
+  process.env.RESUME_STORAGE_DIR ??
+  join(e2eTempDir, "technical-interview-agent-resume-files");
 const testArgs = (process.env.PLAYWRIGHT_ARGS ?? "")
   .match(/(?:[^\s"]+|"[^"]*")+/g)
   ?.map((value) => value.replace(/^"|"$/g, ""))
@@ -25,12 +34,9 @@ const testArgs = (process.env.PLAYWRIGHT_ARGS ?? "")
 const serverEnvironment = {
   ...process.env,
   DATA_ENCRYPTION_KEY: dataEncryptionKey,
-  MAIL_LOCAL_RESET_FILE:
-    process.env.MAIL_LOCAL_RESET_FILE ??
-    "/private/tmp/technical-interview-agent-password-reset.json",
-  RESUME_STORAGE_DIR:
-    process.env.RESUME_STORAGE_DIR ??
-    "/private/tmp/technical-interview-agent-resume-files",
+  E2E_TEMP_DIR: e2eTempDir,
+  MAIL_LOCAL_RESET_FILE: passwordResetFile,
+  RESUME_STORAGE_DIR: resumeStorageDir,
   WORKER_HEALTH_FILE: workerHealthFile,
 };
 delete serverEnvironment.SMTP_HOST;
@@ -119,6 +125,8 @@ const run = async () => {
     env: {
       ...process.env,
       DATA_ENCRYPTION_KEY: dataEncryptionKey,
+      E2E_TEMP_DIR: e2eTempDir,
+      MAIL_LOCAL_RESET_FILE: passwordResetFile,
       PLAYWRIGHT_EXTERNAL_SERVERS: "1",
       COOKIE_SECURE: "false",
       APP_ALLOWED_ORIGINS: JSON.stringify([webUrl]),

@@ -1,0 +1,147 @@
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/fonts/SpaceGrotesk-VariableFont_wght.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-VariableFont_wght.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+/* Hallmark · 发射前评审：P5 H4 E5 S5 R4 V5
+ * genre: modern-minimal · macrostructure: Workbench · tone: technical · anchor hue: cobalt 260
+ * theme: Cobalt · enrichment: none（产品 UI 即内容）· nav: N3 侧栏 / 移动端 N1a · footer: Ft2 内联
+ * contrast: pass（40–41）· honest: pass（46）· chrome: pass（47）· tokens: pass（48）
+ * responsive: pass（49）· icons: pass（30）· mobile: pass（34, 49, 50–57）
+ */
+
+:root {
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --ink: var(--color-ink);
+  --muted: var(--color-muted);
+  --faint: var(--color-faint);
+  --line: var(--color-rule);
+  --line-strong: var(--color-rule-strong);
+  --paper: var(--color-paper);
+  --surface: var(--color-surface);
+  --canvas: var(--color-canvas);
+  --nav: var(--color-nav);
+  --nav-soft: var(--color-nav-soft);
+  --accent: var(--color-accent);
+  --accent-strong: var(--color-accent-strong);
+  --accent-soft: var(--color-accent-soft);
+  --warm: var(--color-warm);
+  --warm-soft: var(--color-warm-soft);
+  --danger: var(--color-danger);
+  --danger-soft: var(--color-danger-soft);
+  --success: var(--color-success);
+  --success-soft: var(--color-success-soft);
+  --radius: var(--radius-sm);
+  --shadow: var(--shadow-whisper);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+html {
+  min-width: 320px;
+  background: var(--canvas);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  background:
+    linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--sidebar-width) - 1px),
+      var(--color-rule) calc(var(--sidebar-width) - 1px),
+      var(--color-rule) var(--sidebar-width),
+      transparent var(--sidebar-width)
+    ),
+    var(--canvas);
+  color: var(--ink);
+  font-size: var(--text-md);
+  line-height: 1.55;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--accent-strong);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3,
+strong {
+  letter-spacing: 0;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-style: normal;
+  font-weight: 600;
+}
+
+h1 {
+  overflow-wrap: anywhere;
+}
+

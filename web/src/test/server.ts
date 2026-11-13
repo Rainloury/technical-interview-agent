@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
-import type { Dashboard, HistoryPage, Session } from "../api/types";
+import type { Dashboard, HistoryPage, Session } from "@/shared/api/types";
 
 export const demoSession: Session = {
   user: { id: "user-1", display_name: "示例用户", role: "user" },
@@ -96,6 +96,9 @@ export const handlers = [
     new HttpResponse(null, { status: 204 }),
   ),
   http.get("*/api/v1/dashboard", () => HttpResponse.json(demoDashboard)),
+  http.get("*/api/v1/shared-documents", () =>
+    HttpResponse.json({ items: [], next_cursor: null }),
+  ),
   http.get("*/api/v1/history", ({ request }) => {
     const type = new URL(request.url).searchParams.get("type");
     if (type === "interview") {

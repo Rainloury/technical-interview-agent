@@ -7,13 +7,16 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web"
+E2E_TEMP_DIR = Path(os.getenv("E2E_TEMP_DIR") or tempfile.gettempdir())
 RESET_FILE = Path(
-    os.getenv("MAIL_LOCAL_RESET_FILE", "/private/tmp/technical-interview-agent-password-reset.json")
+    os.getenv("MAIL_LOCAL_RESET_FILE")
+    or str(E2E_TEMP_DIR / "technical-interview-agent-password-reset.json")
 )
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8100")
 WEB_URL = os.getenv("WEB_URL", "http://127.0.0.1:3101")
@@ -58,9 +61,9 @@ def main() -> int:
         "PASSWORD_RESET_BASE_URL": f"{WEB_URL}/reset-password",
         "SMTP_HOST": "",
         "MAIL_LOCAL_RESET_FILE": str(RESET_FILE),
-        "RESUME_STORAGE_DIR": os.getenv(
-            "RESUME_STORAGE_DIR", "/private/tmp/technical-interview-agent-resume-files"
-        ),
+        "E2E_TEMP_DIR": str(E2E_TEMP_DIR),
+        "RESUME_STORAGE_DIR": os.getenv("RESUME_STORAGE_DIR")
+        or str(E2E_TEMP_DIR / "technical-interview-agent-resume-files"),
         "VITE_API_BASE_URL": API_URL,
     }
     commands = (

@@ -1,7 +1,11 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 
 const webUrl = process.env.WEB_URL ?? "http://127.0.0.1:3101";
 const apiUrl = process.env.API_URL ?? "http://127.0.0.1:8100";
+const e2eTempDir = process.env.E2E_TEMP_DIR ?? tmpdir();
 const e2eBrowser = process.env.E2E_BROWSER ?? "chromium";
 const chromiumChannel =
   process.env.CI || process.env.PLAYWRIGHT_CHROMIUM_CHANNEL
@@ -59,12 +63,13 @@ export default defineConfig({
             CSRF_ALLOWED_ORIGINS: JSON.stringify([webUrl]),
             PASSWORD_RESET_BASE_URL: `${webUrl}/reset-password`,
             SMTP_HOST: "",
+            E2E_TEMP_DIR: e2eTempDir,
             MAIL_LOCAL_RESET_FILE:
               process.env.MAIL_LOCAL_RESET_FILE ??
-              "/private/tmp/technical-interview-agent-password-reset.json",
+              join(e2eTempDir, "technical-interview-agent-password-reset.json"),
             RESUME_STORAGE_DIR:
               process.env.RESUME_STORAGE_DIR ??
-              "/private/tmp/technical-interview-agent-resume-files",
+              join(e2eTempDir, "technical-interview-agent-resume-files"),
           },
           url: `${apiUrl}/health/live`,
           reuseExistingServer: false,

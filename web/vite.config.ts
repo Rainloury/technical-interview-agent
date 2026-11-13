@@ -1,8 +1,16 @@
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vitest/config";
+import { fileURLToPath } from "node:url";
 
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+// `@` 必须与 tsconfig.json 的 paths 保持一致；vitest.config.ts 通过 mergeConfig 继承这里。
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   server: {
     host: "127.0.0.1",
     port: 3001,
@@ -12,15 +20,5 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 3001,
     strictPort: true,
-  },
-  test: {
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
-    environment: "jsdom",
-    globals: true,
-    setupFiles: "./src/test/setup.ts",
-    css: true,
-    restoreMocks: true,
-    testTimeout: 15_000,
-    maxWorkers: 1,
   },
 });

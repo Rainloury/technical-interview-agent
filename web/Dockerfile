@@ -7,7 +7,7 @@ WORKDIR /workspace
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY index.html tokens.css tsconfig.json vite.config.ts ./
+COPY index.html tokens.css tsconfig.json tsconfig.build.json vite.config.ts vitest.config.ts ./
 COPY public ./public
 COPY src ./src
 
@@ -26,6 +26,7 @@ USER nginx
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY nginx-main.conf /etc/nginx/nginx.conf
+COPY security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /workspace/dist /usr/share/nginx/html
 
 EXPOSE 8080

@@ -1,18 +1,17 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router-dom";
 
-import { App } from "../App";
-import { AuthProvider } from "../auth/AuthProvider";
-import { LocationProbe } from "./LocationProbe";
+import { App } from "@/app/App";
+import { AuthProvider } from "@/features/auth/AuthProvider";
+import { createQueryClient } from "@/app/queryClient";
+import { LocationProbe } from "@/test/LocationProbe";
 
 export function createTestQueryClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, gcTime: Infinity },
-      mutations: { retry: false },
-    },
+  return createQueryClient({
+    queries: { retry: false, gcTime: Infinity },
+    mutations: { retry: false },
   });
 }
 

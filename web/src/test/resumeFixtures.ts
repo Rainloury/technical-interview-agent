@@ -3,7 +3,7 @@ import type {
   ResumeQuestion,
   ResumeState,
   ResumeTask,
-} from "../api/types";
+} from "@/shared/api/types";
 
 const analysis: ResumeAnalysis = {
   schema_version: "1.0",

@@ -18,8 +18,9 @@
 | [ADR-0010](./0010-shared-documents-and-admin-role.md) | 共享资料采用独立资源与管理员角色 | 已接受 | 鉴权、数据、检索、Worker、前端、运维 |
 | [ADR-0011](./0011-services-usecase-layer.md) | 承认 `services` 用例编排层并固定依赖边界 | 已接受 | `api`、`services`、`worker`、分层检查 |
 | [ADR-0012](./0012-opaque-review-cursors.md) | 复习分页统一为不透明游标并保留明文兼容期 | 已接受 | 复习列表、分页公共模块、接口契约 |
+| [ADR-0013](./0013-frontend-module-layout.md) | 前端按 app / features / shared 三层组织并锁定单向依赖 | 提议 | `web/src` 目录、`@/` 别名、ESLint 分层规则 |
 
-当前 ADR-0001 已由 ADR-0011 取代，ADR-0002 至 ADR-0012 均已接受。
+当前 ADR-0001 已由 ADR-0011 取代，ADR-0002 至 ADR-0012 均已接受；ADR-0013 已实现，待评审确认。
 
 ADR 只记录架构选择。方案之间的关系、实现状态和发布遗留事项见[方案总览](../solution-map.md)。
 

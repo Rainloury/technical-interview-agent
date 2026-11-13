@@ -1,5 +1,7 @@
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 
 import { expect, test, type Page } from "@playwright/test";
@@ -9,7 +11,10 @@ const password = "correct horse battery staple";
 const newPassword = "new correct horse battery staple";
 const resetFile =
   process.env.MAIL_LOCAL_RESET_FILE ??
-  "/private/tmp/technical-interview-agent-password-reset.json";
+  join(
+    process.env.E2E_TEMP_DIR ?? tmpdir(),
+    "technical-interview-agent-password-reset.json",
+  );
 
 function emailFor(projectName: string): string {
   const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;

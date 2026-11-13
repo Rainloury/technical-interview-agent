@@ -46,7 +46,7 @@
 | 检索问答切片 | `passed` | owner 鉴权、幂等、任意 URL 拒绝、allowlist/版本冻结、证据引用校验、持久 SSE 重放、终态互斥和前端历史重开通过 | 否 |
 | 模拟面试与报告切片 | `passed` | 数据库硬截止、操作幂等、202 中性响应、评分阈值、两层追问、跳过/结束分支、评分失败收口、报告解锁、错题与薄弱点、双视口 E2E 通过 | 否 |
 | 隐私与可观测门禁 | `passed` | 账号删除、对象清理、保留清理、审计保留、删除状态、ops metrics、确定性阈值和双视口隐私 E2E 通过 | 否 |
-| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `12 files / 37 tests`、lint、build；后端 ruff、格式、mypy（144 files）、`242 passed, 106 skipped` 默认测试和 `alembic check` | 否 |
+| 全量质量门禁 | `passed` | 前端 typecheck、Vitest `17 files / 67 tests`、lint（0 error / 0 warning，含前端分层规则）、build；后端 ruff、格式、mypy（144 files）、`242 passed, 106 skipped` 默认测试和 `alembic check` | 否 |
 | 生产配置 fail-fast | `passed` | `staging`/`production` 启动校验 LLM、SMTP、OSS、HTTPS 重置链接、Secure Cookie 和非 localhost 来源 | 否 |
 | 生产 Worker 入口 | `passed` | `technical-interview-agent worker`；配置 fail-fast、信号停机、并发上限、运行时限和网络资源清理有测试 | 否 |
 | 部署资产 | `passed` | `Dockerfile`、`deploy/production.compose.yaml`、非 root 运行、只读根文件系统、迁移/API/Worker 分离、健康检查和 CI 镜像构建门禁 | 否 |

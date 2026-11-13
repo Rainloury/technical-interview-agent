@@ -1,0 +1,11 @@
+@import "../../tokens.css";
+
+/* 拆分前为单文件；顺序即层叠顺序，调整前请确认没有覆盖关系依赖。 */
+@import "../shared/styles/base.css";
+@import "../shared/styles/controls.css";
+@import "../shared/styles/forms.css";
+@import "../shared/styles/shell.css";
+@import "../shared/styles/pages.css";
+@import "../shared/styles/qa.css";
+@import "../shared/styles/documents.css";
+@import "../shared/styles/interviews.css";
